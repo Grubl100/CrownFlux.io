@@ -2,12 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import vm from 'node:vm';
 
-const publicHtmlUrl = new URL('../public/index.html', import.meta.url);
-const rootHtmlUrl = new URL('../index.html', import.meta.url);
-const localPublicHtmlUrl = new URL('./public/index.html', import.meta.url);
-const localRootHtmlUrl = new URL('./index.html', import.meta.url);
+const publicHtmlUrl = new URL('./public/index.html', import.meta.url);
+const rootHtmlUrl = new URL('./index.html', import.meta.url);
 
-const targetUrl = [publicHtmlUrl, localPublicHtmlUrl, rootHtmlUrl, localRootHtmlUrl].find(u => existsSync(u));
+const targetUrl = [publicHtmlUrl, rootHtmlUrl].find(u => existsSync(u));
 if (!targetUrl) throw new Error('Não foi encontrado o arquivo index.html.');
 
 const html = await readFile(targetUrl, 'utf8');

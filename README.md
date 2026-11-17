@@ -1,125 +1,85 @@
 # Crownflux.io
 
-Crownflux.io é um jogo de estratégia em tempo real inspirado em xadrez, com modos locais e um backend para partidas 1v1 pela internet.
+Crownflux.io é um jogo de estratégia em tempo real inspirado no xadrez, com tabuleiro 16×16 sem turnos, tutorial interativo de 7 etapas, cinco níveis de inteligência artificial (CPU), guia visual interativo, sistema de contas, perfis, central de amigos e partidas 1v1 online via WebSockets.
 
 ## Requisitos
 
 - Node.js 20 ou superior.
-- Conexão com a internet para instalar a dependência `ws` na primeira execução.
+- Dependência `ws` (`^8.18.0`) para comunicação WebSocket em tempo real.
 
 ## Executar localmente
 
-1. Extraia o ZIP.
-2. Abra um terminal dentro da pasta `crownflux`.
-3. Instale as dependências:
-
+1. Instale as dependências:
    ```bash
    npm install
    ```
-
-4. Inicie o servidor:
-
+2. Inicie o servidor:
    ```bash
    npm start
    ```
+3. Abra `http://localhost:8080` no navegador.
 
-5. Abra `http://localhost:3000` no navegador.
+## Funcionalidades Implementadas
 
-O frontend e o backend são servidos pelo mesmo processo. Para testar o multiplayer com duas contas, abra o endereço em dois navegadores ou em dois dispositivos conectados ao mesmo servidor.
+### 1. Página Exclusiva "Como jogar"
+- Guia interativo dividido em 5 categorias:
+  1. **Objetivo & Vitória**
+  2. **Tabuleiro & Peças (Simulador Interativo 7×7)** — permite selecionar cada peça (`♟`, `♞`, `♝`, `♜`, `♛`, `♚`), visualizar casas válidas, alcance, valor de captura e tempo real de recarga, além de movimentar a peça no mini-tabuleiro demonstrativo.
+  3. **Capturas & Evolução (XP)**
+  4. **Fragmentos Flux & Habilidade Surto**
+  5. **Modos de Jogo & Partidas Online**
 
-### Testar em outro dispositivo na mesma rede
+### 2. Boas-vindas no Primeiro Acesso & Tutorial Prático 1v1 (7 Etapas)
+- Janela discreta no primeiro acesso perguntando se o jogador deseja aprender (`Sim, quero aprender`, `Já sei jogar, pode continuar`, `Talvez depois`), persistida na conta (para usuários autenticados) e no navegador (`localStorage`).
+- **Tutorial prático 1v1 contra Bot Iniciante cooperativo**:
+  - **Etapa 1**: Conhecendo o tabuleiro e a interface em tempo real.
+  - **Etapa 2**: Selecionando uma peça com destaques visuais no tabuleiro.
+  - **Etapa 3**: Realizando o primeiro movimento e entendendo o tempo de recarga individual (cooldown) com feedback amigável caso clique em casa inválida.
+  - **Etapa 4**: Praticando capturas e evolução de XP/reforços.
+  - **Etapa 5**: Posicionamento estratégico e proteção do Rei.
+  - **Etapa 6**: Coletando um Fragmento Flux e ativando a habilidade especial **Surto**.
+  - **Etapa 7**: Finalizando a partida contra o bot iniciante.
+- Controles para pausar, avançar etapa, sair ou repetir o tutorial a qualquer momento.
 
-Descubra o endereço IP local do computador que está executando o servidor e abra `http://IP-DO-COMPUTADOR:3000` no outro dispositivo. O firewall do computador precisa permitir conexões na porta 3000.
+### 3. Cinco Níveis de Dificuldade contra a CPU
+1. **Iniciante** *(Recomendado para novos jogadores)*: Avalia um subconjunto de peças, ignora mapas de ameaça e faz movimentos simples.
+2. **Fácil**: Reconhece capturas diretas e coleta fragmentos próximos, mas subestima defesas inimigas.
+3. **Normal**: Estratégia equilibrada, protege peças ameaçadas, disputa Fragmentos Flux e usa o Surto.
+4. **Difícil**: Antecipa ameaças, evita trocas desfavoráveis, verifica suporte de peças aliadas e pressiona o Rei adversário.
+5. **Especialista**: Análise tática de 2 lances (lookahead), avaliando contra-ataques imediatos após o movimento, escoltando o próprio Rei e coordenando o Surto ofensivamente.
 
-## O que está implementado
+### 4. Sistema de Conta, Perfil, Segurança e Preferências
+- Cadastro e Login com opção **"Lembrar de mim"** (sessão persistente de 30 dias armazenada com hash SHA-256 no banco de dados `data/db.json` + cookie `HttpOnly` + token Bearer).
+- Senhas armazenadas exclusivamente com hash criptográfico `scrypt` (`N=16384, r=8, p=1`, salt aleatório de 16 bytes e comparação `timingSafeEqual`).
+- **Redefinição segura de senha**: Geração de **Código de Recuperação** pessoal (`CFX-XXXX-XXXX`, armazenado apenas como hash `scrypt` no servidor) que permite redefinir a senha sem expor credenciais. *(Nota: como o projeto não depende de servidor SMTP externo obrigatório, a recuperação utiliza o Código de Recuperação criptografado gerado no cadastro/perfil).*
+- Edição de nome de usuário (com validação de disponibilidade), nome de exibição, biografia, avatar (`♟ ♞ ♝ ♜ ♛ ♚ ⚔ 🛡 👑 ⚡ 🔥 💎`) e senha.
+- Preferências sincronizadas com o backend (tema do tabuleiro, coordenadas, destaque de movimentos, pré-move na recarga, efeitos sonoros Web Audio e confirmação de saída).
 
-### Modos de jogo
+### 5. Central de Amigos e Desafios Configuráveis
+- Categorias organizadas em tempo real:
+  - **Disponíveis Online**
+  - **Atualmente em Partida**
+  - **Offline**
+  - **Solicitações Recebidas** e **Solicitações Enviadas** (com opção de cancelar)
+- Busca de jogadores por `@username`, visualização de perfil com estatísticas, remoção e bloqueio/desbloqueio.
+- **Desafios entre amigos com configuração de partida**:
+  - Escolha de **Ritmo de Recarga** (`Padrão`, `Rápido -20%`, `Tático +25%`), **Fragmentos Flux** (`Normal`, `Abundantes`, `Sem Fragmentos`) e **Duração** (`Sem limite`, `3 min`, `5 min`), validados no servidor.
 
-- **Arena:** quatro facções, com três adversários controlados pelo jogo.
-- **Duelo local:** dois jogadores no mesmo dispositivo.
-- **Desafie a CPU:** duelo individual contra a CPU.
-- **Duelo online:** partida 1v1 entre duas contas em dispositivos diferentes.
+### 6. Responsividade Completa (Desktop, Tablet e Mobile)
+- Navegação superior no desktop e barra de navegação inferior adaptada para toque no celular (`<= 760px`).
+- O guia do tutorial fica posicionado acima do tabuleiro, sem cobrir casas ou peças em nenhuma resolução.
 
-### Recursos online
+## Configuração e Deploy (Render / Koyeb / Fly.io / Railway)
 
-- Cadastro e login com nome de usuário e senha.
-- Senhas armazenadas com hash `scrypt`, não em texto puro.
-- Sessões com token.
-- Busca de jogadores pelo nome de usuário.
-- Solicitações de amizade, aceitação, recusa e remoção.
-- Bloqueio de jogadores.
-- Status online/offline dos amigos.
-- Desafios diretos entre amigos que estejam online.
-- Matchmaking público 1v1.
-- Salas privadas com código de seis caracteres.
-- Sincronização em tempo real do tabuleiro, movimentos, capturas, energia, experiência e cronômetro.
-- Validação dos movimentos e do Surto no servidor.
-- Reconexão durante uma janela de tolerância configurável (padrão: 45 segundos).
-- Estatísticas e histórico recente de partidas online.
-- Pedido de revanche.
-
-### Interface e responsividade
-
-- Interface mais sóbria, com menos brilhos e gradientes.
-- Tabuleiro com cores inspiradas em jogos de xadrez tradicionais.
-- Layout adaptável para desktop, notebook, tablet e celular.
-- Controles por toque no tabuleiro.
-- Layout específico para telas estreitas e celulares na horizontal.
-
-## Configuração
-
-O servidor lê as seguintes variáveis de ambiente. Também é possível defini-las em um arquivo `.env` na raiz do projeto:
+Variáveis de ambiente suportadas (ou via arquivo `.env`):
 
 ```env
-PORT=3000
+PORT=8080
+HOST=0.0.0.0
 DATA_FILE=./data/db.json
 RECONNECT_GRACE_SECONDS=45
 ```
 
-- `PORT`: porta HTTP e WebSocket.
-- `DATA_FILE`: local do arquivo de dados persistentes.
-- `RECONNECT_GRACE_SECONDS`: tempo permitido para reconexão durante uma partida.
-
-O diretório de dados é criado automaticamente. Faça backup de `data/db.json` regularmente.
-
-## Verificação de sintaxe
-
-```bash
-npm run check
-```
-
-O endpoint `http://localhost:3000/api/health` informa se o servidor está ativo e mostra a quantidade de jogadores conectados e partidas em andamento.
-
-## Publicar para jogar pela internet
-
-Para que pessoas fora da sua rede local joguem, é necessário publicar **o servidor Node.js**, não somente o arquivo HTML.
-
-1. Hospede a pasta do projeto em um serviço que execute Node.js 20 ou superior.
-2. Configure o comando de instalação como `npm install` e o comando de inicialização como `npm start`.
-3. Configure o serviço para manter um volume/disco persistente e defina `DATA_FILE` apontando para esse volume.
-4. Disponibilize o site por HTTPS. O frontend escolhe automaticamente WebSocket seguro (`wss://`) quando a página está em HTTPS.
-5. Configure o domínio e teste o endpoint `/api/health` e uma partida entre duas contas em redes diferentes.
-
-## Limitações importantes desta versão
-
-- O multiplayer pela internet implementado é **1v1**. A Arena de quatro facções continua sendo local contra bots; ela ainda não foi convertida para quatro jogadores online.
-- Desafios diretos só podem ser enviados a amigos que estejam online. O convite expira após 60 segundos; não há fila de convites offline.
-- O banco atual é um arquivo JSON persistente e foi pensado para uma primeira versão/single instance. Para uma comunidade maior, múltiplas instâncias ou alta concorrência, migre usuários, amizades e partidas para PostgreSQL e adicione uma camada compartilhada de presença/fila (por exemplo, Redis).
-- As sessões ficam em memória no servidor. Se o processo reiniciar, o jogador precisará entrar novamente. O registro e o histórico permanecem no arquivo de dados.
-- Não foram implementados espectadores, ranking Elo/temporadas, personalização de avatar ou chat entre jogadores.
-- A publicação do servidor, o domínio, HTTPS e o armazenamento persistente precisam ser configurados no provedor escolhido. O código do projeto, sozinho, não cria uma hospedagem pública.
-
-## Estrutura
-
-```text
-crownflux/
-├── public/
-│   └── index.html
-├── data/
-├── scripts/
-│   └── check-client.mjs
-├── server.mjs
-├── package.json
-├── .env.example
-└── README.md
-```
+- **Build Command:** `npm install`
+- **Start Command:** `npm start`
+- **Health Check:** `/api/health` (ou `/healthz`)
