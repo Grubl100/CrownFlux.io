@@ -1,0 +1,4618 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#181715">
+<meta name="description" content="Crownflux.io — estratégia em tempo real inspirada no xadrez. Evolua seu exército, domine os Fragmentos Flux e vença seus rivais.">
+<title>Crownflux.io — Xadrez em Tempo Real</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #171614;
+  --bg-elev: #201f1c;
+  --panel: #262420;
+  --panel-alt: #2d2b26;
+  --border: #3b3831;
+  --border-strong: #524e44;
+  --text: #ece9e2;
+  --muted: #aba69c;
+  --quiet: #7d786e;
+  --accent: #7da3b5;
+  --accent-strong: #93b8c9;
+  --accent-bg: #29363c;
+  --red: #c97a7a;
+  --gold: #cfaf72;
+  --green: #88b390;
+  --board-light: #d2cbb8;
+  --board-dark: #788a7a;
+}
+body[data-board-theme="slate"] {
+  --board-light: #c5ccd1;
+  --board-dark: #637482;
+}
+body[data-board-theme="wood"] {
+  --board-light: #dcc9ab;
+  --board-dark: #967253;
+}
+* { box-sizing: border-box; }
+html, body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  touch-action: manipulation;
+  cursor: pointer;
+}
+#app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 10px 18px 16px;
+  gap: 12px;
+}
+
+/* Header & Main Navigation */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  font-size: 17px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+}
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent-strong);
+  font-size: 18px;
+  border: 1px solid #4c646e;
+}
+.brand .io { color: var(--accent); font-weight: 600; }
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.nav-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.nav-btn:hover {
+  color: var(--text);
+  background: var(--bg-elev);
+}
+.nav-btn.active {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+}
+.nav-btn.primary-nav {
+  background: var(--accent-bg);
+  color: #e4eff4;
+  border-color: #46606b;
+}
+.nav-btn.primary-nav.active, .nav-btn.primary-nav:hover {
+  background: #33454d;
+  border-color: var(--accent);
+}
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #2b3c30;
+  color: var(--green);
+  border: 1px solid #486850;
+}
+.nav-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  font-size: 12px;
+  font-weight: 600;
+}
+.account-pill:hover {
+  border-color: var(--border-strong);
+  background: var(--panel);
+}
+.account-pill .mini-avatar {
+  font-size: 15px;
+}
+
+/* Views */
+.view-page {
+  display: none;
+  flex: 1;
+  min-height: 0;
+}
+.view-page.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Play Layout */
+.play-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+}
+.arena-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.board-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  gap: 8px;
+}
+#modeTag {
+  color: var(--text);
+  font-weight: 700;
+}
+#statusTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+/* Tutorial Guide Bar (Never covers the board!) */
+#tutorialBanner {
+  width: 100%;
+  max-width: 680px;
+  background: #23292b;
+  border: 1px solid #4c646d;
+  border-radius: 8px;
+  padding: 10px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.tut-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tut-step-badge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--gold);
+  background: #332e22;
+  border: 1px solid #5c5036;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.tut-progress-track {
+  flex: 1;
+  min-width: 80px;
+  height: 5px;
+  background: #171b1c;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.tut-progress-fill {
+  height: 100%;
+  background: var(--gold);
+  width: 14%;
+  transition: width 0.25s ease;
+}
+.tut-controls {
+  display: flex;
+  gap: 5px;
+}
+.tut-title {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--text);
+  margin: 0;
+}
+.tut-text {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #d0d6d2;
+  margin: 0;
+}
+.tut-hint {
+  font-size: 11.5px;
+  color: var(--gold);
+  background: #2d281e;
+  border-left: 3px solid var(--gold);
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+.tut-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Board Container */
+#wrap {
+  position: relative;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  padding: 5px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+canvas#cv {
+  display: block;
+  border-radius: 3px;
+  cursor: pointer;
+  touch-action: none;
+  background: var(--board-dark);
+  max-width: 100%;
+}
+.overlay {
+  position: absolute;
+  inset: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  padding: 14px;
+  background: rgba(23, 22, 20, 0.94);
+  z-index: 6;
+  overflow-y: auto;
+}
+.hidden { display: none !important; }
+
+/* Modals inside board */
+.modal {
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 12px 8px;
+  margin: auto;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.modal h1 {
+  font-size: clamp(24px, 3.6vw, 32px);
+  line-height: 1.05;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.modal h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.tagline {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 410px;
+  margin: 0;
+}
+
+/* Mode Grid */
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+}
+.mode-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  color: var(--text);
+  padding: 11px 12px;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  transition: background 0.12s, border-color 0.12s;
+}
+.mode-card:hover {
+  border-color: var(--border-strong);
+  background: var(--panel);
+}
+.mode-card.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.mode-icon {
+  font-size: 20px;
+  line-height: 1;
+  margin-top: 2px;
+}
+.mode-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 750;
+}
+.mode-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+  margin-top: 3px;
+}
+.mode-desc {
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 440px;
+}
+
+/* Buttons */
+.primary {
+  border: 1px solid #86adc0;
+  border-radius: 6px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #131b1f;
+  font-size: 13px;
+  font-weight: 750;
+  transition: background 0.12s;
+}
+.primary:hover { background: var(--accent-strong); }
+.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.secondary {
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 9px 14px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+.secondary:hover {
+  border-color: var(--muted);
+  background: var(--panel-alt);
+}
+.mini-btn {
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mini-btn:hover { border-color: var(--accent); }
+.mini-btn.danger {
+  border-color: #6b4242;
+  color: #e3a8a8;
+}
+.mini-btn.danger:hover { border-color: var(--red); }
+
+/* CPU Difficulty Selector */
+.diff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+}
+.diff-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  transition: border-color 0.12s, background 0.12s;
+}
+.diff-item:hover, .diff-item.selected {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+.diff-main {
+  flex: 1;
+  min-width: 0;
+}
+.diff-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.diff-name {
+  font-size: 13px;
+  font-weight: 750;
+}
+.rec-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #2b3a2e;
+  color: var(--green);
+  border: 1px solid #48684e;
+}
+.diff-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.diff-meter {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.diff-bar {
+  width: 5px;
+  height: 12px;
+  border-radius: 2px;
+  background: #38352e;
+}
+.diff-bar.on { background: var(--gold); }
+.diff-bar.on.hard { background: var(--red); }
+
+/* HUD Sidebar */
+#hud {
+  width: 270px;
+  flex: 0 0 270px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hud-section {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 11px 13px;
+}
+.hud-section.highlight-ring {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(207, 175, 114, 0.25);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+#lb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 11.5px;
+}
+.player-row.me {
+  background: rgba(125, 163, 181, 0.12);
+  border: 1px solid rgba(125, 163, 181, 0.28);
+}
+.player-row .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.player-row .name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.player-row .count { font-size: 10px; color: var(--muted); }
+.player-row .score { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 24px; text-align: right; }
+.player-row .dead { font-size: 10px; color: var(--red); }
+
+.stat-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.stat-line strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.xp-bar, .energy-bar {
+  height: 6px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #141311;
+  margin: 6px 0 5px;
+}
+.xp-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+.energy-fill { height: 100%; width: 0; background: var(--gold); transition: width 0.2s; }
+.muted { font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+.ability-btn {
+  width: 100%;
+  margin-top: 7px;
+  padding: 9px 10px;
+  border: 1px solid #63583f;
+  border-radius: 6px;
+  background: #332e22;
+  color: #eadbb9;
+  font-size: 11.5px;
+  font-weight: 750;
+}
+.ability-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ability-btn.ready {
+  border-color: var(--gold);
+  background: #473e29;
+  color: #fff3d6;
+}
+#feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 44px;
+}
+.feed-item {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+}
+.feed-item b { color: var(--text); }
+.feed-mark {
+  width: 5px;
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex: 0 0 auto;
+}
+.footer-hint {
+  color: var(--quiet);
+  font-size: 11px;
+  text-align: center;
+  max-width: 640px;
+}
+
+/* Content Pages (Como jogar, Amigos, Perfil, Histórico, Configurações) */
+.page-container {
+  width: 100%;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 6px 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 800;
+}
+.page-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Guide Tabs ("Como jogar") */
+.guide-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+.guide-tab {
+  padding: 8px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.guide-tab.active {
+  background: var(--accent-bg);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.guide-section { display: none; flex-direction: column; gap: 16px; }
+.guide-section.active { display: flex; }
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 14px;
+}
+.guide-block {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px 16px;
+}
+.guide-block h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--text);
+}
+.guide-block p, .guide-block li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.guide-block ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+/* Interactive Piece Explorer in "Como Jogar" */
+.piece-lab {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  align-items: center;
+}
+.piece-picker {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.piece-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 13px;
+  font-weight: 700;
+}
+.piece-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+#demoCanvas {
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--board-dark);
+  display: block;
+  margin: 0 auto;
+  touch-action: manipulation;
+}
+.piece-specs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.spec-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.spec-box span { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; }
+.spec-box strong { font-size: 14px; color: var(--text); }
+
+/* Friends Center & Profile Forms */
+.two-col {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 16px;
+  align-items: start;
+}
+.panel-box {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.panel-box h2, .panel-box h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+.field-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.field {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: #151412;
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 13px;
+  outline: none;
+}
+.field:focus {
+  border-color: var(--accent);
+}
+label.field-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.checkbox-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Friend rows */
+.friend-category-title {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  margin: 8px 0 4px;
+}
+.friend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+.friend-ident {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+.avatar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  background: var(--accent-bg);
+  border: 1px solid #496069;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  flex: 0 0 auto;
+}
+.friend-names {
+  min-width: 0;
+}
+.friend-names strong {
+  display: block;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.friend-names span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--quiet);
+}
+.presence-dot.online { background: var(--green); }
+.presence-dot.in_game { background: var(--gold); }
+.friend-actions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* Avatar grid selector */
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.avatar-choice {
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 20px;
+  display: grid;
+  place-items: center;
+}
+.avatar-choice.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 9px;
+}
+.stat-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.stat-box span { display: block; font-size: 11px; color: var(--muted); }
+.stat-box strong { display: block; font-size: 20px; margin-top: 3px; font-weight: 800; }
+
+/* Settings switches */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: 0; }
+.setting-row strong { display: block; font-size: 13.5px; }
+.setting-row span { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* First-Visit Welcome Prompt (Discreet floating card) */
+#welcomePrompt {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 30;
+  width: min(390px, calc(100vw - 28px));
+  background: #23221f;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  padding: 14px 15px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#welcomePrompt h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+#welcomePrompt p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.welcome-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Dialog Modal (Challenge Config, Friend Profile Inspection, Recovery Key) */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 12, 10, 0.78);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+.dialog-card {
+  width: min(100%, 440px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dialog-head h3 { margin: 0; font-size: 16px; }
+.close-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+/* Toasts */
+#noticeStack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  pointer-events: none;
+  width: min(330px, calc(100vw - 32px));
+}
+.notice-toast {
+  pointer-events: auto;
+  background: #272b28;
+  border: 1px solid #536358;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Mobile Bottom Nav */
+.mobile-nav {
+  display: none;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 960px) {
+  .play-layout { gap: 12px; }
+  #hud { width: 235px; flex-basis: 235px; }
+  .two-col, .piece-lab { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  #app {
+    padding: 8px 10px 68px;
+    gap: 8px;
+  }
+  .topbar .main-nav {
+    display: none;
+  }
+  .mobile-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    background: #1d1c19;
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    z-index: 25;
+    padding: 0 4px;
+  }
+  .mob-tab {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 10px;
+    font-weight: 650;
+    position: relative;
+  }
+  .mob-tab .ico { font-size: 16px; line-height: 1; }
+  .mob-tab.active { color: var(--accent-strong); }
+  .play-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+  .arena-panel { width: 100%; }
+  #hud {
+    width: 100%;
+    max-width: 560px;
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  #scoreCard { grid-row: span 2; }
+  .footer-hint { display: none; }
+  #welcomePrompt {
+    left: 10px;
+    right: 10px;
+    bottom: 64px;
+    width: auto;
+  }
+  #noticeStack { bottom: 64px; right: 10px; }
+}
+@media (max-width: 420px) {
+  .mode-grid { grid-template-columns: 1fr; }
+  #hud { grid-template-columns: 1fr; }
+  .piece-specs { grid-template-columns: 1fr; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (max-width: 920px) {
+  .play-layout { flex-direction: row; align-items: flex-start; }
+  #hud { width: 210px; flex-basis: 210px; grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body data-board-theme="classic">
+<div id="app">
+  <header class="topbar">
+    <button class="brand" id="brandHomeBtn" type="button">
+      <span class="brand-mark">♛</span>
+      <span>CROWNFLUX<span class="io">.io</span></span>
+    </button>
+    <nav class="main-nav" aria-label="Menu principal">
+      <button class="nav-btn primary-nav active" data-nav="play" type="button">Jogar</button>
+      <button class="nav-btn" data-nav="guide" type="button">Como jogar</button>
+      <button class="nav-btn" data-nav="friends" type="button">
+        <span>Amigos</span>
+        <span class="nav-badge hidden" id="navFriendsOnlineBadge">0</span>
+        <span class="nav-dot hidden" id="navFriendsAlertDot"></span>
+      </button>
+      <button class="nav-btn" data-nav="profile" type="button">Perfil</button>
+      <button class="nav-btn" data-nav="history" type="button">Histórico</button>
+      <button class="nav-btn" data-nav="settings" type="button">Configurações</button>
+    </nav>
+    <div class="top-right">
+      <button class="account-pill" id="headerAccountBtn" type="button">
+        <span class="mini-avatar" id="headerAvatar">♟</span>
+        <span id="headerAccountLabel">Entrar / Conta</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- VIEW 1: JOGAR -->
+  <main id="view-play" class="view-page active">
+    <div class="play-layout">
+      <section class="arena-panel">
+        <div class="board-top">
+          <span id="modeTag">ARENA · 4 FACÇÕES</span>
+          <span id="statusTag"><i class="status-dot"></i><span id="statusText">AGUARDANDO</span></span>
+        </div>
+
+        <!-- Tutorial Guide Banner (Appears outside the canvas so it never obscures pieces) -->
+        <div id="tutorialBanner" class="hidden" role="region" aria-label="Guia do tutorial">
+          <div class="tut-top">
+            <span class="tut-step-badge" id="tutStepBadge">Etapa 1 de 7</span>
+            <div class="tut-progress-track"><div class="tut-progress-fill" id="tutProgressFill"></div></div>
+            <div class="tut-controls">
+              <button class="mini-btn" id="tutPauseBtn" type="button">Pausar</button>
+              <button class="mini-btn" id="tutNextBtn" type="button">Avançar →</button>
+              <button class="mini-btn danger" id="tutExitBtn" type="button">Sair</button>
+            </div>
+          </div>
+          <h2 class="tut-title" id="tutTitle">Conhecendo o tabuleiro</h2>
+          <p class="tut-text" id="tutText">Bem-vindo ao Crownflux.io!</p>
+          <div class="tut-hint hidden" id="tutHint"></div>
+        </div>
+
+        <div id="wrap">
+          <canvas id="cv" aria-label="Tabuleiro de Crownflux.io"></canvas>
+
+          <!-- Overlay: Main Mode Picker -->
+          <div id="start" class="overlay">
+            <div class="modal">
+              <div class="eyebrow">Xadrez estratégico em tempo real</div>
+              <h1>CROWN<em>FLUX</em>.IO</h1>
+              <p class="tagline">Sem turnos. Mova suas peças em tempo real, evolua seu exército e capture o Rei adversário.</p>
+              <div class="mode-grid">
+                <button class="mode-card active" data-mode="arena" type="button">
+                  <span class="mode-icon">⚔️</span>
+                  <span>
+                    <span class="mode-name">Arena 4 Facções</span>
+                    <span class="mode-sub">4 exércitos disputando o mesmo tabuleiro</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="cpu" type="button">
+                  <span class="mode-icon">♟</span>
+                  <span>
+                    <span class="mode-name">Desafie a CPU</span>
+                    <span class="mode-sub">Duelo 1v1 com 5 níveis de dificuldade</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="online" type="button">
+                  <span class="mode-icon">🌐</span>
+                  <span>
+                    <span class="mode-name">Duelo Online</span>
+                    <span class="mode-sub">Jogue contra outras pessoas ou amigos</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="duel" type="button">
+                  <span class="mode-icon">👑</span>
+                  <span>
+                    <span class="mode-name">Duelo Local</span>
+                    <span class="mode-sub">2 jogadores no mesmo dispositivo</span>
+                  </span>
+                </button>
+              </div>
+              <div id="modeDesc" class="mode-desc">Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e transforme o rei rival em seu maior troféu.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+                <button id="go" class="primary" type="button">ENTRAR NA ARENA →</button>
+                <button id="startTutorialFromMenuBtn" class="secondary" type="button">🎓 Tutorial Prático (1v1)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay: CPU Difficulty Selection (5 Levels) -->
+          <div id="cpuDiffOverlay" class="overlay hidden">
+            <div class="modal" style="width:min(100%,510px)">
+              <div class="online-head" style="width:100%;display:flex;justify-content:space-between;align-items:center">
+                <div style="text-align:left">
+                  <div class="eyebrow">Duelo 1v1 contra o computador</div>
+                  <h2 style="margin:2px 0 0;font-size:20px">Escolha a dificuldade da CPU</h2>
+                </div>
+                <button class="close-btn" id="cpuDiffBackBtn" type="button" aria-label="Voltar">×</button>
+              </div>
+              <div class="diff-list" id="cpuDiffList"></div>
+              <div style="display:flex;gap:8px;width:100%;justify-content:flex-end">
+                <button class="secondary" id="cpuDiffCancelBtn" type="button">Voltar</button>
+                <button class="primary" id="cpuDiffStartBtn" type="button">Iniciar Partida →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay: Online Matchmaking & Private Room -->
+          <div id="onlineLobbyOverlay" class="overlay hidden">
+            <div class="modal" style="width:min(100%,500px);text-align:left;align-items:stretch">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                <div>
+                  <div class="eyebrow">Multiplayer em tempo real</div>
+                  <h2 style="margin:2px 0 4px;font-size:20px">Duelo Online 1v1</h2>
+                  <p class="muted" style="margin:0" id="onlineLobbySub">Encontre um adversário na fila pública ou crie uma sala privada.</p>
+                </div>
+                <button class="close-btn" id="onlineLobbyCloseBtn" type="button">×</button>
+              </div>
+
+              <div id="onlineLobbyGuestNotice" class="panel-box hidden">
+                <h3>Entre na sua conta para jogar online</h3>
+                <p class="muted" style="margin:0">Para disputar partidas online, manter amigos e salvar seu histórico no servidor, faça login ou crie uma conta rápida.</p>
+                <div style="display:flex;gap:8px">
+                  <button class="primary" id="onlineGoAuthBtn" type="button">Entrar ou Criar Conta</button>
+                </div>
+              </div>
+
+              <div id="onlineLobbyAuthContent" style="display:flex;flex-direction:column;gap:10px">
+                <div class="panel-box">
+                  <h3>Fila Pública 1v1</h3>
+                  <p class="muted" style="margin:0" id="queueStatus">Partidas rápidas em tempo real contra jogadores conectados.</p>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="primary" id="queueBtn" type="button">BUSCAR ADVERSÁRIO</button>
+                    <button class="secondary" id="openFriendsFromLobbyBtn" type="button">Desafiar um Amigo</button>
+                  </div>
+                </div>
+
+                <div class="panel-box">
+                  <h3>Sala Privada com Código</h3>
+                  <div class="field-row">
+                    <button class="secondary" id="createRoomBtn" type="button">CRIAR SALA PRIVADA</button>
+                    <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código de 6 letras" style="flex:1;min-width:130px">
+                    <button class="secondary" id="joinRoomBtn" type="button">ENTRAR</button>
+                  </div>
+                  <div id="roomCreated" class="hidden" style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#191815;padding:8px 11px;border-radius:6px;border:1px dashed var(--gold)">
+                    <div>
+                      <span class="muted" style="font-size:10px;display:block">Compartilhe este código:</span>
+                      <strong id="roomCodeText" style="font-size:18px;letter-spacing:3px;color:var(--gold)">------</strong>
+                    </div>
+                    <button class="mini-btn" id="copyRoomCode" type="button">COPIAR</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay: Game Over / Tutorial Complete -->
+          <div id="over" class="overlay hidden">
+            <div class="modal">
+              <div class="eyebrow" id="overEyebrow">Fim de partida</div>
+              <h1 id="resultTitle">REI CAPTURADO</h1>
+              <div id="winnerText" style="font-size:20px;font-weight:800;color:var(--gold)">Vitória!</div>
+              <div id="res" class="muted" style="font-size:13px;line-height:1.7"></div>
+              <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:4px">
+                <button id="again" class="primary" type="button">JOGAR NOVAMENTE</button>
+                <button id="rematch" class="primary hidden" type="button">PEDIR REVANCHE</button>
+                <button id="changeCpuDiffBtn" class="secondary hidden" type="button">MUDAR DIFICULDADE</button>
+                <button id="menu" class="secondary" type="button">MENU PRINCIPAL</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-hint">
+          Toque em uma peça da sua cor e depois na casa de destino. <b>ESC</b> cancela a seleção · <b>ESPAÇO</b> ativa o Surto em 100%.
+        </div>
+      </section>
+
+      <!-- HUD Lateral -->
+      <aside id="hud">
+        <section class="hud-section" id="scoreCard">
+          <div class="section-head"><span>Placar da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
+          <div id="lb"></div>
+        </section>
+
+        <section class="hud-section" id="progressCard">
+          <div class="section-head"><span id="progressTitle">Sua Evolução</span><span id="tm">0:00</span></div>
+          <div class="stat-line"><span id="lvl">Nível 0</span><strong id="xpText">0 / 4 XP</strong></div>
+          <div class="xp-bar"><div id="xp" class="xp-fill"></div></div>
+          <div class="muted" id="nx">Próximo reforço: Peão</div>
+          <div class="stat-line" style="margin-top:9px"><span id="energyLabel">Habilidade Surto</span><strong id="energyText">0%</strong></div>
+          <div class="energy-bar"><div id="energy" class="energy-fill"></div></div>
+          <button id="boost" class="ability-btn" type="button" disabled>SURTO · 0%</button>
+        </section>
+
+        <section class="hud-section">
+          <div class="section-head"><span>Registro da Batalha</span><span>AO VIVO</span></div>
+          <div id="feed"></div>
+        </section>
+
+        <section class="hud-section" style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:12px">Ações da Partida</strong>
+            <span class="muted" id="recordPill">Recorde: 0</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="mini-btn" id="hudGuideBtn" type="button">Como jogar</button>
+            <button class="mini-btn" id="hudMenuBtn" type="button">Trocar modo</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <!-- VIEW 2: COMO JOGAR (Interactive Visual Guide) -->
+  <section id="view-guide" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Como jogar Crownflux.io</h1>
+          <p>Aprenda as regras reais do jogo com exemplos interativos ou pratique no tutorial guiado.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="primary" id="guideStartTutorialBtn" type="button">🎓 Iniciar Tutorial Prático 1v1</button>
+          <button class="secondary" data-goto="play" type="button">Voltar ao Tabuleiro</button>
+        </div>
+      </div>
+
+      <div class="guide-tabs" role="tablist">
+        <button class="guide-tab active" data-gtab="overview" type="button">1. Objetivo & Vitória</button>
+        <button class="guide-tab" data-gtab="pieces" type="button">2. Tabuleiro & Peças (Interativo)</button>
+        <button class="guide-tab" data-gtab="captures" type="button">3. Capturas & Evolução</button>
+        <button class="guide-tab" data-gtab="flux" type="button">4. Fragmentos Flux & Surto</button>
+        <button class="guide-tab" data-gtab="modes" type="button">5. Modos & Partidas Online</button>
+      </div>
+
+      <!-- Tab 1: Overview -->
+      <div class="guide-section active" id="gtab-overview">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>👑 Qual é o objetivo do jogo?</h3>
+            <p>Em <b>Crownflux.io</b>, o objetivo principal é <b>proteger o seu Rei (♚) e capturar o Rei adversário</b>.</p>
+            <p>Ao contrário do xadrez tradicional, <b>não existem turnos</b>: todas as facções movem suas peças em tempo real no mesmo tabuleiro 16×16.</p>
+          </div>
+          <div class="guide-block">
+            <h3>⏱️ Tempo de Recuperação (Cooldown)</h3>
+            <p>Quando uma peça se move, ela entra em um breve <b>tempo de recuperação</b> (indicado por uma sombra vertical que esvazia sobre a peça).</p>
+            <p>Enquanto uma peça descansa, você pode <b>mover qualquer outra peça livre</b> do seu exército imediatamente!</p>
+          </div>
+          <div class="guide-block">
+            <h3>🏆 Regras para Vencer</h3>
+            <ul>
+              <li><b>Duelos 1v1 (CPU, Local e Online):</b> A partida termina imediatamente quando um jogador captura o <b>Rei (♚)</b> adversário (ou quem tiver maior pontuação caso haja tempo limite configurado).</li>
+              <li><b>Arena de 4 Facções:</b> Quando você captura o Rei de uma facção rival, <b>todo o exército sobrevivente daquele rival é convertido para a sua cor!</b> Se o seu próprio Rei for capturado, sua partida termina.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Interactive Piece Simulator -->
+      <div class="guide-section" id="gtab-pieces">
+        <div class="piece-lab">
+          <div>
+            <h3 style="margin:0 0 6px">Simulador Interativo de Movimentos</h3>
+            <p class="muted" style="margin:0 0 12px">Clique em uma peça abaixo e depois toque nas casas marcadas do mini-tabuleiro para testar como ela se move e o tempo real de recuperação.</p>
+            <div class="piece-picker" id="guidePiecePicker">
+              <button class="piece-btn active" data-piece="P" type="button">♟ Peão</button>
+              <button class="piece-btn" data-piece="N" type="button">♞ Cavalo</button>
+              <button class="piece-btn" data-piece="B" type="button">♝ Bispo</button>
+              <button class="piece-btn" data-piece="R" type="button">♜ Torre</button>
+              <button class="piece-btn" data-piece="Q" type="button">♛ Rainha</button>
+              <button class="piece-btn" data-piece="K" type="button">♚ Rei</button>
+            </div>
+            <p id="guidePieceRuleText" style="font-size:13px;line-height:1.5;color:var(--text);margin:0">
+              <b>Peão (♟):</b> Avança 1 casa para frente (se estiver livre) e captura 1 casa na diagonal frontal. Quando chega ao extremo oposto do tabuleiro, é promovido automaticamente a <b>Rainha (♛)</b>!
+            </p>
+            <div class="piece-specs">
+              <div class="spec-box"><span>Valor de Captura</span><strong id="guidePieceVal">1 ponto / XP</strong></div>
+              <div class="spec-box"><span>Recarga Base</span><strong id="guidePieceCd">0.9 segundos</strong></div>
+              <div class="spec-box"><span>Alcance</span><strong id="guidePieceRange">1 casa frontal</strong></div>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <canvas id="demoCanvas" width="238" height="238" aria-label="Tabuleiro demonstrativo"></canvas>
+            <span class="muted" style="font-size:11px;display:block;margin-top:6px">Toque nos círculos para mover a peça no exemplo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Captures & Evolution -->
+      <div class="guide-section" id="gtab-captures">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>⚔️ Peças Neutras vs. Inimigas</h3>
+            <p>Espalhadas pelo tabuleiro 16×16 existem <b>peças neutras cinzas</b> que não atacam ninguém. Capturá-las é a maneira mais segura de ganhar seus primeiros pontos de XP e energia nos segundos iniciais da partida.</p>
+            <p>Peças de outra cor pertencem aos exércitos rivais: quando você move uma peça sua para a casa delas, você as captura.</p>
+          </div>
+          <div class="guide-block">
+            <h3>📈 Níveis e Reforços Automáticos</h3>
+            <p>Cada captura soma pontos ao seu placar e <b>XP</b> à sua barra de evolução (necessário: <code>4 + Nível × 3</code> XP).</p>
+            <p>Sempre que a barra de XP enche, você sobe de nível e <b>uma nova peça aliada surge automaticamente</b> ao redor do seu Rei, seguindo a progressão: Peões → Cavalos → Bispos → Torres → Rainhas!</p>
+          </div>
+          <div class="guide-block">
+            <h3>📊 Tabela Real de Pontos e XP</h3>
+            <ul>
+              <li><b>♟ Peão:</b> +1 ponto / +1 XP (+9% de Surto)</li>
+              <li><b>♞ Cavalo:</b> +3 pontos / +3 XP (+27% de Surto)</li>
+              <li><b>♝ Bispo:</b> +3 pontos / +3 XP (+27% de Surto)</li>
+              <li><b>♜ Torre:</b> +5 pontos / +5 XP (+45% de Surto)</li>
+              <li><b>♛ Rainha:</b> +9 pontos / +9 XP (+81% de Surto)</li>
+              <li><b>♚ Rei:</b> +10 pontos (Vitória em 1v1 ou conversão na Arena)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Flux Orbs & Surge -->
+      <div class="guide-section" id="gtab-flux">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>💎 O que são os Fragmentos Flux?</h3>
+            <p>Periodicamente surgem até 5 cristais em formato de losango pelo tabuleiro chamados <b>Fragmentos Flux</b>.</p>
+            <p>Basta mover qualquer peça sua para a casa de um Fragmento para coletá-lo instantaneamente. Ele concede:</p>
+            <ul>
+              <li><b>+3 pontos e +3 XP</b> imediatos para sua evolução.</li>
+              <li><b>+24% de energia</b> extra para a barra de Surto (além dos +27% do ganho de XP, somando <b>+51% de carga</b> de uma só vez!).</li>
+            </ul>
+          </div>
+          <div class="guide-block">
+            <h3>⚡ Como funciona a habilidade Surto?</h3>
+            <p>Quando sua barra de energia chega a <b>100%</b>, o botão <b>⚡ ATIVAR SURTO</b> (ou a tecla <b>Espaço</b>) fica disponível.</p>
+            <p>Ao ativar o Surto:</p>
+            <ul>
+              <li>O tempo restante de todas as suas peças que estão recarregando cai imediatamente pela metade.</li>
+              <li>Durante <b>6 segundos</b>, todas as suas peças recarregam <b>42% mais rápido</b> após cada movimento.</li>
+              <li>Use o Surto para lançar um ataque decisivo contra o Rei adversário ou escapar de um cerco!</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Game Modes & Online -->
+      <div class="guide-section" id="gtab-modes">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>🤖 Desafie a CPU (5 Dificuldades)</h3>
+            <p>Ideal para treinar e evoluir no seu ritmo. Você pode escolher entre <b>Iniciante</b>, <b>Fácil</b>, <b>Normal</b>, <b>Difícil</b> e <b>Especialista</b>. Cada nível muda a inteligência tática do bot.</p>
+          </div>
+          <div class="guide-block">
+            <h3>⚔️ Arena (4 Facções) & Duelo Local</h3>
+            <p>Na <b>Arena</b>, você enfrenta três facções controladas pelo computador ao mesmo tempo; capturar um Rei converte o exército dele para você. No <b>Duelo Local</b>, duas pessoas jogam no mesmo celular, tablet ou computador.</p>
+          </div>
+          <div class="guide-block">
+            <h3>🌐 Partidas Online & Amigos</h3>
+            <p>Com uma conta gratuita, você pode entrar na <b>Fila Pública 1v1</b>, criar uma <b>Sala Privada</b> com código de 6 letras ou adicionar amigos na aba <b>Amigos</b> para enviar desafios personalizados (escolhendo ritmo, frequência de fragmentos e tempo).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 3: CENTRAL DE AMIGOS -->
+  <section id="view-friends" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Central de Amigos</h1>
+          <p>Encontre jogadores, acompanhe quem está online ou em partida e envie desafios personalizados.</p>
+        </div>
+        <button class="secondary" id="refreshFriendsBtn" type="button">Atualizar Lista</button>
+      </div>
+
+      <div id="friendsGuestNotice" class="panel-box hidden">
+        <h2>Entre na sua conta para acessar seus amigos</h2>
+        <p class="muted" style="margin:0">Sua lista de amigos, solicitações e desafios em tempo real ficam salvos na sua conta do Crownflux.io.</p>
+        <div><button class="primary" data-goto="profile" type="button">Entrar ou Criar Conta</button></div>
+      </div>
+
+      <div id="friendsAuthContent" class="two-col">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="panel-box">
+            <h3>Desafios Recebidos</h3>
+            <div id="challengeList" class="muted">Nenhum desafio pendente no momento.</div>
+          </div>
+
+          <div class="panel-box">
+            <h3>Seus Amigos</h3>
+            <div>
+              <div class="friend-category-title">Disponíveis Online (<span id="countOnlineFriends">0</span>)</div>
+              <div id="friendsOnlineList" class="muted">Nenhum amigo disponível agora.</div>
+
+              <div class="friend-category-title" style="margin-top:14px">Atualmente em Partida (<span id="countInGameFriends">0</span>)</div>
+              <div id="friendsInGameList" class="muted">Nenhum amigo em partida no momento.</div>
+
+              <div class="friend-category-title" style="margin-top:14px">Offline (<span id="countOfflineFriends">0</span>)</div>
+              <div id="friendsOfflineList" class="muted">Nenhum amigo offline.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="panel-box">
+            <h3>Procurar Jogadores</h3>
+            <div class="field-row">
+              <input class="field" id="searchPlayer" maxlength="18" placeholder="Digite o @usuario" style="flex:1">
+              <button class="primary" id="searchBtn" type="button">Buscar</button>
+            </div>
+            <div id="searchResults" class="muted">Digite pelo menos 2 caracteres para procurar jogadores.</div>
+          </div>
+
+          <div class="panel-box">
+            <h3>Solicitações Recebidas (<span id="countIncomingReq">0</span>)</h3>
+            <div id="friendRequests" class="muted">Nenhuma solicitação recebida.</div>
+          </div>
+
+          <div class="panel-box">
+            <h3>Solicitações Enviadas (<span id="countOutgoingReq">0</span>)</h3>
+            <div id="sentRequestsList" class="muted">Nenhuma solicitação enviada pendente.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 4: PERFIL E CONTA -->
+  <section id="view-profile" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Perfil e Conta</h1>
+          <p>Gerencie suas credenciais, personalize seu perfil e consulte seu desempenho.</p>
+        </div>
+      </div>
+
+      <!-- Auth View (Login / Register / Password Reset) -->
+      <div id="authView" class="two-col">
+        <div class="panel-box">
+          <h2 id="authFormTitle">Entrar na sua conta</h2>
+          <p class="muted" style="margin:0">Mantenha seus amigos, estatísticas e preferências salvos em qualquer dispositivo.</p>
+          <div>
+            <label class="field-label" for="authUsername">Nome de usuário</label>
+            <input class="field" id="authUsername" autocomplete="username" maxlength="18" placeholder="Ex: mestre_flux">
+          </div>
+          <div>
+            <label class="field-label" for="authPassword">Senha</label>
+            <input class="field" id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo de 8 caracteres">
+          </div>
+          <label class="checkbox-line">
+            <input type="checkbox" id="authRememberMe" checked>
+            <span>Lembrar de mim neste dispositivo (sessão de 30 dias)</span>
+          </label>
+          <div class="field-row" style="margin-top:4px">
+            <button class="primary" id="loginBtn" type="button">Entrar</button>
+            <button class="secondary" id="registerBtn" type="button">Criar Nova Conta</button>
+          </div>
+          <div id="onlineMessage" class="muted" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="panel-box">
+          <h3>Redefinir Senha com Código de Recuperação</h3>
+          <p class="muted" style="margin:0">Ao criar sua conta, você recebe um Código de Recuperação pessoal. Use-o abaixo caso precise criar uma nova senha.</p>
+          <div>
+            <label class="field-label" for="resetUsername">Nome de usuário</label>
+            <input class="field" id="resetUsername" maxlength="18" placeholder="Seu @usuario">
+          </div>
+          <div>
+            <label class="field-label" for="resetRecoveryKey">Código de Recuperação</label>
+            <input class="field" id="resetRecoveryKey" placeholder="CFX-XXXX-XXXX">
+          </div>
+          <div>
+            <label class="field-label" for="resetNewPassword">Nova Senha</label>
+            <input class="field" id="resetNewPassword" type="password" placeholder="Nova senha (mín. 8 caracteres)">
+          </div>
+          <div>
+            <button class="secondary" id="resetPasswordBtn" type="button">Redefinir Minha Senha</button>
+          </div>
+          <div id="resetMessage" class="muted"></div>
+        </div>
+      </div>
+
+      <!-- Logged-in Account View -->
+      <div id="accountView" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel-box" style="flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="avatar-badge" id="profileBigAvatar" style="width:52px;height:52px;font-size:28px">♟</div>
+            <div>
+              <h2 id="accountName" style="margin:0;font-size:19px">Jogador</h2>
+              <span class="muted" id="accountHandle">@jogador</span>
+              <p class="muted" id="accountBioText" style="margin:4px 0 0"></p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="secondary" data-goto="friends" type="button">Ver Amigos</button>
+            <button class="mini-btn danger" id="logoutBtn" type="button">Encerrar Sessão (Sair)</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box"><span>Partidas Online</span><strong id="statOnlineGames">0</strong></div>
+          <div class="stat-box"><span>Vitórias Online</span><strong id="statOnlineWins">0</strong></div>
+          <div class="stat-box"><span>Derrotas / Empates</span><strong id="statOnlineLosses">0 / 0</strong></div>
+          <div class="stat-box"><span>Taxa de Vitória</span><strong id="statWinRate">0%</strong></div>
+          <div class="stat-box"><span>Vitórias vs CPU</span><strong id="statCpuWins">0</strong></div>
+          <div class="stat-box"><span>Maior CPU Vencida</span><strong id="statCpuMax">Nenhuma</strong></div>
+        </div>
+
+        <div class="two-col">
+          <div class="panel-box">
+            <h3>Editar Perfil</h3>
+            <div>
+              <label class="field-label" for="editUsername">Nome de usuário (único, 3 a 18 caracteres)</label>
+              <input class="field" id="editUsername" maxlength="18">
+            </div>
+            <div>
+              <label class="field-label" for="editDisplayName">Nome de exibição</label>
+              <input class="field" id="editDisplayName" maxlength="24">
+            </div>
+            <div>
+              <label class="field-label" for="editBio">Frase ou estilo de jogo (opcional)</label>
+              <input class="field" id="editBio" maxlength="120" placeholder="Ex: Especialista em contra-ataques de Cavalo">
+            </div>
+            <div>
+              <label class="field-label">Escolha seu Avatar</label>
+              <div class="avatar-grid" id="avatarSelectorGrid"></div>
+            </div>
+            <div>
+              <button class="primary" id="saveProfileBtn" type="button">Salvar Alterações do Perfil</button>
+            </div>
+            <div id="profileSaveMsg" class="muted"></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="panel-box">
+              <h3>Alterar Senha</h3>
+              <div>
+                <label class="field-label" for="curPasswordInput">Senha atual</label>
+                <input class="field" id="curPasswordInput" type="password">
+              </div>
+              <div>
+                <label class="field-label" for="newPasswordInput">Nova senha (mín. 8 caracteres)</label>
+                <input class="field" id="newPasswordInput" type="password">
+              </div>
+              <div>
+                <button class="secondary" id="changePasswordBtn" type="button">Atualizar Senha</button>
+              </div>
+              <div id="passwordChangeMsg" class="muted"></div>
+            </div>
+
+            <div class="panel-box">
+              <h3>Código de Recuperação da Conta</h3>
+              <p class="muted" style="margin:0">Gere um novo código de recuperação caso tenha perdido o anterior. Digite sua senha atual no campo acima antes de gerar.</p>
+              <div>
+                <button class="secondary" id="regenRecoveryBtn" type="button">Gerar Novo Código de Recuperação</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 5: HISTÓRICO DE PARTIDAS -->
+  <section id="view-history" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Histórico de Partidas</h1>
+          <p>Consulte suas partidas recentes disputadas online e contra os diferentes níveis da CPU.</p>
+        </div>
+        <button class="secondary" id="refreshHistoryBtn" type="button">Atualizar</button>
+      </div>
+      <div class="panel-box">
+        <div id="gameHistory" class="muted">Você ainda não disputou partidas registradas.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 6: CONFIGURAÇÕES -->
+  <section id="view-settings" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Configurações e Preferências</h1>
+          <p>Suas preferências são salvas automaticamente na sua conta e neste navegador.</p>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel-box">
+          <h3>Tabuleiro e Interface</h3>
+          <div class="setting-row">
+            <div>
+              <strong>Cores do Tabuleiro</strong>
+              <span>Escolha a paleta de cores das casas</span>
+            </div>
+            <select class="field" id="prefBoardTheme" style="width:auto">
+              <option value="classic">Clássico Verde-Sálvia</option>
+              <option value="slate">Ardósia Noturna</option>
+              <option value="wood">Madeira Quente</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Mostrar Coordenadas</strong>
+              <span>Exibe a numeração lateral nas bordas do tabuleiro</span>
+            </div>
+            <input type="checkbox" id="prefShowCoords" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Destacar Movimentos e Último Lance</strong>
+              <span>Mostra indicadores de destino e destaca a última peça movida</span>
+            </div>
+            <input type="checkbox" id="prefHighlightMoves" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Agendar Movimento na Recarga (Pré-move)</strong>
+              <span>Permite clicar no próximo destino enquanto a peça ainda está recarregando</span>
+            </div>
+            <input type="checkbox" id="prefAutoQueue" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Efeitos Sonoros</strong>
+              <span>Sons discretos para movimentos, capturas e Surto</span>
+            </div>
+            <input type="checkbox" id="prefSound" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Confirmar antes de Sair de Partida</strong>
+              <span>Evita desistências acidentais durante duelos</span>
+            </div>
+            <input type="checkbox" id="prefConfirmResign" checked>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <h3>Tutorial e Aprendizado</h3>
+          <p class="muted" style="margin:0">Você pode iniciar ou repetir o tutorial interativo de 7 etapas a qualquer momento.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="primary" id="settingsStartTutorialBtn" type="button">🎓 Iniciar Tutorial Prático 1v1</button>
+            <button class="secondary" data-goto="guide" type="button">Abrir Guia "Como Jogar"</button>
+          </div>
+          <hr style="border:0;border-top:1px solid var(--border);width:100%;margin:8px 0">
+          <h3>Jogadores Bloqueados</h3>
+          <div id="blockedUsersList" class="muted">Nenhum jogador bloqueado.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-nav" aria-label="Navegação mobile">
+  <button class="mob-tab active" data-nav="play" type="button"><span class="ico">⚔️</span><span>Jogar</span></button>
+  <button class="mob-tab" data-nav="guide" type="button"><span class="ico">📖</span><span>Guia</span></button>
+  <button class="mob-tab" data-nav="friends" type="button"><span class="ico">👥</span><span>Amigos</span></button>
+  <button class="mob-tab" data-nav="profile" type="button"><span class="ico">♟</span><span>Perfil</span></button>
+  <button class="mob-tab" data-nav="history" type="button"><span class="ico">📜</span><span>Histórico</span></button>
+  <button class="mob-tab" data-nav="settings" type="button"><span class="ico">⚙️</span><span>Ajustes</span></button>
+</nav>
+
+<!-- First-Access Welcome Tutorial Prompt -->
+<aside id="welcomePrompt" class="hidden" role="dialog" aria-label="Boas-vindas ao Crownflux.io">
+  <h3>Primeira vez por aqui? Quer aprender a jogar?</h3>
+  <p>Preparamos uma partida rápida e guiada de 1v1 contra um bot iniciante para você aprender no tabuleiro em menos de 2 minutos.</p>
+  <div class="welcome-btns">
+    <button class="primary" id="welcomeAcceptBtn" type="button">Sim, quero aprender</button>
+    <button class="secondary" id="welcomeKnowBtn" type="button">Já sei jogar, pode continuar</button>
+    <button class="mini-btn" id="welcomeLaterBtn" type="button">Talvez depois</button>
+  </div>
+</aside>
+
+<!-- Dialog: Configure Friend Challenge -->
+<div id="challengeModal" class="dialog-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="dialog-card">
+    <div class="dialog-head">
+      <h3 id="challengeModalTitle">Desafiar Amigo</h3>
+      <button class="close-btn" id="challengeModalClose" type="button">×</button>
+    </div>
+    <p class="muted" style="margin:0">Configure as regras da partida antes de enviar o convite.</p>
+    <div>
+      <label class="field-label" for="chalPace">Ritmo de Recarga das Peças</label>
+      <select class="field" id="chalPace">
+        <option value="standard">Padrão (Equilibrado)</option>
+        <option value="fast">Rápido (-20% tempo de recarga)</option>
+        <option value="tactical">Tático (+25% tempo de recarga)</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label" for="chalOrbs">Fragmentos Flux na Arena</label>
+      <select class="field" id="chalOrbs">
+        <option value="normal">Frequência Normal</option>
+        <option value="abundant">Abundantes (Mais Surtos)</option>
+        <option value="none">Sem Fragmentos (Puro Xadrez)</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label" for="chalTime">Duração da Partida</label>
+      <select class="field" id="chalTime">
+        <option value="0">Sem limite (Até capturar o Rei)</option>
+        <option value="180">3 minutos (Maior placar vence)</option>
+        <option value="300">5 minutos (Maior placar vence)</option>
+      </select>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="secondary" id="challengeCancelBtn" type="button">Cancelar</button>
+      <button class="primary" id="challengeConfirmSendBtn" type="button">Enviar Convite de Duelo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dialog: Inspect Player Profile -->
+<div id="inspectModal" class="dialog-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="dialog-card">
+    <div class="dialog-head">
+      <h3>Perfil do Jogador</h3>
+      <button class="close-btn" id="inspectModalClose" type="button">×</button>
+    </div>
+    <div id="inspectModalBody"></div>
+  </div>
+</div>
+
+<!-- Dialog: Recovery Key Display -->
+<div id="recoveryModal" class="dialog-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="dialog-card">
+    <div class="dialog-head">
+      <h3>Guarde seu Código de Recuperação</h3>
+      <button class="close-btn" id="recoveryModalClose" type="button">×</button>
+    </div>
+    <p class="muted" style="margin:0">Este código permite redefinir sua senha caso você a esqueça. Por segurança, ele é armazenado criptografado e exibido apenas agora:</p>
+    <div style="background:#151412;border:1px dashed var(--gold);padding:12px;border-radius:6px;text-align:center">
+      <strong id="recoveryKeyDisplay" style="font-size:19px;letter-spacing:2px;color:var(--gold)">CFX-0000-0000</strong>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="secondary" id="copyRecoveryKeyBtn" type="button">Copiar Código</button>
+      <button class="primary" id="recoveryModalOkBtn" type="button">Já anotei, continuar</button>
+    </div>
+  </div>
+</div>
+
+<div id="noticeStack" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+const N = 16;
+const ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+const KN = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
+const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 10 };
+const BASE = { P: 0.9, N: 1.4, B: 1.6, R: 1.8, Q: 2.2, K: 1.1 };
+const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+const NOME = { P: 'Peão', N: 'Cavalo', B: 'Bispo', R: 'Torre', Q: 'Rainha', K: 'Rei' };
+const GROW = ['P', 'P', 'N', 'B', 'R', 'N', 'B', 'R', 'Q', 'Q'];
+const AVATARS = ['♟', '♞', '♝', '♜', '♛', '♚', '⚔', '🛡', '👑', '⚡', '🔥', '💎'];
+
+const FAC = [
+  { name: 'Você', col: '#6f9daf', fwd: [0, -1], base: [8, 14] },
+  { name: 'Rival Rubi', col: '#bd7778', fwd: [0, 1], base: [8, 1] },
+  { name: 'Oráculo', col: '#84a58c', fwd: [1, 0], base: [1, 8] },
+  { name: 'Faísca', col: '#c4a66f', fwd: [-1, 0], base: [14, 8] }
+];
+const LAYOUT = [[-2, 'R'], [-1, 'B'], [0, 'K'], [1, 'Q'], [2, 'N']];
+
+const CPU_LEVELS = [
+  {
+    level: 1,
+    name: 'Iniciante',
+    recommended: true,
+    interval: 1.45,
+    desc: 'Para quem está aprendendo. Faz movimentos simples, avança peões com calma e comete erros frequentes.',
+    challenge: 'Desafio leve · Ideal para começar'
+  },
+  {
+    level: 2,
+    name: 'Fácil',
+    recommended: false,
+    interval: 1.12,
+    desc: 'Reconhece oportunidades diretas de captura e coleta fragmentos próximos, mas ainda deixa brechas.',
+    challenge: 'Desafio moderado-baixo'
+  },
+  {
+    level: 3,
+    name: 'Normal',
+    recommended: false,
+    interval: 0.86,
+    desc: 'Estratégia equilibrada: protege suas peças valiosas, disputa os Fragmentos Flux e usa o Surto.',
+    challenge: 'Desafio equilibrado'
+  },
+  {
+    level: 4,
+    name: 'Difícil',
+    recommended: false,
+    interval: 0.68,
+    desc: 'Antecipa ameaças, evita trocas desfavoráveis, coordena ataques ao Rei e usa o Surto ofensivamente.',
+    challenge: 'Desafio alto · Exige atenção'
+  },
+  {
+    level: 5,
+    name: 'Especialista',
+    recommended: false,
+    interval: 0.54,
+    desc: 'Análise tática de 2 lances: avalia contra-ataques imediatos, protege o Rei com escolta e pune erros.',
+    challenge: 'Desafio máximo da arena'
+  }
+];
+
+const MODE_INFO = {
+  arena: {
+    tag: 'ARENA · 4 FACÇÕES',
+    players: '4 FACÇÕES',
+    desc: 'Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e converta o exército dos reis derrotados.',
+    record: 'cf_best_arena'
+  },
+  duel: {
+    tag: 'DUELO · 1V1 LOCAL',
+    players: '2 JOGADORES',
+    desc: 'Dois jogadores no mesmo dispositivo. Azul joga embaixo e Rubi em cima; ambos movem em tempo real.',
+    record: 'cf_best_duel'
+  },
+  cpu: {
+    tag: 'DUELO · VS CPU',
+    players: '1V1 CPU',
+    desc: 'Enfrente o computador em 5 níveis de dificuldade com comportamentos e estratégias reais distintas.',
+    record: 'cf_best_cpu'
+  },
+  online: {
+    tag: 'DUELO · ONLINE',
+    players: '2 JOGADORES',
+    desc: 'Dispute partidas 1v1 pela internet na fila pública, em salas privadas ou desafiando seus amigos.',
+    record: 'cf_best_online'
+  },
+  tutorial: {
+    tag: 'TUTORIAL PRÁTICO · 1V1',
+    players: 'TREINO GUIADO',
+    desc: 'Aprenda jogando passo a passo contra um bot cooperativo.',
+    record: 'cf_best_cpu'
+  }
+};
+
+const TUTORIAL_STEPS = [
+  {
+    step: 1,
+    title: 'Conhecendo o tabuleiro em tempo real',
+    text: 'Você comanda o exército Azul na parte de baixo (seu Rei ♚ tem um anel ao redor). No topo está o Rival Rubi, e pelo mapa há peças neutras cinzas. Aqui não há turnos: observe o cronômetro e o placar à direita.',
+    hint: 'Clique em "Avançar →" ou toque em qualquer peça Azul sua para ir à Etapa 2.',
+    hudHighlight: 'scoreCard'
+  },
+  {
+    step: 2,
+    title: 'Selecionando uma peça',
+    text: 'Toque em qualquer uma das suas peças Azuis destacadas no tabuleiro. Ao selecioná-la, pontos mostram as casas vazias válidas e círculos indicam peças que podem ser capturadas.',
+    hint: 'Toque em uma peça Azul do seu exército.',
+    hudHighlight: null
+  },
+  {
+    step: 3,
+    title: 'Fazendo o primeiro movimento',
+    text: 'Ótimo! Agora toque em uma das casas marcadas para mover sua peça. Repare que após mover, apenas essa peça entra em uma rápida recarga (~1s), enquanto todas as outras continuam prontas!',
+    hint: 'Toque em um ponto válido no tabuleiro para concluir seu primeiro movimento.',
+    hudHighlight: null
+  },
+  {
+    step: 4,
+    title: 'Entendendo as capturas e evolução',
+    text: 'Destacamos uma peça vulnerável próxima ao seu exército! Mova uma peça sua até ela para capturá-la. Capturar dá pontos, XP para subir de nível (gerando reforços perto do seu Rei) e energia de Surto.',
+    hint: 'Selecione uma peça sua e capture a peça destacada com anel dourado.',
+    hudHighlight: 'progressCard'
+  },
+  {
+    step: 5,
+    title: 'Estratégia e proteção do Rei',
+    text: 'Boa captura! Dica essencial: se o seu Rei (♚) ficar sob a mira de uma peça inimiga, um círculo vermelho alerta você. Avance suas peças em grupo para que uma proteja a outra. Faça 2 movimentos para praticar!',
+    hint: 'Realize mais 2 movimentos ou capturas mantendo seu Rei protegido.',
+    hudHighlight: null
+  },
+  {
+    step: 6,
+    title: 'Fragmentos Flux e a habilidade Surto',
+    text: 'Um Fragmento Flux (losango dourado) surgiu perto de você e sua barra de Surto está pronta! Colete o Fragmento ou clique no botão "⚡ ATIVAR SURTO" (ou tecla Espaço) para acelerar todo o seu exército por 6 segundos!',
+    hint: 'Ative o botão "⚡ ATIVAR SURTO" no painel (ou pressione ESPAÇO) ou colete o Fragmento.',
+    hudHighlight: 'progressCard'
+  },
+  {
+    step: 7,
+    title: 'Finalizando a partida!',
+    text: 'Você dominou os fundamentos do Crownflux.io! Agora lidere seu exército para capturar o Rei adversário (♚) no topo do tabuleiro (ou alcance 15 pontos) para concluir o treinamento!',
+    hint: 'Capture o Rei Rubi (♚) ou chegue a 15 pontos para vencer o tutorial.',
+    hudHighlight: null
+  }
+];
+
+let selectedMode = 'arena';
+let cpuDifficulty = 1;
+let S = null;
+let best = 0;
+let cell = 40;
+let dpr = 1;
+let last = performance.now();
+let hudTimer = 0;
+
+let onlineSide = 0;
+let onlineOpponent = 'Adversário';
+let onlineToken = localStorage.getItem('cf_token') || '';
+let onlineUser = null;
+let ws = null;
+let wsReady = false;
+let matchmaking = false;
+let challengeInbox = new Map();
+let friendCache = [];
+let incomingReqCache = [];
+let outgoingReqCache = [];
+let historyCache = [];
+let reconnectTimer = null;
+let explicitLogout = false;
+let pendingChallengeTargetId = null;
+let selectedAvatarEdit = '♟';
+
+let prefs = {
+  boardTheme: 'classic',
+  showCoords: true,
+  highlightMoves: true,
+  autoQueueMove: true,
+  confirmResign: true,
+  soundEffects: true,
+  reducedMotion: false
+};
+
+let tut = {
+  active: false,
+  step: 1,
+  paused: false,
+  movesInStep5: 0,
+  targetPieceId: null
+};
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+
+/* Web Audio Subtle Synthesizer */
+let audioCtx = null;
+function playTone(kind) {
+  if (!prefs.soundEffects) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    if (kind === 'move') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.06);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } else if (kind === 'capture') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(480, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.11);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (kind === 'orb' || kind === 'boost') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.16);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } else if (kind === 'win') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554, now + 0.09);
+      osc.frequency.setValueAtTime(659, now + 0.18);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+      osc.start(now);
+      osc.stop(now + 0.32);
+    }
+  } catch (_) {}
+}
+
+function safeGet(k) { try { return Number(localStorage.getItem(k)) || 0; } catch (_) { return 0; } }
+function safeSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (_) {} }
+function fmt(t) { t = Math.floor(t); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function rand(n) { return Math.floor(Math.random() * n); }
+function activeTeams() { return S.mode === 'arena' ? [0, 1, 2, 3] : [0, 1]; }
+function isBot(i) { return S.mode === 'arena' ? i !== 0 : ((S.mode === 'cpu' || S.mode === 'tutorial') && i === 1); }
+function teamName(i) {
+  if (S?.mode === 'online') return i === onlineSide ? (onlineUser?.displayName || onlineUser?.username || 'Você') : onlineOpponent;
+  if (S?.mode === 'cpu' && i === 1) {
+    const info = CPU_LEVELS.find(c => c.level === cpuDifficulty);
+    return 'CPU ' + (info ? info.name : '');
+  }
+  if (S?.mode === 'tutorial' && i === 1) return 'Mentor Bot';
+  return FAC[i].name;
+}
+function need(f) { return 4 + f.lvl * 3; }
+
+function feed(msg) {
+  if (!S) return;
+  S.events.unshift({ msg, t: S.T });
+  S.events = S.events.slice(0, 5);
+}
+
+/* Navigation between Pages */
+let currentNav = 'play';
+function switchNav(navId) {
+  currentNav = navId;
+  document.querySelectorAll('.view-page').forEach(el => {
+    el.classList.toggle('active', el.id === 'view-' + navId);
+  });
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nav === navId);
+  });
+  if (navId === 'play') {
+    setTimeout(resize, 20);
+  } else if (navId === 'guide') {
+    setTimeout(drawDemoBoard, 30);
+  } else if (navId === 'friends') {
+    renderFriendsPage();
+    if (wsReady) sendSocket('friends:refresh');
+  } else if (navId === 'profile') {
+    renderAccount();
+  } else if (navId === 'history') {
+    renderGameHistory(historyCache);
+    if (wsReady) sendSocket('games:history');
+  } else if (navId === 'settings') {
+    renderSettingsPage();
+  }
+}
+
+document.querySelectorAll('[data-nav]').forEach(btn => {
+  btn.addEventListener('click', () => switchNav(btn.dataset.nav));
+});
+document.querySelectorAll('[data-goto]').forEach(btn => {
+  btn.addEventListener('click', () => switchNav(btn.dataset.goto));
+});
+$('brandHomeBtn').addEventListener('click', () => switchNav('play'));
+$('headerAccountBtn').addEventListener('click', () => switchNav('profile'));
+$('hudGuideBtn').addEventListener('click', () => switchNav('guide'));
+$('hudMenuBtn').addEventListener('click', () => openMenu());
+
+/* Preferences Management */
+function loadLocalPreferences() {
+  try {
+    const raw = localStorage.getItem('cf_prefs');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      prefs = { ...prefs, ...parsed };
+    }
+  } catch (_) {}
+  applyPreferencesToDom();
+}
+
+function applyPreferencesToDom() {
+  document.body.dataset.boardTheme = prefs.boardTheme || 'classic';
+  $('prefBoardTheme').value = prefs.boardTheme || 'classic';
+  $('prefShowCoords').checked = prefs.showCoords !== false;
+  $('prefHighlightMoves').checked = prefs.highlightMoves !== false;
+  $('prefAutoQueue').checked = prefs.autoQueueMove !== false;
+  $('prefSound').checked = prefs.soundEffects !== false;
+  $('prefConfirmResign').checked = prefs.confirmResign !== false;
+  draw();
+  drawDemoBoard();
+}
+
+async function savePreferences(partial = {}) {
+  prefs = { ...prefs, ...partial };
+  try { localStorage.setItem('cf_prefs', JSON.stringify(prefs)); } catch (_) {}
+  applyPreferencesToDom();
+  if (onlineToken && onlineUser) {
+    try {
+      const res = await apiRequest('/api/profile/preferences', { preferences: prefs });
+      if (res.user) onlineUser = res.user;
+    } catch (_) {}
+  }
+}
+
+$('prefBoardTheme').addEventListener('change', e => savePreferences({ boardTheme: e.target.value }));
+$('prefShowCoords').addEventListener('change', e => savePreferences({ showCoords: e.target.checked }));
+$('prefHighlightMoves').addEventListener('change', e => savePreferences({ highlightMoves: e.target.checked }));
+$('prefAutoQueue').addEventListener('change', e => savePreferences({ autoQueueMove: e.target.checked }));
+$('prefSound').addEventListener('change', e => savePreferences({ soundEffects: e.target.checked }));
+$('prefConfirmResign').addEventListener('change', e => savePreferences({ confirmResign: e.target.checked }));
+
+function renderSettingsPage() {
+  applyPreferencesToDom();
+  const box = $('blockedUsersList');
+  const blocked = onlineUser?.blocked || [];
+  if (!blocked.length) {
+    box.textContent = 'Nenhum jogador bloqueado.';
+    return;
+  }
+  box.replaceChildren();
+  for (const b of blocked) {
+    const row = document.createElement('div');
+    row.className = 'friend-item';
+    row.innerHTML = `<div class="friend-ident"><span class="avatar-badge">${b.avatar || '♟'}</span><div class="friend-names"><strong>@${b.username}</strong></div></div>`;
+    const btn = document.createElement('button');
+    btn.className = 'mini-btn';
+    btn.textContent = 'Desbloquear';
+    btn.addEventListener('click', () => sendSocket('friend:unblock', { userId: b.id }));
+    row.appendChild(btn);
+    box.appendChild(row);
+  }
+}
+
+/* First-Visit Tutorial Welcome Prompt */
+function checkFirstVisitPrompt() {
+  const localChoice = localStorage.getItem('cf_tutorial_prompt');
+  const acctChoice = onlineUser?.tutorialPromptState;
+  const completed = onlineUser?.tutorialCompleted || localStorage.getItem('cf_tutorial_completed') === '1';
+  if (completed || localChoice === 'dismissed' || localChoice === 'accepted' || localChoice === 'later' ||
+      acctChoice === 'dismissed' || acctChoice === 'completed' || acctChoice === 'accepted') {
+    $('welcomePrompt').classList.add('hidden');
+    return;
+  }
+  $('welcomePrompt').classList.remove('hidden');
+}
+
+async function setTutorialPromptChoice(state) {
+  try { localStorage.setItem('cf_tutorial_prompt', state); } catch (_) {}
+  $('welcomePrompt').classList.add('hidden');
+  if (onlineToken && onlineUser) {
+    try {
+      const res = await apiRequest('/api/profile/preferences', {
+        tutorialPromptState: state,
+        tutorialCompleted: state === 'completed' ? true : undefined
+      });
+      if (res.user) onlineUser = res.user;
+    } catch (_) {}
+  }
+}
+
+$('welcomeAcceptBtn').addEventListener('click', () => {
+  setTutorialPromptChoice('accepted');
+  startInteractiveTutorial();
+});
+$('welcomeKnowBtn').addEventListener('click', () => {
+  setTutorialPromptChoice('dismissed');
+  showToast('Tudo pronto! Bom jogo na arena.');
+});
+$('welcomeLaterBtn').addEventListener('click', () => {
+  setTutorialPromptChoice('later');
+  showToast('Sem problemas! Você pode iniciar o tutorial em "Como jogar" quando quiser.');
+});
+
+/* Core Game Setup & Mechanics */
+function reset(mode = selectedMode) {
+  selectedMode = mode;
+  const teamIds = mode === 'arena' ? [0, 1, 2, 3] : [0, 1];
+  S = {
+    mode,
+    T: 0,
+    grid: Array.from({ length: N }, () => Array(N).fill(null)),
+    pieces: [],
+    orbs: [],
+    f: FAC.map((d, i) => ({
+      id: i, score: 0, xp: 0, lvl: 0, alive: teamIds.includes(i),
+      respawn: 0, next: 1.2 + i * 0.25, kings: 0, energy: 18, boostUntil: 0, captures: 0
+    })),
+    sel: null,
+    over: false,
+    started: false,
+    nid: 1,
+    foodT: 0,
+    orbT: 5,
+    attT: 0,
+    att: null,
+    fx: [],
+    events: [],
+    lastMove: null,
+    winner: null
+  };
+  for (const i of teamIds) spawnArmy(i);
+  for (let i = 0; i < (mode === 'arena' ? 24 : 18); i++) spawnFood();
+  calcAtt();
+
+  if (mode === 'tutorial') {
+    feed('Tutorial prático iniciado: siga as dicas acima do tabuleiro.');
+  } else if (mode === 'cpu') {
+    const info = CPU_LEVELS.find(c => c.level === cpuDifficulty) || CPU_LEVELS[0];
+    feed(`Duelo contra CPU (${info.name}) preparado.`);
+  } else if (mode === 'duel') {
+    feed('Duelo local preparado: Azul contra Rubi.');
+  } else {
+    feed('Quatro facções entraram na arena.');
+  }
+
+  const info = MODE_INFO[mode] || MODE_INFO.arena;
+  best = safeGet(info.record);
+  $('recordPill').textContent = 'Recorde: ' + best;
+  if (mode === 'cpu') {
+    const lv = CPU_LEVELS.find(c => c.level === cpuDifficulty) || CPU_LEVELS[0];
+    $('modeTag').textContent = `DUELO · VS CPU (${lv.name.toUpperCase()})`;
+  } else {
+    $('modeTag').textContent = info.tag;
+  }
+  $('playersLabel').textContent = info.players;
+}
+
+function add(t, o, x, y) {
+  const p = { id: S.nid++, t, o, x, y, ready: S.T + 0.8, cd0: 0.8, q: null, shield: 0 };
+  S.grid[y][x] = p;
+  S.pieces.push(p);
+  return p;
+}
+
+function rm(p) {
+  if (S.grid[p.y]?.[p.x] === p) S.grid[p.y][p.x] = null;
+  const i = S.pieces.indexOf(p);
+  if (i >= 0) S.pieces.splice(i, 1);
+  if (S.sel === p) S.sel = null;
+}
+
+function spawnArmy(i) {
+  const d = FAC[i], [bx, by] = d.base, [fx, fy] = d.fwd, rx = -fy, ry = fx;
+  const cells = [];
+  for (const [off, t] of LAYOUT) cells.push([bx + rx * off, by + ry * off, t]);
+  for (let off = -2; off <= 2; off++) cells.push([bx + rx * off + fx, by + ry * off + fy, 'P']);
+  const king = cells[2];
+  if (S.grid[king[1]]?.[king[0]]) return false;
+  let count = 0;
+  for (const [x, y, t] of cells) {
+    if (x >= 0 && y >= 0 && x < N && y < N && !S.grid[y][x]) {
+      const p = add(t, i, x, y);
+      if (S.mode === 'tutorial' && i === 0) p.ready = 0;
+      count++;
+    }
+  }
+  S.f[i].alive = true;
+  return count >= 1;
+}
+
+function spawnFood() {
+  for (let k = 0; k < 40; k++) {
+    const x = rand(N), y = rand(N);
+    if (S.grid[y][x]) continue;
+    const r = Math.random(), t = r < 0.78 ? 'P' : r < 0.88 ? 'N' : r < 0.95 ? 'B' : 'R';
+    add(t, -1, x, y).ready = 0;
+    return true;
+  }
+  return false;
+}
+
+function spawnOrb() {
+  if (S.orbs.length >= 5) return;
+  for (let k = 0; k < 80; k++) {
+    const x = rand(N), y = rand(N);
+    if (S.grid[y][x] || S.orbs.some(o => o.x === x && o.y === y)) continue;
+    S.orbs.push({ x, y, t: S.T });
+    return;
+  }
+}
+
+function moves(p, att = false, grid = S.grid) {
+  const r = [], { x, y, t, o } = p;
+  const ok = (a, b) => a >= 0 && b >= 0 && a < N && b < N;
+  const tryAdd = (a, b) => {
+    if (!ok(a, b)) return false;
+    const q = grid[b][a];
+    if (q && q.o === o && !att) return false;
+    r.push([a, b]);
+    return !q;
+  };
+  const slide = ds => {
+    for (const [dx, dy] of ds) {
+      let a = x + dx, b = y + dy;
+      while (tryAdd(a, b)) { a += dx; b += dy; }
+    }
+  };
+  if (t === 'R' || t === 'Q') slide(ORTH);
+  if (t === 'B' || t === 'Q') slide(DIAG);
+  if (t === 'N') for (const [dx, dy] of KN) tryAdd(x + dx, y + dy);
+  if (t === 'K') for (const [dx, dy] of ORTH.concat(DIAG)) tryAdd(x + dx, y + dy);
+  if (t === 'P' && o >= 0) {
+    const [fx, fy] = FAC[o].fwd, a = x + fx, b = y + fy;
+    if (!att && ok(a, b) && !grid[b][a]) r.push([a, b]);
+    for (const s of [-1, 1]) {
+      const c = x + (fx ? fx : s), d = y + (fy ? fy : s);
+      if (!ok(c, d)) continue;
+      if (att) r.push([c, d]);
+      else {
+        const q = grid[d][c];
+        if (q && q.o !== o) r.push([c, d]);
+      }
+    }
+  }
+  return r;
+}
+
+function calcAtt() {
+  const a = Array.from({ length: N }, () => Array(N).fill(0));
+  for (const p of S.pieces) {
+    if (p.o < 0) continue;
+    for (const [x, y] of moves(p, true)) a[y][x] |= 1 << p.o;
+  }
+  S.att = a;
+}
+
+function gain(o, v) {
+  if (o < 0) return;
+  const f = S.f[o];
+  f.score += v;
+  f.xp += v;
+  f.energy = Math.min(100, f.energy + v * 9);
+  f.captures++;
+  while (f.xp >= need(f)) {
+    f.xp -= need(f);
+    f.lvl++;
+    growPiece(o);
+    feed('<b>' + teamName(o) + '</b> subiu para o nível ' + f.lvl + ' e ganhou ' + NOME[GROW[Math.min(f.lvl - 1, GROW.length - 1)]] + '.');
+  }
+}
+
+function growPiece(o) {
+  const k = S.pieces.find(p => p.o === o && p.t === 'K');
+  if (!k) return;
+  const t = GROW[Math.min(S.f[o].lvl - 1, GROW.length - 1)];
+  for (let r = 1; r <= 6; r++) {
+    const c = [];
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = k.x + dx, y = k.y + dy;
+        if (x >= 0 && y >= 0 && x < N && y < N && !S.grid[y][x]) c.push([x, y]);
+      }
+    }
+    if (c.length) {
+      const [x, y] = c[rand(c.length)];
+      add(t, o, x, y).ready = S.T + 0.6;
+      S.fx.push({ x, y, t: S.T, col: FAC[o].col, big: 1 });
+      return;
+    }
+  }
+}
+
+function collectOrb(p) {
+  const i = S.orbs.findIndex(o => o.x === p.x && o.y === p.y);
+  if (i < 0 || p.o < 0) return false;
+  S.orbs.splice(i, 1);
+  const f = S.f[p.o];
+  gain(p.o, 3);
+  f.energy = Math.min(100, f.energy + 24);
+  S.fx.push({ x: p.x, y: p.y, t: S.T, col: '#cfaf72', big: 1 });
+  feed('<b>' + teamName(p.o) + '</b> coletou um Fragmento Flux (+3 XP e +24% Surto).');
+  playTone('orb');
+  if (S.mode === 'tutorial' && p.o === 0 && tut.step === 6) {
+    f.energy = 100;
+    setTutorialHint('Fragmento coletado! Sua energia chegou a 100%. Clique em "⚡ ATIVAR SURTO" (ou pressione ESPAÇO)!');
+  }
+  return true;
+}
+
+async function recordOfflineMatchToBackend(winner, reason) {
+  const f0 = S.f[0], f1 = S.f[1];
+  const entry = {
+    id: 'local-' + Date.now(),
+    mode: S.mode,
+    difficulty: S.mode === 'cpu' ? cpuDifficulty : null,
+    opponent: S.mode === 'cpu' ? teamName(1) : S.mode === 'tutorial' ? 'Mentor (Tutorial)' : S.mode === 'duel' ? 'Duelo Local' : 'Arena 4 Facções',
+    result: winner === null ? 'Empate' : winner === 0 ? 'Vitória' : 'Derrota',
+    reason,
+    duration: Math.max(1, Math.floor(S.T)),
+    createdAt: new Date().toISOString(),
+    scores: [f0?.score || 0, f1?.score || 0]
+  };
+  historyCache.unshift(entry);
+  historyCache = historyCache.slice(0, 30);
+  try { localStorage.setItem('cf_local_history', JSON.stringify(historyCache.slice(0, 20))); } catch (_) {}
+
+  if (onlineToken && onlineUser) {
+    try {
+      const res = await apiRequest('/api/matches/record', {
+        mode: S.mode,
+        difficulty: cpuDifficulty,
+        result: winner === null ? 'draw' : winner === 0 ? 'win' : 'loss',
+        score: f0?.score || 0,
+        opponentScore: f1?.score || 0,
+        duration: Math.max(1, Math.floor(S.T)),
+        reason
+      });
+      if (res.user) onlineUser = res.user;
+      if (res.games) historyCache = res.games;
+      renderAccount();
+    } catch (_) {}
+  }
+}
+
+function gameOver(winner, reason = '') {
+  if (S.over) return;
+  S.over = true;
+  S.winner = winner;
+  if (winner === 0) playTone('win');
+
+  const mode = S.mode;
+  const f0 = S.f[0], f1 = S.f[1];
+  const recordScore = mode === 'duel' ? (winner === 0 ? f0.score : 0) : f0.score;
+  const recKey = (MODE_INFO[mode] || MODE_INFO.arena).record;
+  if (recordScore > best) {
+    best = recordScore;
+    safeSet(recKey, best);
+  }
+  $('recordPill').textContent = 'Recorde: ' + best;
+
+  if (mode === 'tutorial') {
+    tut.active = false;
+    $('tutorialBanner').classList.add('hidden');
+    clearHudHighlights();
+    try { localStorage.setItem('cf_tutorial_completed', '1'); } catch (_) {}
+    setTutorialPromptChoice('completed');
+    $('overEyebrow').textContent = 'Treinamento concluído';
+    $('resultTitle').textContent = 'TUTORIAL CONCLUÍDO!';
+    $('winnerText').textContent = 'Você está pronto para a arena!';
+    $('res').innerHTML = `Você completou todas as 7 etapas do guia prático!<br>Tempo: <b>${fmt(S.T)}</b> · Placar: <b>${f0.score}</b> · Nível <b>${f0.lvl}</b><br>Agora experimente desafiar a CPU nos 5 níveis ou jogar online com amigos.`;
+    $('again').textContent = 'REPETIR TUTORIAL';
+    $('changeCpuDiffBtn').classList.remove('hidden');
+    $('changeCpuDiffBtn').textContent = 'DESAFIAR A CPU';
+  } else {
+    $('overEyebrow').textContent = 'Fim de partida';
+    const winName = winner === 0
+      ? 'VOCÊ VENCEU!'
+      : winner === 1
+        ? (mode === 'duel' ? 'RUBI VENCEU!' : teamName(1).toUpperCase() + ' VENCEU!')
+        : winner >= 0
+          ? FAC[winner].name.toUpperCase() + ' VENCEU!'
+          : 'EMPATE';
+    $('resultTitle').textContent = winner === 0 ? 'VITÓRIA' : winner >= 0 ? 'FIM DE JOGO' : 'PARTIDA ENCERRADA';
+    $('winnerText').textContent = winName;
+    let details = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${f0.score}</b> · Nível <b>${f0.lvl}</b>`;
+    if (mode !== 'arena') details += `<br>${teamName(1)}: <b>${f1.score}</b>`;
+    if (reason) details += `<br>${reason}`;
+    details += `<br>Recorde no modo: <b>${best}</b>`;
+    $('res').innerHTML = details;
+    $('again').textContent = 'JOGAR NOVAMENTE';
+    $('changeCpuDiffBtn').classList.toggle('hidden', mode !== 'cpu');
+    $('changeCpuDiffBtn').textContent = 'MUDAR DIFICULDADE';
+  }
+
+  $('rematch').classList.add('hidden');
+  $('over').classList.remove('hidden');
+  $('statusText').textContent = 'PARTIDA ENCERRADA';
+  recordOfflineMatchToBackend(winner, reason);
+}
+
+function capture(p, q) {
+  const owner = q.o, v = VAL[q.t] || 1;
+  if (q.shield > 0) {
+    q.shield--;
+    S.fx.push({ x: q.x, y: q.y, t: S.T, col: '#a6e9ff' });
+    feed('<b>Escudo!</b> Um golpe foi bloqueado.');
+    return false;
+  }
+  if (p.o >= 0) {
+    gain(p.o, v);
+    S.fx.push({ x: q.x, y: q.y, t: S.T, col: FAC[p.o].col });
+  }
+  playTone('capture');
+  rm(q);
+  if (q.t === 'K' && owner >= 0) {
+    if (S.mode === 'tutorial' && owner === 0) {
+      // Never punish the learner with a sudden Game Over during the tutorial! Respawn their King safely.
+      add('K', 0, 8, 14).ready = 0;
+      setTutorialHint('Cuidado! O Mentor alcançou seu Rei, mas no tutorial seu Rei foi reposicionado na base para você continuar aprendendo.');
+      return true;
+    }
+    S.f[p.o >= 0 ? p.o : 0].kings++;
+    if (S.mode !== 'arena') {
+      S.f[owner].alive = false;
+      gameOver(p.o, 'O Rei adversário foi capturado.');
+      return true;
+    }
+    const f = S.f[owner];
+    f.alive = false;
+    f.respawn = S.T + 7;
+    for (const z of S.pieces) if (z.o === owner) z.o = p.o;
+    feed('<b>' + teamName(p.o) + '</b> capturou o Rei de <b>' + teamName(owner) + '</b> e converteu seu exército!');
+    if (owner === 0) gameOver(p.o, 'Seu Rei foi capturado.');
+  } else if (owner >= 0) {
+    feed('<b>' + teamName(p.o) + '</b> capturou ' + NOME[q.t] + ' de ' + teamName(owner) + '.');
+  }
+  return true;
+}
+
+function doMove(p, a, b) {
+  if (!p || S.grid[p.y]?.[p.x] !== p) return false;
+  const fromX = p.x, fromY = p.y, q = S.grid[b][a], d = Math.max(Math.abs(a - p.x), Math.abs(b - p.y));
+  const hadCapture = Boolean(q);
+  if (q && q.shield > 0) {
+    q.shield--;
+    p.ready = S.T + Math.max(0.35, BASE[p.t]);
+    p.cd0 = p.ready - S.T;
+    S.fx.push({ x: q.x, y: q.y, t: S.T, col: '#a6e9ff', big: 1 });
+    feed('<b>Escudo!</b> A peça resistiu ao ataque.');
+    calcAtt();
+    return false;
+  }
+  S.grid[p.y][p.x] = null;
+  if (q) capture(p, q);
+  if (S.over) return true;
+  S.grid[b][a] = p;
+  p.x = a;
+  p.y = b;
+  let cd = BASE[p.t] + (p.t === 'N' ? 0.25 : d * 0.12);
+  if (p.o >= 0 && S.f[p.o].boostUntil > S.T) cd *= 0.58;
+  p.cd0 = cd;
+  p.ready = S.T + cd;
+  p.q = null;
+  S.lastMove = { x0: fromX, y0: fromY, x1: a, y1: b, t: S.T };
+  if (!hadCapture) playTone('move');
+  if (p.t === 'P' && p.o >= 0) {
+    const [fx, fy] = FAC[p.o].fwd, na = a + fx, nb = b + fy;
+    if (na < 0 || nb < 0 || na >= N || nb >= N) {
+      p.t = 'Q';
+      S.fx.push({ x: a, y: b, t: S.T, col: FAC[p.o].col, big: 1 });
+      feed('<b>Promoção!</b> Um Peão chegou ao fim do tabuleiro e virou Rainha.');
+    }
+  }
+  collectOrb(p);
+  calcAtt();
+
+  if (S.mode === 'tutorial' && p.o === 0) {
+    onTutorialPlayerMoved(p, hadCapture);
+  }
+  return true;
+}
+
+function cheb(a, b, c, d) { return Math.max(Math.abs(a - c), Math.abs(b - d)); }
+
+/* 5 Distinct CPU AI Difficulty Levels + Tutorial Cooperative Bot */
+function botThink(i) {
+  const ps = S.pieces.filter(p => p.o === i && p.ready <= S.T);
+  if (!ps.length) return;
+  const enemies = S.pieces.filter(p => p.o !== i);
+  const me = 1 << i;
+  const level = S.mode === 'tutorial' ? 1 : (S.mode === 'cpu' ? cpuDifficulty : 3);
+
+  // Tutorial bot: gentle, never captures the player's King while the player is learning Stages 1-6
+  if (S.mode === 'tutorial') {
+    if (tut.paused || tut.step < 3) return;
+    const safePieces = ps.filter(p => p.t === 'P' || p.t === 'N');
+    const pool = safePieces.length ? safePieces : ps;
+    const p = pool[rand(pool.length)];
+    const ms = moves(p).filter(([a, b]) => {
+      const target = S.grid[b][a];
+      if (target && target.o === 0 && (target.t === 'K' || tut.step < 5)) return false;
+      return true;
+    });
+    if (ms.length) {
+      const [a, b] = ms[rand(ms.length)];
+      doMove(p, a, b);
+    }
+    return;
+  }
+
+  // Level 1: Iniciante — Picks a random subset of pieces, ignores threat maps, makes simple moves and frequent blunders
+  if (level === 1) {
+    const sample = ps.filter(() => Math.random() < 0.55);
+    const candidates = sample.length ? sample : [ps[rand(ps.length)]];
+    let bestMove = null, bs = -1e9;
+    for (const p of candidates) {
+      const ms = moves(p);
+      for (const [a, b] of ms) {
+        const q = S.grid[b][a];
+        let score = Math.random() * 6;
+        if (q && q.o < 0) score += VAL[q.t] * 4;
+        else if (q && q.o >= 0 && Math.random() < 0.45) score += VAL[q.t] * 5;
+        if (p.t === 'P') score += 1.5;
+        if (score > bs) { bs = score; bestMove = [p, a, b]; }
+      }
+    }
+    if (bestMove) doMove(bestMove[0], bestMove[1], bestMove[2]);
+    return;
+  }
+
+  // Level 2: Fácil — Recognizes basic captures and nearby orbs, but weak threat awareness
+  if (level === 2) {
+    let bestMove = null, bs = -1e9;
+    for (const p of ps) {
+      const ms = moves(p);
+      for (const [a, b] of ms) {
+        const q = S.grid[b][a];
+        let score = Math.random() * 3.5;
+        if (q) score += q.t === 'K' ? 180 : VAL[q.t] * 8;
+        if ((S.att[b][a] & ~me) !== 0) score -= VAL[p.t] * 2.2;
+        if (S.orbs.some(o => o.x === a && o.y === b)) score += 9;
+        if (score > bs) { bs = score; bestMove = [p, a, b]; }
+      }
+    }
+    if (bestMove) doMove(bestMove[0], bestMove[1], bestMove[2]);
+    return;
+  }
+
+  // Level 3 (Normal), Level 4 (Difícil), Level 5 (Especialista)
+  const enemyKing = S.pieces.find(p => p.o === 0 && p.t === 'K');
+  const myKing = S.pieces.find(p => p.o === i && p.t === 'K');
+
+  if (level >= 3 && S.f[i].energy >= 100) {
+    const recovering = S.pieces.filter(p => p.o === i && p.ready > S.T).length;
+    if (level === 3 && Math.random() < 0.35) activateBoost(i);
+    else if (level >= 4 && (recovering >= 2 || (enemyKing && S.pieces.some(p => p.o === i && cheb(p.x, p.y, enemyKing.x, enemyKing.y) <= 4)))) {
+      activateBoost(i);
+    }
+  }
+
+  let bestMove = null, bs = -1e9;
+  for (const p of ps) {
+    const ms = moves(p);
+    if (!ms.length) continue;
+    let target = null, td = 1e9;
+    for (const e of enemies) {
+      const d = cheb(p.x, p.y, e.x, e.y) - (e.o >= 0 ? 1.3 : 0) + (e.t === 'K' ? -2.5 : 0);
+      if (d < td) { td = d; target = e; }
+    }
+    const pv = VAL[p.t] * (p.t === 'K' ? 3.0 : 1);
+    const inDanger = (S.att[p.y][p.x] & ~me) !== 0;
+    const d0 = target ? cheb(p.x, p.y, target.x, target.y) : 0;
+
+    for (const [a, b] of ms) {
+      const q = S.grid[b][a];
+      let score = level === 5 ? Math.random() * 0.35 : level === 4 ? Math.random() * 0.8 : Math.random() * 1.6;
+
+      if (q) {
+        if (q.t === 'K' && q.o >= 0) score += 500;
+        else score += (VAL[q.t] + 0.5) * (q.o >= 0 ? 11.5 : 8.5);
+      }
+
+      const destAttacked = (S.att[b][a] & ~me) !== 0;
+      const destDefended = (S.att[b][a] & me) !== 0;
+
+      if (destAttacked) {
+        const penaltyMult = level >= 4 ? (destDefended ? 5.2 : 8.5) : 6.5;
+        score -= pv * penaltyMult;
+      } else if (destDefended && level >= 4) {
+        score += 1.8;
+      }
+
+      if (inDanger && !destAttacked) score += pv * (level >= 4 ? 5.0 : 3.3);
+      if (target) score += (d0 - cheb(a, b, target.x, target.y)) * (p.t === 'P' ? 1.8 : 1.2);
+      if (p.t === 'K' && destAttacked) score -= 40;
+      if (S.orbs.some(o => o.x === a && o.y === b)) score += level >= 4 ? 18 : 13;
+
+      // Level 4 & 5: King Escort & Pressure on Player King
+      if (level >= 4) {
+        if (enemyKing) {
+          const distToEnemyKing = cheb(a, b, enemyKing.x, enemyKing.y);
+          score += Math.max(0, 8 - distToEnemyKing) * (p.t === 'Q' || p.t === 'R' || p.t === 'N' ? 1.4 : 0.6);
+        }
+        if (myKing && (S.att[myKing.y][myKing.x] & ~me) !== 0 && p.t !== 'K') {
+          if (cheb(a, b, myKing.x, myKing.y) <= 2) score += 9;
+        }
+      }
+
+      // Level 5 (Especialista): 2-ply lookahead simulation (evaluates direct threats created by this move and avoids traps)
+      if (level === 5) {
+        const origX = p.x, origY = p.y;
+        const prevTarget = S.grid[b][a];
+        S.grid[origY][origX] = null;
+        S.grid[b][a] = p;
+        p.x = a; p.y = b;
+
+        const nextMoves = moves(p, true);
+        for (const [nx, ny] of nextMoves) {
+          const threatened = S.grid[ny][nx];
+          if (threatened && threatened.o === 0) {
+            score += threatened.t === 'K' ? 22 : VAL[threatened.t] * 1.9;
+          }
+        }
+
+        // Check if an enemy piece Ready right now can immediately capture us on (a,b) for a net gain
+        const readyEnemyCanCapture = S.pieces.some(ep =>
+          ep.o === 0 && ep !== prevTarget && ep.ready <= S.T + 0.25 &&
+          moves(ep, true).some(([ex, ey]) => ex === a && ey === b)
+        );
+        if (readyEnemyCanCapture) {
+          const gainVal = prevTarget ? VAL[prevTarget.t] : 0;
+          if (pv > gainVal) score -= (pv - gainVal) * 11;
+        }
+
+        p.x = origX; p.y = origY;
+        S.grid[origY][origX] = p;
+        S.grid[b][a] = prevTarget;
+      }
+
+      if (score > bs) { bs = score; bestMove = [p, a, b]; }
+    }
+  }
+  if (bestMove && bs > -35) doMove(bestMove[0], bestMove[1], bestMove[2]);
+}
+
+function activateBoost(i) {
+  if (!S || S.over || i < 0 || !S.f[i] || S.f[i].energy < 100) return false;
+  if (S.mode === 'online') {
+    sendSocket('game:boost');
+    return true;
+  }
+  const f = S.f[i];
+  f.energy = 0;
+  f.boostUntil = S.T + 6;
+  for (const p of S.pieces) {
+    if (p.o === i && p.ready > S.T) p.ready = S.T + (p.ready - S.T) * 0.48;
+  }
+  S.fx.push({ x: 8, y: 8, t: S.T, col: FAC[i].col, big: 1 });
+  feed('<b>' + teamName(i) + '</b> ativou SURTO! Exército acelerado por 6 segundos.');
+  playTone('boost');
+  if (S.mode === 'tutorial' && i === 0 && tut.step === 6) {
+    advanceTutorialStep(7);
+  }
+  return true;
+}
+
+function abilityOwner() {
+  if (S.mode === 'online') return onlineSide;
+  if (S.mode === 'arena' || S.mode === 'cpu' || S.mode === 'tutorial') return 0;
+  return S.sel && S.sel.o >= 0 ? S.sel.o : 0;
+}
+
+/* Interactive 7-Step Tutorial System */
+function startInteractiveTutorial() {
+  switchNav('play');
+  tut = { active: true, step: 1, paused: false, movesInStep5: 0, targetPieceId: null };
+  reset('tutorial');
+  S.started = true;
+  $('start').classList.add('hidden');
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('onlineLobbyOverlay').classList.add('hidden');
+  $('over').classList.add('hidden');
+  $('tutorialBanner').classList.remove('hidden');
+  $('statusText').textContent = 'TUTORIAL PRÁTICO';
+  renderTutorialStep();
+  hud();
+  setTimeout(resize, 20);
+}
+
+function clearHudHighlights() {
+  $('scoreCard').classList.remove('highlight-ring');
+  $('progressCard').classList.remove('highlight-ring');
+}
+
+function setTutorialHint(msg) {
+  const el = $('tutHint');
+  if (!msg) {
+    el.classList.add('hidden');
+    el.textContent = '';
+  } else {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+}
+
+function ensureCapturableTargetForStep4() {
+  const myPieces = S.pieces.filter(p => p.o === 0);
+  // Check if any player piece can already capture something right now
+  for (const mp of myPieces) {
+    for (const [mx, my] of moves(mp)) {
+      const q = S.grid[my][mx];
+      if (q && q.o !== 0) {
+        tut.targetPieceId = q.id;
+        return;
+      }
+    }
+  }
+  // Spawn a neutral piece directly in front-diagonal of a player pawn or within Knight reach
+  const pawn = myPieces.find(p => p.t === 'P') || myPieces[0];
+  if (pawn) {
+    const candidates = [[pawn.x - 1, pawn.y - 1], [pawn.x + 1, pawn.y - 1], [pawn.x, pawn.y - 2]];
+    for (const [cx, cy] of candidates) {
+      if (cx >= 0 && cy >= 0 && cx < N && cy < N && !S.grid[cy][cx]) {
+        const np = add('P', -1, cx, cy);
+        np.ready = 0;
+        tut.targetPieceId = np.id;
+        calcAtt();
+        return;
+      }
+    }
+  }
+}
+
+function ensureOrbForStep6() {
+  const myPiece = S.pieces.find(p => p.o === 0 && p.t !== 'K') || S.pieces.find(p => p.o === 0);
+  if (myPiece) {
+    const ms = moves(myPiece).filter(([x, y]) => !S.grid[y][x]);
+    if (ms.length) {
+      const [ox, oy] = ms[0];
+      if (!S.orbs.some(o => o.x === ox && o.y === oy)) {
+        S.orbs.unshift({ x: ox, y: oy, t: S.T });
+      }
+    }
+  }
+  S.f[0].energy = 100;
+  hud();
+}
+
+function renderTutorialStep() {
+  if (!tut.active) return;
+  const info = TUTORIAL_STEPS.find(s => s.step === tut.step) || TUTORIAL_STEPS[0];
+  $('tutStepBadge').textContent = `Etapa ${info.step} de 7`;
+  $('tutProgressFill').style.width = `${Math.round((info.step / 7) * 100)}%`;
+  $('tutTitle').textContent = info.title;
+  $('tutText').textContent = info.text;
+  setTutorialHint(info.hint);
+  clearHudHighlights();
+  if (info.hudHighlight && $(info.hudHighlight)) {
+    $(info.hudHighlight).classList.add('highlight-ring');
+  }
+  if (tut.step === 4) ensureCapturableTargetForStep4();
+  if (tut.step === 6) ensureOrbForStep6();
+}
+
+function advanceTutorialStep(nextStep) {
+  if (!tut.active) return;
+  tut.step = Math.min(7, Math.max(1, nextStep));
+  renderTutorialStep();
+  hud();
+}
+
+function onTutorialPlayerMoved(piece, hadCapture) {
+  if (!tut.active) return;
+  if (tut.step === 1 || tut.step === 2 || tut.step === 3) {
+    advanceTutorialStep(4);
+    setTutorialHint('Excelente movimento! Veja a barra de recarga na peça que você moveu. Agora na Etapa 4, vamos fazer uma captura!');
+    return;
+  }
+  if (tut.step === 4) {
+    if (hadCapture) {
+      tut.movesInStep5 = 0;
+      advanceTutorialStep(5);
+    } else {
+      setTutorialHint('Bom movimento! Agora escolha uma peça sua que alcance uma peça cinza ou Rubi (marcada com círculo) para capturá-la.');
+    }
+    return;
+  }
+  if (tut.step === 5) {
+    tut.movesInStep5++;
+    if (tut.movesInStep5 >= 2) {
+      advanceTutorialStep(6);
+    } else {
+      setTutorialHint('Ótimo posicionamento! Faça mais 1 movimento ou captura para avançar às mecânicas especiais.');
+    }
+    return;
+  }
+  if (tut.step === 7 && S.f[0].score >= 15 && !S.over) {
+    gameOver(0, 'Objetivo de pontuação do tutorial concluído com sucesso!');
+  }
+}
+
+$('tutPauseBtn').addEventListener('click', () => {
+  if (!tut.active) return;
+  tut.paused = !tut.paused;
+  $('tutPauseBtn').textContent = tut.paused ? 'Continuar' : 'Pausar';
+  $('statusText').textContent = tut.paused ? 'TUTORIAL PAUSADO' : 'TUTORIAL PRÁTICO';
+});
+$('tutNextBtn').addEventListener('click', () => {
+  if (!tut.active) return;
+  if (tut.step < 7) advanceTutorialStep(tut.step + 1);
+  else gameOver(0, 'Tutorial finalizado pelo jogador.');
+});
+$('tutExitBtn').addEventListener('click', () => {
+  tut.active = false;
+  $('tutorialBanner').classList.add('hidden');
+  clearHudHighlights();
+  openMenu();
+  setTimeout(resize, 20);
+});
+
+$('startTutorialFromMenuBtn').addEventListener('click', startInteractiveTutorial);
+$('guideStartTutorialBtn').addEventListener('click', startInteractiveTutorial);
+$('settingsStartTutorialBtn').addEventListener('click', startInteractiveTutorial);
+
+/* Game Loop Update */
+function update(dt) {
+  if (!S || !S.started || S.over || S.mode === 'online') return;
+  if (S.mode === 'tutorial' && tut.paused) return;
+
+  S.T += dt;
+  S.attT -= dt;
+  if (S.attT <= 0) { calcAtt(); S.attT = 0.22; }
+
+  const lvlBoost = Math.min(0.35, S.T / 500);
+  for (const i of activeTeams()) {
+    if (!isBot(i)) continue;
+    const f = S.f[i];
+    if (!f.alive) {
+      if (S.mode === 'arena' && S.T >= f.respawn) {
+        if (!spawnArmy(i)) f.respawn = S.T + 2;
+      }
+      continue;
+    }
+    if (S.T >= f.next) {
+      botThink(i);
+      calcAtt();
+      const baseInt = S.mode === 'tutorial'
+        ? 1.9
+        : S.mode === 'cpu'
+          ? (CPU_LEVELS.find(c => c.level === cpuDifficulty)?.interval || 0.9)
+          : Math.max(0.38, 0.95 - lvlBoost);
+      f.next = S.T + baseInt * (0.78 + Math.random() * 0.44);
+    }
+  }
+
+  for (const p of S.pieces.slice()) {
+    if (p.q && p.ready <= S.T && (p.o === 0 || S.mode === 'duel') && S.grid[p.y][p.x] === p) {
+      const [a, b] = p.q;
+      p.q = null;
+      if (moves(p).some(m => m[0] === a && m[1] === b)) doMove(p, a, b);
+    }
+  }
+
+  S.foodT -= dt;
+  if (S.foodT <= 0) {
+    S.foodT = 1.05;
+    if (S.pieces.filter(p => p.o < 0).length < (S.mode === 'arena' ? 45 : 34)) spawnFood();
+  }
+  S.orbT -= dt;
+  if (S.orbT <= 0) {
+    S.orbT = 6.8 + Math.random() * 2.4;
+    spawnOrb();
+  }
+  S.fx = S.fx.filter(e => S.T - e.t < 0.65);
+}
+
+function explainInvalidMoveInTutorial(piece, targetX, targetY) {
+  const rules = {
+    P: 'O Peão (♟) avança apenas 1 casa para frente (se estiver vazia) e captura 1 casa na diagonal frontal.',
+    N: 'O Cavalo (♞) salta em formato de "L" (2 casas em uma direção e 1 para o lado).',
+    B: 'O Bispo (♝) move-se apenas pelas diagonais livres.',
+    R: 'A Torre (♜) move-se em linha reta (horizontal ou vertical) por casas livres.',
+    Q: 'A Rainha (♛) move-se em linha reta ou diagonal por casas livres.',
+    K: 'O Rei (♚) move-se 1 casa em qualquer direção.'
+  };
+  setTutorialHint(`Casa inválida para ${NOME[piece.t]}: ${rules[piece.t] || ''} Toque em um dos pontos ou círculos destacados.`);
+}
+
+function handleClick(a, b) {
+  if (!S || !S.started || S.over || a < 0 || b < 0 || a >= N || b >= N) return;
+  if (S.mode === 'tutorial' && tut.paused) return;
+
+  const q = S.grid[b][a], s = S.sel;
+
+  if (S.mode === 'online') {
+    if (s && moves(s).some(m => m[0] === a && m[1] === b)) {
+      if (s.ready <= S.T) {
+        sendSocket('game:move', { pieceId: s.id, x: a, y: b });
+        S.sel = null;
+      } else {
+        showToast('Essa peça ainda está se recuperando.');
+      }
+      return;
+    }
+    S.sel = q && q.o === onlineSide ? q : null;
+    return;
+  }
+
+  if (s) {
+    if (moves(s).some(m => m[0] === a && m[1] === b)) {
+      if (s.ready <= S.T) {
+        doMove(s, a, b);
+        s.q = null;
+      } else if (prefs.autoQueueMove !== false && (s.o === 0 || S.mode === 'duel')) {
+        s.q = [a, b];
+        if (S.mode === 'tutorial') {
+          setTutorialHint('Movimento agendado! A peça irá para lá assim que terminar a recarga.');
+        }
+      }
+      return;
+    }
+    if (S.mode === 'tutorial' && (!q || q.o !== 0)) {
+      explainInvalidMoveInTutorial(s, a, b);
+      return;
+    }
+  }
+
+  const selectable = q && q.o >= 0 && (S.mode === 'duel' ? true : q.o === 0);
+  if (selectable) {
+    S.sel = q;
+    if (S.mode === 'tutorial' && (tut.step === 1 || tut.step === 2)) {
+      advanceTutorialStep(3);
+    }
+  } else {
+    S.sel = null;
+    if (S.mode === 'tutorial' && tut.step === 2) {
+      setTutorialHint('Toque em uma peça AZUL (na parte inferior do tabuleiro) para selecioná-la.');
+    }
+  }
+}
+
+cv.addEventListener('pointerdown', e => {
+  const r = cv.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  handleClick(Math.floor(x / cell), Math.floor(y / cell));
+});
+
+function resize() {
+  const wide = innerWidth > 760;
+  const tutHeight = !$('tutorialBanner').classList.contains('hidden') ? ($('tutorialBanner').offsetHeight + 10) : 0;
+  let availableWidth = wide ? Math.min(720, innerWidth - 330) : innerWidth - 22;
+  let availableHeight = wide ? innerHeight - 130 - tutHeight : Math.min(innerHeight * 0.64, 540);
+  let size = Math.max(224, Math.min(688, availableWidth, availableHeight));
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  cell = Math.max(14, Math.floor(size / N));
+  const px = cell * N;
+  cv.style.width = cv.style.height = px + 'px';
+  cv.width = cv.height = Math.floor(px * dpr);
+  $('wrap').style.width = (px + 12) + 'px';
+  draw();
+}
+
+function getThemeColors() {
+  if (prefs.boardTheme === 'slate') return { light: '#c5ccd1', dark: '#637482' };
+  if (prefs.boardTheme === 'wood') return { light: '#dcc9ab', dark: '#967253' };
+  return { light: '#d2cbb8', dark: '#788a7a' };
+}
+
+function draw() {
+  if (!S) return;
+  const W = cell * N;
+  const theme = getThemeColors();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, W);
+
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      ctx.fillStyle = (x + y) % 2 ? theme.dark : theme.light;
+      ctx.fillRect(x * cell, y * cell, cell, cell);
+      if (prefs.showCoords !== false && x === 0) {
+        ctx.fillStyle = 'rgba(24, 30, 26, 0.45)';
+        ctx.font = Math.max(8, Math.floor(cell * 0.21)) + 'px system-ui';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(String(N - y), x * cell + 2, y * cell + 2);
+      }
+    }
+  }
+
+  ctx.strokeStyle = 'rgba(79, 98, 87, 0.65)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, W - 1, W - 1);
+
+  // Flux Orbs
+  for (const o of S.orbs) {
+    const x = o.x * cell + cell / 2, y = o.y * cell + cell / 2;
+    const pulse = 0.85 + Math.sin(S.T * 4 + o.x) * 0.15;
+    ctx.save();
+    ctx.fillStyle = '#b9935a';
+    ctx.beginPath();
+    ctx.moveTo(x, y - cell * 0.27 * pulse);
+    ctx.lineTo(x + cell * 0.22 * pulse, y);
+    ctx.lineTo(x, y + cell * 0.27 * pulse);
+    ctx.lineTo(x - cell * 0.22 * pulse, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#f3e5c8';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    if (S.mode === 'tutorial' && tut.step === 6) {
+      ctx.strokeStyle = '#ffdf7e';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(x, y, cell * 0.44 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Tutorial Visual Guides on the Board
+  if (S.mode === 'tutorial' && tut.active) {
+    const pulse = 0.42 + Math.sin(S.T * 5) * 0.05;
+    if (tut.step === 2 && !S.sel) {
+      ctx.strokeStyle = '#f0c869';
+      ctx.lineWidth = 2.2;
+      for (const p of S.pieces) {
+        if (p.o === 0 && (p.t === 'P' || p.t === 'N')) {
+          ctx.beginPath();
+          ctx.arc(p.x * cell + cell / 2, p.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    } else if (tut.step === 4) {
+      const targetP = S.pieces.find(p => p.id === tut.targetPieceId);
+      if (targetP) {
+        ctx.strokeStyle = '#f0c869';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.arc(targetP.x * cell + cell / 2, targetP.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  const sel = S.sel, ms = sel ? moves(sel) : [];
+  if (sel) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(sel.x * cell, sel.y * cell, cell, cell);
+    ctx.strokeStyle = '#eff8ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sel.x * cell + 1, sel.y * cell + 1, cell - 2, cell - 2);
+  }
+  if (prefs.highlightMoves !== false) {
+    for (const [a, b] of ms) {
+      const q = S.grid[b][a], cx = a * cell + cell / 2, cy = b * cell + cell / 2;
+      ctx.beginPath();
+      if (q) {
+        ctx.strokeStyle = q.shield > 0 ? '#a4c1bf' : '#c96b6b';
+        ctx.lineWidth = 2.5;
+        ctx.arc(cx, cy, cell * 0.39, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(30, 44, 34, 0.45)';
+        ctx.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (S.lastMove && S.T - S.lastMove.t < 0.9) {
+      ctx.fillStyle = 'rgba(76, 94, 77, 0.22)';
+      for (const [x, y] of [[S.lastMove.x0, S.lastMove.y0], [S.lastMove.x1, S.lastMove.y1]]) {
+        ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+    }
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = Math.floor(cell * 0.76) + 'px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif';
+
+  for (const p of S.pieces) {
+    const col = p.o >= 0 ? FAC[p.o].col : '#9aa6b2', cx = p.x * cell + cell / 2, cy = p.y * cell + cell / 2;
+    ctx.fillStyle = p.o >= 0 ? col + '24' : '#3f474024';
+    ctx.beginPath();
+    ctx.arc(cx, cy, cell * 0.41, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (p.o >= 0 && p.t === 'K') {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.43, 0, Math.PI * 2);
+      ctx.stroke();
+      if (S.att && (S.att[p.y][p.x] & ~(1 << p.o)) !== 0) {
+        ctx.strokeStyle = '#e05263';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cell * 0.48, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    if (p.shield > 0) {
+      ctx.strokeStyle = '#a6e9ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.lineWidth = Math.max(2, cell * 0.065);
+    ctx.strokeStyle = '#222622';
+    ctx.strokeText(GLYPH[p.t], cx, cy + cell * 0.025);
+    ctx.fillStyle = col;
+    ctx.fillText(GLYPH[p.t], cx, cy + cell * 0.025);
+
+    const rem = p.ready - S.T;
+    if (rem > 0 && p.o >= 0) {
+      ctx.fillStyle = 'rgba(28, 34, 30, 0.56)';
+      ctx.fillRect(p.x * cell, p.y * cell, cell, cell * Math.min(1, rem / (p.cd0 || 1)));
+    }
+    if (p.q) {
+      ctx.strokeStyle = '#cfaf72';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(p.q[0] * cell + 3, p.q[1] * cell + 3, cell - 6, cell - 6);
+    }
+    if (p.o >= 0 && S.f[p.o].boostUntil > S.T) {
+      ctx.strokeStyle = col + 'cc';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.47, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  for (const e of S.fx) {
+    const k = (S.T - e.t) / 0.65;
+    ctx.strokeStyle = e.col;
+    ctx.globalAlpha = Math.max(0, 1 - k);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(e.x * cell + cell / 2, e.y * cell + cell / 2, cell * (0.25 + k * (e.big ? 1 : 0.7)), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function hud() {
+  if (!S) return;
+  const teams = activeTeams();
+  const rows = teams.map(i => ({ f: S.f[i], n: S.pieces.filter(p => p.o === i).length })).sort((a, b) => b.f.score - a.f.score);
+  $('lb').innerHTML = rows.map(({ f, n }) => {
+    const isMe = f.id === (S.mode === 'online' ? onlineSide : 0), down = !f.alive;
+    return `<div class="player-row${isMe ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)}</span>${down ? '<span class="dead">☠ fora</span>' : `<span class="count">${n} peças</span>`}<span class="score">${f.score}</span></div>`;
+  }).join('');
+
+  const owner = abilityOwner(), f = S.f[owner], selectedTeam = S.sel ? S.sel.o : -1;
+  $('progressTitle').textContent = (S.mode === 'online' || owner === 0) ? 'Sua Evolução' : FAC[owner].name;
+  $('lvl').textContent = 'Nível ' + f.lvl;
+  $('tm').textContent = fmt(S.T);
+  $('xpText').textContent = f.xp + ' / ' + need(f) + ' XP';
+  $('xp').style.width = Math.min(100, (f.xp / need(f)) * 100) + '%';
+  $('nx').textContent = 'Próximo reforço: ' + NOME[GROW[Math.min(f.lvl, GROW.length - 1)]];
+  $('energyText').textContent = Math.floor(f.energy) + '%';
+  $('energy').style.width = f.energy + '%';
+  $('energyLabel').textContent = (S.mode === 'online' || owner === 0) ? 'Habilidade Surto' : ('Surto · ' + (owner === 1 && S.mode === 'duel' ? 'Rubi' : FAC[owner].name));
+
+  const boost = $('boost');
+  if (f.boostUntil > S.T) {
+    boost.textContent = 'SURTO ATIVO · ' + (f.boostUntil - S.T).toFixed(1) + 's';
+    boost.disabled = true;
+    boost.classList.remove('ready');
+  } else {
+    boost.textContent = f.energy >= 100 ? '⚡ ATIVAR SURTO' : 'SURTO · ' + Math.floor(f.energy) + '%';
+    boost.disabled = f.energy < 100 || !f.alive;
+    boost.classList.toggle('ready', !boost.disabled);
+  }
+  if (S.mode === 'duel' && selectedTeam === 1) $('progressTitle').textContent = 'Evolução · Rubi';
+
+  $('feed').innerHTML = S.events.slice(0, 4).map(e => `<div class="feed-item"><i class="feed-mark"></i><span>${e.msg}</span></div>`).join('') || '<div class="feed-item"><i class="feed-mark"></i><span>Aguardando o primeiro movimento...</span></div>';
+  if (!tut.active) {
+    $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : (S.started ? (S.mode === 'online' ? 'ONLINE · AO VIVO' : 'EM BATALHA') : 'AGUARDANDO');
+  }
+}
+
+/* CPU Difficulty Selector UI */
+function renderCpuDiffSelector() {
+  const list = $('cpuDiffList');
+  list.replaceChildren();
+  for (const item of CPU_LEVELS) {
+    const row = document.createElement('div');
+    row.className = 'diff-item' + (cpuDifficulty === item.level ? ' selected' : '');
+    const barsHtml = Array.from({ length: 5 }, (_, idx) => {
+      const on = idx < item.level;
+      const hard = item.level >= 4;
+      return `<i class="diff-bar${on ? ' on' : ''}${on && hard ? ' hard' : ''}"></i>`;
+    }).join('');
+    row.innerHTML = `
+      <div class="diff-main">
+        <div class="diff-title-row">
+          <span class="diff-name">${item.level}. ${item.name}</span>
+          <div class="diff-meter" aria-label="Nível ${item.level} de 5">${barsHtml}</div>
+          ${item.recommended ? '<span class="rec-tag">Recomendado para iniciantes</span>' : ''}
+        </div>
+        <div class="diff-desc">${item.desc}</div>
+        <div class="muted" style="font-size:10px;margin-top:2px;color:var(--gold)">${item.challenge}</div>
+      </div>
+    `;
+    const btn = document.createElement('button');
+    btn.className = cpuDifficulty === item.level ? 'primary' : 'secondary';
+    btn.style.padding = '7px 12px';
+    btn.textContent = 'Jogar';
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      cpuDifficulty = item.level;
+      launchSelectedGame('cpu');
+    });
+    row.addEventListener('click', () => {
+      cpuDifficulty = item.level;
+      renderCpuDiffSelector();
+    });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+function openCpuDiffSelector() {
+  renderCpuDiffSelector();
+  $('start').classList.add('hidden');
+  $('over').classList.add('hidden');
+  $('cpuDiffOverlay').classList.remove('hidden');
+}
+
+$('cpuDiffBackBtn').addEventListener('click', () => {
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('start').classList.remove('hidden');
+});
+$('cpuDiffCancelBtn').addEventListener('click', () => {
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('start').classList.remove('hidden');
+});
+$('cpuDiffStartBtn').addEventListener('click', () => launchSelectedGame('cpu'));
+$('changeCpuDiffBtn').addEventListener('click', openCpuDiffSelector);
+
+function openOnlineLobby() {
+  $('start').classList.add('hidden');
+  $('over').classList.add('hidden');
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('onlineLobbyOverlay').classList.remove('hidden');
+  const signed = Boolean(onlineUser);
+  $('onlineLobbyGuestNotice').classList.toggle('hidden', signed);
+  $('onlineLobbyAuthContent').classList.toggle('hidden', !signed);
+  if (signed && !wsReady) connectSocket();
+}
+
+$('onlineLobbyCloseBtn').addEventListener('click', () => {
+  $('onlineLobbyOverlay').classList.add('hidden');
+  if (!S?.started) $('start').classList.remove('hidden');
+});
+$('onlineGoAuthBtn').addEventListener('click', () => {
+  $('onlineLobbyOverlay').classList.add('hidden');
+  switchNav('profile');
+});
+$('openFriendsFromLobbyBtn').addEventListener('click', () => {
+  $('onlineLobbyOverlay').classList.add('hidden');
+  switchNav('friends');
+});
+
+function launchSelectedGame(mode) {
+  tut.active = false;
+  $('tutorialBanner').classList.add('hidden');
+  clearHudHighlights();
+  reset(mode);
+  S.started = true;
+  $('start').classList.add('hidden');
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('onlineLobbyOverlay').classList.add('hidden');
+  $('over').classList.add('hidden');
+  $('rematch').classList.add('hidden');
+  $('again').classList.remove('hidden');
+  $('statusText').textContent = 'EM BATALHA';
+  hud();
+  setTimeout(resize, 20);
+}
+
+function start() {
+  if (selectedMode === 'online') {
+    openOnlineLobby();
+    return;
+  }
+  if (selectedMode === 'cpu') {
+    openCpuDiffSelector();
+    return;
+  }
+  launchSelectedGame(selectedMode);
+}
+
+function openMenu() {
+  if (S?.mode === 'online' && !S.over) {
+    if (prefs.confirmResign !== false && !confirm('Sair agora contará como desistência na partida online. Deseja continuar?')) return;
+    sendSocket('game:resign');
+  } else if (S?.started && !S.over && S.mode !== 'tutorial' && prefs.confirmResign !== false) {
+    if (!confirm('Deseja encerrar a partida atual e voltar ao menu de modos?')) return;
+  }
+  tut.active = false;
+  $('tutorialBanner').classList.add('hidden');
+  clearHudHighlights();
+  if (S) { S.started = false; S.over = false; }
+  $('over').classList.add('hidden');
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('onlineLobbyOverlay').classList.add('hidden');
+  $('start').classList.remove('hidden');
+  $('rematch').classList.add('hidden');
+  switchNav('play');
+}
+
+function chooseMode(mode) {
+  selectedMode = mode;
+  document.querySelectorAll('.mode-card').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  $('modeDesc').textContent = MODE_INFO[mode]?.desc || '';
+  $('go').textContent = mode === 'arena'
+    ? 'ENTRAR NA ARENA →'
+    : mode === 'duel'
+      ? 'COMEÇAR DUELO LOCAL →'
+      : mode === 'cpu'
+        ? 'ESCOLHER DIFICULDADE →'
+        : 'ABRIR LOBBY ONLINE →';
+  if (S && !S.started) $('modeTag').textContent = MODE_INFO[mode].tag;
+}
+
+/* Interactive Piece Demo Board in "Como jogar" */
+const DEMO_SPECS = {
+  P: {
+    val: '1 ponto / XP',
+    cd: '0.9 segundos',
+    range: '1 casa frontal',
+    rule: '<b>Peão (♟):</b> Avança 1 casa para frente (se estiver vazia) e captura 1 casa na diagonal frontal. Ao alcançar a última linha do tabuleiro, vira uma <b>Rainha (♛)</b> automaticamente!'
+  },
+  N: {
+    val: '3 pontos / XP',
+    cd: '1.4 segundos',
+    range: 'Salto em L (2×1)',
+    rule: '<b>Cavalo (♞):</b> Salta em formato de "L" e é a única peça que pode pular sobre outras peças no caminho. Excelente para ataques surpresa.'
+  },
+  B: {
+    val: '3 pontos / XP',
+    cd: '1.6 segundos',
+    range: 'Diagonais livres',
+    rule: '<b>Bispo (♝):</b> Desliza quantas casas quiser pelas diagonais livres. Forte para controlar longas linhas de longe.'
+  },
+  R: {
+    val: '5 pontos / XP',
+    cd: '1.8 segundos',
+    range: 'Linhas retas livres',
+    rule: '<b>Torre (♜):</b> Move-se na horizontal ou vertical por quantas casas livres desejar. Muito poderosa para cercar o Rei inimigo.'
+  },
+  Q: {
+    val: '9 pontos / XP',
+    cd: '2.2 segundos',
+    range: 'Retas e diagonais',
+    rule: '<b>Rainha (♛):</b> Combina os movimentos da Torre e do Bispo. É a peça mais forte do jogo, mas tem recarga de 2.2s — proteja-a bem!'
+  },
+  K: {
+    val: '10 pontos (Vitória)',
+    cd: '1.1 segundos',
+    range: '1 casa ao redor',
+    rule: '<b>Rei (♚):</b> Move-se 1 casa em qualquer direção. É o coração do seu exército: se ele for capturado no 1v1, a partida termina!'
+  }
+};
+
+let demoState = { type: 'P', x: 3, y: 4, enemyX: 4, enemyY: 3 };
+const demoCv = $('demoCanvas');
+const demoCtx = demoCv.getContext('2d');
+
+function computeDemoMoves() {
+  const N_DEMO = 7;
+  const { type, x, y, enemyX, enemyY } = demoState;
+  const res = [];
+  const ok = (a, b) => a >= 0 && b >= 0 && a < N_DEMO && b < N_DEMO;
+  const isEnemy = (a, b) => a === enemyX && b === enemyY;
+  const addSq = (a, b) => {
+    if (!ok(a, b)) return false;
+    res.push([a, b]);
+    return !isEnemy(a, b);
+  };
+  if (type === 'R' || type === 'Q') {
+    for (const [dx, dy] of ORTH) { let a = x + dx, b = y + dy; while (addSq(a, b)) { a += dx; b += dy; } }
+  }
+  if (type === 'B' || type === 'Q') {
+    for (const [dx, dy] of DIAG) { let a = x + dx, b = y + dy; while (addSq(a, b)) { a += dx; b += dy; } }
+  }
+  if (type === 'N') for (const [dx, dy] of KN) addSq(x + dx, y + dy);
+  if (type === 'K') for (const [dx, dy] of ORTH.concat(DIAG)) addSq(x + dx, y + dy);
+  if (type === 'P') {
+    if (ok(x, y - 1) && !isEnemy(x, y - 1)) res.push([x, y - 1]);
+    for (const s of [-1, 1]) {
+      if (ok(x + s, y - 1) && isEnemy(x + s, y - 1)) res.push([x + s, y - 1]);
+    }
+  }
+  return res;
+}
+
+function drawDemoBoard() {
+  if (!demoCv) return;
+  const N_DEMO = 7, c = 34;
+  const theme = getThemeColors();
+  demoCtx.clearRect(0, 0, demoCv.width, demoCv.height);
+  for (let y = 0; y < N_DEMO; y++) {
+    for (let x = 0; x < N_DEMO; x++) {
+      demoCtx.fillStyle = (x + y) % 2 ? theme.dark : theme.light;
+      demoCtx.fillRect(x * c, y * c, c, c);
+    }
+  }
+  const ms = computeDemoMoves();
+  for (const [mx, my] of ms) {
+    const cx = mx * c + c / 2, cy = my * c + c / 2;
+    demoCtx.beginPath();
+    if (mx === demoState.enemyX && my === demoState.enemyY) {
+      demoCtx.strokeStyle = '#c96b6b';
+      demoCtx.lineWidth = 2.5;
+      demoCtx.arc(cx, cy, c * 0.39, 0, Math.PI * 2);
+      demoCtx.stroke();
+    } else {
+      demoCtx.fillStyle = 'rgba(28, 42, 32, 0.5)';
+      demoCtx.arc(cx, cy, c * 0.16, 0, Math.PI * 2);
+      demoCtx.fill();
+    }
+  }
+  demoCtx.textAlign = 'center';
+  demoCtx.textBaseline = 'middle';
+  demoCtx.font = '25px "Segoe UI Symbol","Noto Sans Symbols 2",serif';
+
+  // Enemy target piece
+  if (demoState.enemyX >= 0) {
+    const ex = demoState.enemyX * c + c / 2, ey = demoState.enemyY * c + c / 2;
+    demoCtx.fillStyle = '#bd7778';
+    demoCtx.strokeStyle = '#222';
+    demoCtx.lineWidth = 2;
+    demoCtx.strokeText('♟', ex, ey + 1);
+    demoCtx.fillText('♟', ex, ey + 1);
+  }
+
+  // Player demo piece
+  const px = demoState.x * c + c / 2, py = demoState.y * c + c / 2;
+  demoCtx.fillStyle = 'rgba(255,255,255,0.28)';
+  demoCtx.fillRect(demoState.x * c, demoState.y * c, c, c);
+  demoCtx.fillStyle = '#6f9daf';
+  demoCtx.strokeStyle = '#222';
+  demoCtx.lineWidth = 2;
+  demoCtx.strokeText(GLYPH[demoState.type], px, py + 1);
+  demoCtx.fillText(GLYPH[demoState.type], px, py + 1);
+}
+
+function selectDemoPiece(type) {
+  demoState = { type, x: 3, y: 4, enemyX: type === 'N' ? 4 : 4, enemyY: type === 'N' ? 2 : 3 };
+  document.querySelectorAll('#guidePiecePicker .piece-btn').forEach(b => b.classList.toggle('active', b.dataset.piece === type));
+  const spec = DEMO_SPECS[type];
+  $('guidePieceRuleText').innerHTML = spec.rule;
+  $('guidePieceVal').textContent = spec.val;
+  $('guidePieceCd').textContent = spec.cd;
+  $('guidePieceRange').textContent = spec.range;
+  drawDemoBoard();
+}
+
+document.querySelectorAll('#guidePiecePicker .piece-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectDemoPiece(btn.dataset.piece));
+});
+
+demoCv.addEventListener('pointerdown', e => {
+  const r = demoCv.getBoundingClientRect();
+  const gx = Math.floor((e.clientX - r.left) / 34);
+  const gy = Math.floor((e.clientY - r.top) / 34);
+  const ms = computeDemoMoves();
+  if (ms.some(([a, b]) => a === gx && b === gy)) {
+    demoState.x = gx;
+    demoState.y = gy;
+    if (demoState.type === 'P' && gy === 0) demoState.type = 'Q';
+    if (gx === demoState.enemyX && gy === demoState.enemyY) {
+      demoState.enemyX = (gx + 2) % 7;
+      demoState.enemyY = (gy + 2) % 6 + 1;
+    }
+    drawDemoBoard();
+  }
+});
+
+document.querySelectorAll('.guide-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.gtab;
+    document.querySelectorAll('.guide-tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.guide-section').forEach(sec => sec.classList.toggle('active', sec.id === 'gtab-' + target));
+    if (target === 'pieces') setTimeout(drawDemoBoard, 20);
+  });
+});
+
+/* API & WebSocket Communication */
+async function apiRequest(path, body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (onlineToken) headers.Authorization = 'Bearer ' + onlineToken;
+  const response = await fetch(path, {
+    method: body ? 'POST' : 'GET',
+    headers,
+    credentials: 'same-origin',
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let data = {};
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a solicitação.');
+  return data;
+}
+
+function showOnlineMessage(message = '', kind = '') {
+  const el = $('onlineMessage');
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = kind === 'error' ? 'var(--red)' : kind === 'success' ? 'var(--green)' : 'var(--muted)';
+}
+
+function showToast(message) {
+  const stack = $('noticeStack'), el = document.createElement('div');
+  el.className = 'notice-toast';
+  el.textContent = message;
+  stack.appendChild(el);
+  while (stack.children.length > 4) stack.removeChild(stack.firstChild);
+  setTimeout(() => el.remove(), 4400);
+}
+
+function sendSocket(type, payload = {}) {
+  if (wsReady && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type, ...payload }));
+    return true;
+  }
+  showToast('Conectando ao servidor. Tente novamente em instantes.');
+  if (onlineToken && !ws) connectSocket();
+  return false;
+}
+
+function updateNavBadges() {
+  const onlineCount = friendCache.filter(f => f.online).length;
+  const badge = $('navFriendsOnlineBadge');
+  badge.textContent = String(onlineCount);
+  badge.classList.toggle('hidden', onlineCount === 0);
+
+  const hasAlerts = incomingReqCache.length > 0 || challengeInbox.size > 0;
+  $('navFriendsAlertDot').classList.toggle('hidden', !hasAlerts);
+}
+
+function renderAvatarSelector() {
+  const grid = $('avatarSelectorGrid');
+  if (!grid) return;
+  grid.replaceChildren();
+  for (const av of AVATARS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-choice' + (selectedAvatarEdit === av ? ' selected' : '');
+    btn.textContent = av;
+    btn.addEventListener('click', () => {
+      selectedAvatarEdit = av;
+      renderAvatarSelector();
+    });
+    grid.appendChild(btn);
+  }
+}
+
+function renderAccount() {
+  const signed = Boolean(onlineUser);
+  $('authView').classList.toggle('hidden', signed);
+  $('accountView').classList.toggle('hidden', !signed);
+  $('friendsGuestNotice').classList.toggle('hidden', signed);
+  $('friendsAuthContent').classList.toggle('hidden', !signed);
+
+  if (signed) {
+    $('headerAvatar').textContent = onlineUser.avatar || '♟';
+    $('headerAccountLabel').textContent = '@' + onlineUser.username;
+    $('profileBigAvatar').textContent = onlineUser.avatar || '♟';
+    $('accountName').textContent = onlineUser.displayName || onlineUser.username;
+    $('accountHandle').textContent = '@' + onlineUser.username;
+    $('accountBioText').textContent = onlineUser.bio || 'Sem frase de perfil definida.';
+
+    const s = onlineUser.stats || {};
+    const g = s.games || 0, w = s.wins || 0, l = s.losses || 0, d = s.draws || 0;
+    const rate = g > 0 ? Math.round((w / g) * 100) : 0;
+    $('statOnlineGames').textContent = String(g);
+    $('statOnlineWins').textContent = String(w);
+    $('statOnlineLosses').textContent = `${l} / ${d}`;
+    $('statWinRate').textContent = `${rate}%`;
+    $('statCpuWins').textContent = `${s.cpuWins || 0} (${s.cpuGames || 0} jogos)`;
+    const diffNames = { 0: 'Nenhuma', 1: 'Iniciante', 2: 'Fácil', 3: 'Normal', 4: 'Difícil', 5: 'Especialista' };
+    $('statCpuMax').textContent = diffNames[s.highestCpuLevel || 0] || 'Nenhuma';
+
+    if (document.activeElement !== $('editUsername')) $('editUsername').value = onlineUser.username || '';
+    if (document.activeElement !== $('editDisplayName')) $('editDisplayName').value = onlineUser.displayName || '';
+    if (document.activeElement !== $('editBio')) $('editBio').value = onlineUser.bio || '';
+    selectedAvatarEdit = onlineUser.avatar || '♟';
+    renderAvatarSelector();
+  } else {
+    $('headerAvatar').textContent = '♟';
+    $('headerAccountLabel').textContent = 'Entrar / Conta';
+  }
+  updateNavBadges();
+}
+
+function renderFriendRow(friend) {
+  const row = document.createElement('div');
+  row.className = 'friend-item';
+  const statusClass = friend.inGame ? 'in_game' : friend.online ? 'online' : '';
+  const statusLabel = friend.inGame ? 'Em partida agora' : friend.online ? 'Disponível para duelo' : 'Offline';
+  row.innerHTML = `
+    <div class="friend-ident">
+      <div class="avatar-badge">${friend.avatar || '♟'}</div>
+      <div class="friend-names">
+        <strong>${friend.displayName || friend.username} <span class="muted" style="font-weight:500">@${friend.username}</span></strong>
+        <span><i class="presence-dot ${statusClass}"></i>${statusLabel}</span>
+      </div>
+    </div>
+  `;
+  const actions = document.createElement('div');
+  actions.className = 'friend-actions';
+
+  const profBtn = document.createElement('button');
+  profBtn.className = 'mini-btn';
+  profBtn.textContent = 'Perfil';
+  profBtn.addEventListener('click', () => inspectPlayerProfile(friend.username));
+  actions.appendChild(profBtn);
+
+  if (friend.online && !friend.inGame) {
+    const chalBtn = document.createElement('button');
+    chalBtn.className = 'mini-btn';
+    chalBtn.style.borderColor = 'var(--accent)';
+    chalBtn.textContent = '⚔️ Desafiar';
+    chalBtn.addEventListener('click', () => openChallengeConfigModal(friend));
+    actions.appendChild(chalBtn);
+  }
+
+  const remBtn = document.createElement('button');
+  remBtn.className = 'mini-btn danger';
+  remBtn.textContent = 'Remover';
+  remBtn.addEventListener('click', () => {
+    if (confirm(`Remover @${friend.username} da sua lista de amigos?`)) {
+      sendSocket('friend:remove', { userId: friend.id });
+    }
+  });
+  actions.appendChild(remBtn);
+
+  const blkBtn = document.createElement('button');
+  blkBtn.className = 'mini-btn danger';
+  blkBtn.textContent = 'Bloquear';
+  blkBtn.addEventListener('click', () => {
+    if (confirm(`Bloquear @${friend.username}?`)) {
+      sendSocket('friend:block', { userId: friend.id });
+    }
+  });
+  actions.appendChild(blkBtn);
+
+  row.appendChild(actions);
+  return row;
+}
+
+function renderFriendsPage() {
+  const onlineList = friendCache.filter(f => f.online && !f.inGame);
+  const inGameList = friendCache.filter(f => f.online && f.inGame);
+  const offlineList = friendCache.filter(f => !f.online);
+
+  $('countOnlineFriends').textContent = String(onlineList.length);
+  $('countInGameFriends').textContent = String(inGameList.length);
+  $('countOfflineFriends').textContent = String(offlineList.length);
+
+  const fillList = (elId, arr, emptyMsg) => {
+    const box = $(elId);
+    box.replaceChildren();
+    if (!arr.length) { box.textContent = emptyMsg; return; }
+    for (const f of arr) box.appendChild(renderFriendRow(f));
+  };
+
+  fillList('friendsOnlineList', onlineList, 'Nenhum amigo disponível online no momento.');
+  fillList('friendsInGameList', inGameList, 'Nenhum amigo está em partida agora.');
+  fillList('friendsOfflineList', offlineList, 'Nenhum amigo offline.');
+
+  // Incoming requests
+  $('countIncomingReq').textContent = String(incomingReqCache.length);
+  const reqBox = $('friendRequests');
+  reqBox.replaceChildren();
+  if (!incomingReqCache.length) {
+    reqBox.textContent = 'Nenhuma solicitação recebida.';
+  } else {
+    for (const r of incomingReqCache) {
+      const row = document.createElement('div');
+      row.className = 'friend-item';
+      row.innerHTML = `<div class="friend-ident"><span class="avatar-badge">${r.from?.avatar || '♟'}</span><div class="friend-names"><strong>@${r.from?.username || 'jogador'}</strong><span>Quer adicionar você</span></div></div>`;
+      const acts = document.createElement('div');
+      acts.className = 'friend-actions';
+      const acc = document.createElement('button');
+      acc.className = 'mini-btn';
+      acc.textContent = 'Aceitar';
+      acc.addEventListener('click', () => sendSocket('friend:respond', { requestId: r.id, accept: true }));
+      const rej = document.createElement('button');
+      rej.className = 'mini-btn danger';
+      rej.textContent = 'Recusar';
+      rej.addEventListener('click', () => sendSocket('friend:respond', { requestId: r.id, accept: false }));
+      acts.append(acc, rej);
+      row.appendChild(acts);
+      reqBox.appendChild(row);
+    }
+  }
+
+  // Sent requests
+  $('countOutgoingReq').textContent = String(outgoingReqCache.length);
+  const sentBox = $('sentRequestsList');
+  sentBox.replaceChildren();
+  if (!outgoingReqCache.length) {
+    sentBox.textContent = 'Nenhuma solicitação enviada pendente.';
+  } else {
+    for (const r of outgoingReqCache) {
+      const row = document.createElement('div');
+      row.className = 'friend-item';
+      row.innerHTML = `<div class="friend-ident"><span class="avatar-badge">${r.to?.avatar || '♟'}</span><div class="friend-names"><strong>@${r.to?.username || 'jogador'}</strong><span>Aguardando resposta</span></div></div>`;
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'mini-btn danger';
+      cancelBtn.textContent = 'Cancelar';
+      cancelBtn.addEventListener('click', () => sendSocket('friend:cancel', { requestId: r.id }));
+      row.appendChild(cancelBtn);
+      sentBox.appendChild(row);
+    }
+  }
+
+  renderChallenges();
+  updateNavBadges();
+}
+
+function renderSearchResults(users) {
+  const box = $('searchResults');
+  box.replaceChildren();
+  if (!users.length) {
+    box.textContent = 'Nenhum jogador encontrado com esse nome.';
+    return;
+  }
+  for (const u of users) {
+    const row = document.createElement('div');
+    row.className = 'friend-item';
+    row.innerHTML = `<div class="friend-ident"><span class="avatar-badge">${u.avatar || '♟'}</span><div class="friend-names"><strong>${u.displayName || u.username} <span class="muted">@${u.username}</span></strong><span>${u.statusLabel || (u.online ? 'Online' : 'Offline')}</span></div></div>`;
+    const acts = document.createElement('div');
+    acts.className = 'friend-actions';
+
+    const profBtn = document.createElement('button');
+    profBtn.className = 'mini-btn';
+    profBtn.textContent = 'Perfil';
+    profBtn.addEventListener('click', () => inspectPlayerProfile(u.username));
+    acts.appendChild(profBtn);
+
+    if (u.isFriend) {
+      const tag = document.createElement('span');
+      tag.className = 'muted';
+      tag.textContent = 'Já é amigo';
+      acts.appendChild(tag);
+    } else if (u.requestPending) {
+      const tag = document.createElement('span');
+      tag.className = 'muted';
+      tag.textContent = 'Solicitação pendente';
+      acts.appendChild(tag);
+    } else {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'mini-btn';
+      addBtn.textContent = '+ Adicionar';
+      addBtn.addEventListener('click', () => sendSocket('friend:request', { username: u.username }));
+      acts.appendChild(addBtn);
+    }
+    row.appendChild(acts);
+    box.appendChild(row);
+  }
+}
+
+function renderChallenges() {
+  const box = $('challengeList');
+  box.replaceChildren();
+  if (!challengeInbox.size) {
+    box.textContent = 'Nenhum desafio pendente no momento.';
+    updateNavBadges();
+    return;
+  }
+  for (const c of challengeInbox.values()) {
+    const row = document.createElement('div');
+    row.className = 'friend-item';
+    row.innerHTML = `
+      <div class="friend-ident">
+        <span class="avatar-badge">${c.from?.avatar || '⚔️'}</span>
+        <div class="friend-names">
+          <strong>@${c.from?.username || 'jogador'} desafiou você!</strong>
+          <span>${c.summary || 'Partida 1v1 em tempo real'}</span>
+        </div>
+      </div>
+    `;
+    const acts = document.createElement('div');
+    acts.className = 'friend-actions';
+    const accept = document.createElement('button');
+    accept.className = 'primary';
+    accept.style.padding = '6px 12px';
+    accept.textContent = 'Aceitar Duelo';
+    accept.addEventListener('click', () => {
+      sendSocket('challenge:respond', { challengeId: c.id, accept: true });
+      challengeInbox.delete(c.id);
+      renderChallenges();
+    });
+    const decline = document.createElement('button');
+    decline.className = 'mini-btn danger';
+    decline.textContent = 'Recusar';
+    decline.addEventListener('click', () => {
+      sendSocket('challenge:respond', { challengeId: c.id, accept: false });
+      challengeInbox.delete(c.id);
+      renderChallenges();
+    });
+    acts.append(accept, decline);
+    row.appendChild(acts);
+    box.appendChild(row);
+  }
+  updateNavBadges();
+}
+
+function renderGameHistory(games) {
+  const box = $('gameHistory');
+  box.replaceChildren();
+  if (!games || !games.length) {
+    box.textContent = 'Você ainda não disputou partidas registradas.';
+    return;
+  }
+  for (const g of games) {
+    const row = document.createElement('div');
+    row.className = 'friend-item';
+    const badgeColor = g.result === 'Vitória' ? 'var(--green)' : g.result === 'Derrota' ? 'var(--red)' : 'var(--gold)';
+    const modeLabel = g.mode === 'cpu' ? 'vs CPU' : g.mode === 'tutorial' ? 'Tutorial' : g.mode === 'duel' ? 'Duelo Local' : g.mode === 'arena' ? 'Arena' : 'Online 1v1';
+    const scoresText = Array.isArray(g.scores) ? `Placar: ${g.scores[0]} × ${g.scores[1]}` : '';
+    const dateStr = g.createdAt ? new Date(g.createdAt).toLocaleDateString('pt-BR') : '';
+    row.innerHTML = `
+      <div class="friend-ident">
+        <div class="avatar-badge" style="color:${badgeColor};font-weight:800;font-size:14px">${g.result === 'Vitória' ? '✓' : g.result === 'Derrota' ? '×' : '='}</div>
+        <div class="friend-names">
+          <strong><span style="color:${badgeColor}">${g.result}</span> · contra ${g.opponent} <span class="muted">(${modeLabel})</span></strong>
+          <span>${scoresText} · Duração: ${fmt(g.duration || 0)} · ${dateStr} ${g.reason ? '· ' + g.reason : ''}</span>
+        </div>
+      </div>
+    `;
+    box.appendChild(row);
+  }
+}
+
+/* Friend Challenge Configuration Modal */
+function openChallengeConfigModal(friend) {
+  pendingChallengeTargetId = friend.id;
+  $('challengeModalTitle').textContent = `Desafiar @${friend.username}`;
+  $('challengeModal').classList.remove('hidden');
+}
+$('challengeModalClose').addEventListener('click', () => $('challengeModal').classList.add('hidden'));
+$('challengeCancelBtn').addEventListener('click', () => $('challengeModal').classList.add('hidden'));
+$('challengeConfirmSendBtn').addEventListener('click', () => {
+  if (!pendingChallengeTargetId) return;
+  const options = {
+    pace: $('chalPace').value,
+    orbs: $('chalOrbs').value,
+    timeLimit: Number($('chalTime').value) || 0
+  };
+  sendSocket('challenge:send', { userId: pendingChallengeTargetId, options });
+  $('challengeModal').classList.add('hidden');
+});
+
+/* Inspect Friend / Player Profile Modal */
+async function inspectPlayerProfile(username) {
+  try {
+    const data = await apiRequest('/api/users/' + encodeURIComponent(username));
+    const u = data.user;
+    const s = u.stats || {};
+    const body = $('inspectModalBody');
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="avatar-badge" style="width:48px;height:48px;font-size:26px">${u.avatar || '♟'}</div>
+        <div>
+          <strong style="font-size:17px;display:block">${u.displayName || u.username}</strong>
+          <span class="muted">@${u.username} · ${u.statusLabel || 'Offline'}</span>
+          ${u.bio ? `<p class="muted" style="margin:4px 0 0">${u.bio}</p>` : ''}
+        </div>
+      </div>
+      <div class="stats-grid" style="margin-bottom:12px">
+        <div class="stat-box"><span>Jogos Online</span><strong>${s.games || 0}</strong></div>
+        <div class="stat-box"><span>Vitórias</span><strong>${s.wins || 0}</strong></div>
+        <div class="stat-box"><span>Vitórias vs CPU</span><strong>${s.cpuWins || 0}</strong></div>
+      </div>
+    `;
+    $('inspectModal').classList.remove('hidden');
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+$('inspectModalClose').addEventListener('click', () => $('inspectModal').classList.add('hidden'));
+
+/* Recovery Key Modal */
+function showRecoveryKeyModal(key) {
+  $('recoveryKeyDisplay').textContent = key;
+  $('recoveryModal').classList.remove('hidden');
+}
+$('recoveryModalClose').addEventListener('click', () => $('recoveryModal').classList.add('hidden'));
+$('recoveryModalOkBtn').addEventListener('click', () => $('recoveryModal').classList.add('hidden'));
+$('copyRecoveryKeyBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('recoveryKeyDisplay').textContent);
+    showToast('Código de recuperação copiado!');
+  } catch (_) {}
+});
+
+/* Online Game State Synchronization */
+function applyOnlineState(data) {
+  if (!data) return;
+  tut.active = false;
+  $('tutorialBanner').classList.add('hidden');
+  clearHudHighlights();
+  if (currentNav !== 'play') switchNav('play');
+
+  onlineSide = Number(data.side) || 0;
+  onlineOpponent = data.opponent?.displayName || data.opponent?.username || 'Adversário';
+  const selectedId = S?.sel?.id ?? null;
+  const pieces = (data.pieces || []).map(p => ({
+    id: p.id, t: p.type, o: p.owner, x: p.x, y: p.y, ready: p.ready, cd0: p.cd0 || 1, q: null, shield: p.shield || 0
+  }));
+  const grid = Array.from({ length: N }, () => Array(N).fill(null));
+  for (const p of pieces) if (p.x >= 0 && p.y >= 0 && p.x < N && p.y < N) grid[p.y][p.x] = p;
+  const teams = (data.teams || []).map(t => ({
+    id: t.id, score: t.score || 0, xp: t.xp || 0, lvl: t.level || 0,
+    alive: t.alive !== false, respawn: 0, kings: t.kings || 0,
+    energy: t.energy || 0, boostUntil: t.boostUntil || 0, captures: t.captures || 0
+  }));
+
+  S = {
+    mode: 'online', T: data.T || 0, grid, pieces, orbs: data.orbs || [], f: teams,
+    sel: selectedId ? pieces.find(p => p.id === selectedId) || null : null,
+    over: Boolean(data.over), started: true, nid: 0, foodT: 0, orbT: 0, attT: 0, att: null,
+    fx: [], events: data.events || [], lastMove: data.lastMove || null,
+    winner: data.winner ?? null, reason: data.reason || ''
+  };
+  calcAtt();
+
+  $('start').classList.add('hidden');
+  $('cpuDiffOverlay').classList.add('hidden');
+  $('onlineLobbyOverlay').classList.add('hidden');
+  $('modeTag').textContent = 'DUELO ONLINE · ' + (onlineUser?.username || 'VOCÊ') + ' × ' + onlineOpponent;
+  $('playersLabel').textContent = '2 JOGADORES';
+  $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : 'ONLINE · AO VIVO';
+  $('rematch').classList.toggle('hidden', !S.over);
+  $('changeCpuDiffBtn').classList.add('hidden');
+
+  if (S.over) showOnlineResult();
+  else $('over').classList.add('hidden');
+  hud();
+}
+
+function showOnlineResult() {
+  const won = S.winner === onlineSide, draw = S.winner === null;
+  if (won) playTone('win');
+  $('overEyebrow').textContent = 'Fim do duelo online';
+  $('resultTitle').textContent = won ? 'VITÓRIA!' : draw ? 'EMPATE' : 'FIM DE JOGO';
+  $('winnerText').textContent = won ? 'Você venceu o duelo!' : draw ? 'Partida empatada.' : onlineOpponent + ' venceu.';
+  const mine = S.f[onlineSide], theirs = S.f[1 - onlineSide];
+  $('res').innerHTML = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${mine.score}</b> · Nível <b>${mine.lvl}</b><br>${onlineOpponent}: <b>${theirs.score}</b><br>${String(S.reason || 'Partida encerrada.')}`;
+  $('over').classList.remove('hidden');
+  $('rematch').classList.remove('hidden');
+  $('again').classList.add('hidden');
+}
+
+function handleSocketEvent(msg) {
+  switch (msg.type) {
+    case 'auth:ok':
+      wsReady = true;
+      onlineUser = msg.user;
+      friendCache = msg.friends || [];
+      incomingReqCache = msg.requests || [];
+      outgoingReqCache = msg.sentRequests || [];
+      if (msg.games) historyCache = msg.games;
+      if (onlineUser?.preferences) {
+        prefs = { ...prefs, ...onlineUser.preferences };
+        applyPreferencesToDom();
+      }
+      renderAccount();
+      renderFriendsPage();
+      renderGameHistory(historyCache);
+      checkFirstVisitPrompt();
+      break;
+    case 'profile:stats':
+      if (msg.user) onlineUser = msg.user;
+      if (msg.games) historyCache = msg.games;
+      renderAccount();
+      renderGameHistory(historyCache);
+      renderSettingsPage();
+      break;
+    case 'games:history':
+      historyCache = msg.games || [];
+      renderGameHistory(historyCache);
+      break;
+    case 'social:update':
+      if (msg.friends) friendCache = msg.friends;
+      if (msg.requests) incomingReqCache = msg.requests;
+      if (msg.sentRequests) outgoingReqCache = msg.sentRequests;
+      renderFriendsPage();
+      break;
+    case 'profile:results':
+      renderSearchResults(msg.users || []);
+      break;
+    case 'notice':
+      showToast(msg.message || 'Atualização recebida.');
+      break;
+    case 'error':
+      showOnlineMessage(msg.message || 'Ocorreu um erro.', 'error');
+      showToast(msg.message || 'Ocorreu um erro.');
+      if (msg.code === 'AUTH_EXPIRED') {
+        onlineToken = '';
+        localStorage.removeItem('cf_token');
+        onlineUser = null;
+        wsReady = false;
+        explicitLogout = true;
+        if (ws) ws.close();
+        ws = null;
+        renderAccount();
+      }
+      break;
+    case 'presence:update':
+      friendCache = friendCache.map(f =>
+        f.id === msg.userId
+          ? { ...f, online: Boolean(msg.online), inGame: Boolean(msg.inGame), status: msg.status, statusLabel: msg.statusLabel }
+          : f
+      );
+      renderFriendsPage();
+      break;
+    case 'challenge:incoming':
+      challengeInbox.set(msg.id, msg);
+      renderChallenges();
+      showToast(`⚔️ @${msg.from?.username || 'Amigo'} desafiou você (${msg.summary || '1v1'})! Abra a aba Amigos para aceitar.`);
+      break;
+    case 'challenge:declined':
+      showToast(`@${msg.by?.username || 'Seu amigo'} recusou o desafio.`);
+      break;
+    case 'challenge:expired':
+      if (msg.id) challengeInbox.delete(msg.id);
+      renderChallenges();
+      showToast('Um desafio expirou.');
+      break;
+    case 'challenge:accepted':
+      showToast(`@${msg.by?.username || 'Seu amigo'} aceitou o desafio! Iniciando partida...`);
+      break;
+    case 'match:waiting':
+      matchmaking = true;
+      $('queueBtn').textContent = 'CANCELAR BUSCA';
+      $('queueStatus').textContent = 'Procurando adversário conectado…';
+      break;
+    case 'match:cancelled':
+      matchmaking = false;
+      $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
+      $('queueStatus').textContent = 'Busca cancelada.';
+      break;
+    case 'room:created':
+      $('roomCreated').classList.remove('hidden');
+      $('roomCodeText').textContent = msg.code;
+      $('queueStatus').textContent = 'Sala privada criada! Compartilhe o código com seu amigo.';
+      showToast('Sala privada criada: ' + msg.code);
+      break;
+    case 'game:started':
+    case 'game:state':
+    case 'game:ended':
+      matchmaking = false;
+      $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
+      applyOnlineState(msg.state);
+      break;
+    case 'game:connection':
+      showToast(msg.connected ? 'Seu adversário reconectou à partida.' : 'Seu adversário perdeu a conexão. Aguardando reconexão...');
+      break;
+    case 'game:rematch-request':
+      if (confirm(`@${msg.from?.username || 'Seu adversário'} pediu uma revanche. Aceitar?`)) {
+        sendSocket('game:rematch');
+      }
+      break;
+    case 'game:rematch-waiting':
+      $('rematch').textContent = 'AGUARDANDO RESPOSTA…';
+      $('rematch').disabled = true;
+      showToast('Pedido de revanche enviado.');
+      break;
+    case 'game:rematch-started':
+      $('rematch').disabled = false;
+      $('rematch').textContent = 'PEDIR REVANCHE';
+      break;
+  }
+}
+
+function connectSocket() {
+  if (!onlineToken || (ws && [WebSocket.CONNECTING, WebSocket.OPEN].includes(ws.readyState))) return;
+  if (location.protocol === 'file:') return;
+  explicitLogout = false;
+  clearTimeout(reconnectTimer);
+  const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(scheme + '//' + location.host + '/ws');
+  ws.addEventListener('open', () => {
+    ws.send(JSON.stringify({ type: 'auth', token: onlineToken }));
+  });
+  ws.addEventListener('message', event => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch (_) { return; }
+    handleSocketEvent(msg);
+  });
+  ws.addEventListener('close', () => {
+    wsReady = false;
+    if (onlineToken && !explicitLogout) {
+      reconnectTimer = setTimeout(connectSocket, 2400);
+    }
+  });
+}
+
+async function restoreSessionOnLoad() {
+  try {
+    const rawHist = localStorage.getItem('cf_local_history');
+    if (rawHist) historyCache = JSON.parse(rawHist);
+  } catch (_) {}
+
+  if (location.protocol === 'file:') {
+    checkFirstVisitPrompt();
+    return;
+  }
+  try {
+    const data = await apiRequest('/api/me');
+    if (data.user) {
+      onlineUser = data.user;
+      friendCache = data.friends || [];
+      incomingReqCache = data.requests || [];
+      outgoingReqCache = data.sentRequests || [];
+      if (data.games) historyCache = data.games;
+      if (onlineUser.preferences) {
+        prefs = { ...prefs, ...onlineUser.preferences };
+        applyPreferencesToDom();
+      }
+      renderAccount();
+      renderFriendsPage();
+      renderGameHistory(historyCache);
+      connectSocket();
+    }
+  } catch (_) {
+    onlineToken = '';
+    localStorage.removeItem('cf_token');
+  }
+  checkFirstVisitPrompt();
+}
+
+/* Auth & Profile Actions */
+async function doAuth(kind) {
+  const username = $('authUsername').value.trim();
+  const password = $('authPassword').value;
+  const rememberMe = $('authRememberMe').checked;
+  if (!username || !password) {
+    showOnlineMessage('Informe seu nome de usuário e senha.', 'error');
+    return;
+  }
+  showOnlineMessage(kind === 'login' ? 'Entrando…' : 'Criando sua conta…');
+  try {
+    const payload = {
+      username,
+      password,
+      rememberMe,
+      preferences: prefs,
+      tutorialCompleted: localStorage.getItem('cf_tutorial_completed') === '1',
+      tutorialPromptState: localStorage.getItem('cf_tutorial_prompt') || 'pending'
+    };
+    const data = await apiRequest(kind === 'login' ? '/api/login' : '/api/register', payload);
+    onlineToken = data.token;
+    localStorage.setItem('cf_token', onlineToken);
+    onlineUser = data.user;
+    friendCache = data.friends || [];
+    incomingReqCache = data.requests || [];
+    outgoingReqCache = data.sentRequests || [];
+    if (data.games) historyCache = data.games;
+    $('authPassword').value = '';
+    renderAccount();
+    renderFriendsPage();
+    renderGameHistory(historyCache);
+    connectSocket();
+    showOnlineMessage('Conectado com sucesso!', 'success');
+    showToast('Bem-vindo, @' + onlineUser.username + '!');
+    if (data.recoveryKey) {
+      showRecoveryKeyModal(data.recoveryKey);
+    }
+  } catch (err) {
+    showOnlineMessage(err.message, 'error');
+  }
+}
+
+async function logout() {
+  if (S?.mode === 'online' && !S.over && !confirm('Sair da conta durante uma partida contará como desistência. Continuar?')) return;
+  if (S?.mode === 'online' && !S.over) sendSocket('game:resign');
+  try { await apiRequest('/api/logout', {}); } catch (_) {}
+  explicitLogout = true;
+  clearTimeout(reconnectTimer);
+  if (ws) { ws.close(); ws = null; }
+  wsReady = false;
+  matchmaking = false;
+  onlineUser = null;
+  onlineToken = '';
+  friendCache = [];
+  incomingReqCache = [];
+  outgoingReqCache = [];
+  localStorage.removeItem('cf_token');
+  renderAccount();
+  showToast('Sessão encerrada.');
+}
+
+$('loginBtn').addEventListener('click', () => doAuth('login'));
+$('registerBtn').addEventListener('click', () => doAuth('register'));
+$('logoutBtn').addEventListener('click', logout);
+
+$('saveProfileBtn').addEventListener('click', async () => {
+  const msgEl = $('profileSaveMsg');
+  msgEl.textContent = 'Salvando alterações...';
+  try {
+    const data = await apiRequest('/api/profile/update', {
+      username: $('editUsername').value.trim(),
+      displayName: $('editDisplayName').value.trim(),
+      bio: $('editBio').value.trim(),
+      avatar: selectedAvatarEdit
+    });
+    onlineUser = data.user;
+    renderAccount();
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = 'Perfil atualizado com sucesso!';
+    showToast('Perfil atualizado!');
+  } catch (err) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = err.message;
+  }
+});
+
+$('changePasswordBtn').addEventListener('click', async () => {
+  const msgEl = $('passwordChangeMsg');
+  const currentPassword = $('curPasswordInput').value;
+  const newPassword = $('newPasswordInput').value;
+  if (!currentPassword || !newPassword) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Preencha a senha atual e a nova senha.';
+    return;
+  }
+  try {
+    const res = await apiRequest('/api/profile/password', { currentPassword, newPassword });
+    $('curPasswordInput').value = '';
+    $('newPasswordInput').value = '';
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = res.message || 'Senha alterada com sucesso!';
+    showToast('Sua senha foi atualizada.');
+  } catch (err) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = err.message;
+  }
+});
+
+$('regenRecoveryBtn').addEventListener('click', async () => {
+  const currentPassword = $('curPasswordInput').value;
+  if (!currentPassword) {
+    showToast('Digite sua senha atual no campo "Senha atual" acima para gerar um novo código.');
+    $('curPasswordInput').focus();
+    return;
+  }
+  try {
+    const res = await apiRequest('/api/profile/recovery-key', { currentPassword });
+    if (res.recoveryKey) showRecoveryKeyModal(res.recoveryKey);
+  } catch (err) {
+    showToast(err.message);
+  }
+});
+
+$('resetPasswordBtn').addEventListener('click', async () => {
+  const msgEl = $('resetMessage');
+  const username = $('resetUsername').value.trim();
+  const recoveryKey = $('resetRecoveryKey').value.trim();
+  const newPassword = $('resetNewPassword').value;
+  if (!username || !recoveryKey || !newPassword) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Preencha o usuário, o código de recuperação e a nova senha.';
+    return;
+  }
+  try {
+    const res = await apiRequest('/api/password/reset', { username, recoveryKey, newPassword });
+    $('resetRecoveryKey').value = '';
+    $('resetNewPassword').value = '';
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = res.message;
+    showToast('Senha redefinida! Faça login.');
+  } catch (err) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = err.message;
+  }
+});
+
+/* Friends & Lobby Controls */
+$('searchBtn').addEventListener('click', () => {
+  const query = $('searchPlayer').value.trim();
+  if (query.length < 2) {
+    showToast('Digite pelo menos 2 caracteres para buscar.');
+    return;
+  }
+  sendSocket('profile:search', { query });
+});
+$('searchPlayer').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('searchBtn').click();
+});
+$('refreshFriendsBtn').addEventListener('click', () => {
+  if (wsReady) sendSocket('friends:refresh');
+  renderFriendsPage();
+});
+$('refreshHistoryBtn').addEventListener('click', () => {
+  if (wsReady) sendSocket('games:history');
+  renderGameHistory(historyCache);
+});
+
+$('queueBtn').addEventListener('click', () => {
+  if (matchmaking) {
+    sendSocket('match:cancel');
+    matchmaking = false;
+    $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
+    $('queueStatus').textContent = 'Busca cancelada.';
+  } else {
+    sendSocket('match:queue');
+    $('queueStatus').textContent = 'Entrando na fila pública 1v1…';
+  }
+});
+$('createRoomBtn').addEventListener('click', () => sendSocket('room:create'));
+$('joinRoomBtn').addEventListener('click', () => {
+  const code = $('joinRoomCode').value.trim().toUpperCase();
+  if (code.length !== 6) {
+    showToast('O código da sala precisa ter 6 caracteres.');
+    return;
+  }
+  sendSocket('room:join', { code });
+});
+$('joinRoomCode').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+});
+$('copyRoomCode').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('roomCodeText').textContent);
+    showToast('Código copiado!');
+  } catch (_) {}
+});
+$('rematch').addEventListener('click', () => sendSocket('game:rematch'));
+
+document.querySelectorAll('.mode-card').forEach(b => b.addEventListener('click', () => chooseMode(b.dataset.mode)));
+$('go').addEventListener('click', start);
+$('again').addEventListener('click', () => {
+  if (S?.mode === 'tutorial') startInteractiveTutorial();
+  else if (S?.mode === 'cpu') launchSelectedGame('cpu');
+  else start();
+});
+$('menu').addEventListener('click', openMenu);
+$('boost').addEventListener('click', () => activateBoost(abilityOwner()));
+
+addEventListener('keydown', e => {
+  const editing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName);
+  if (e.code === 'Escape' && S) { S.sel = null; hud(); }
+  if (e.code === 'Space' && !editing && S && S.started && !S.over) {
+    e.preventDefault();
+    activateBoost(abilityOwner());
+  }
+});
+addEventListener('resize', resize);
+
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  if (currentNav === 'play') draw();
+  hudTimer -= dt;
+  if (hudTimer <= 0) { hud(); hudTimer = 0.18; }
+  requestAnimationFrame(loop);
+}
+
+loadLocalPreferences();
+resize();
+reset();
+hud();
+selectDemoPiece('P');
+restoreSessionOnLoad();
+requestAnimationFrame(loop);
+
+window.__crownflux = {
+  get state() { return S; },
+  get tutorial() { return tut; },
+  get cpuDifficulty() { return cpuDifficulty; },
+  setCpuDifficulty(lv) { cpuDifficulty = lv; },
+  reset, start, launchSelectedGame, startInteractiveTutorial, handleClick, doMove, moves, botThink, activateBoost, switchNav
+};
+</script>
+</body>
+</html>
