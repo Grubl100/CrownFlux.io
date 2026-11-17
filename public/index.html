@@ -1159,6 +1159,12 @@ label.field-label {
   #hud { width: 210px; flex-basis: 210px; grid-template-columns: 1fr; }
 }
   /* Cerco Tático com Cartas — UI/UX com Toque Humano */
+  .cf-turn-pill[hidden],
+  .cf-hand-dock[hidden],
+  .cf-tactical-wrap[hidden],
+  .cf-tactical-modal[hidden] {
+    display: none !important;
+  }
   .cf-turn-pill {
     position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
     padding: 10px 22px; border-radius: 999px;
