@@ -17,9 +17,12 @@ try {
     }
   }
 } catch {}
-const PUBLIC_DIR = path.join(__dirname, 'public');
+const PUBLIC_DIR = fsSync.existsSync(path.join(__dirname, 'public', 'index.html'))
+  ? path.join(__dirname, 'public')
+  : __dirname;
 const DATA_FILE = path.resolve(process.env.DATA_FILE || path.join(__dirname, 'data', 'db.json'));
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT) || 8080;
+const HOST = process.env.HOST || '0.0.0.0';
 const RECONNECT_GRACE_MS = Math.max(15, Number(process.env.RECONNECT_GRACE_SECONDS || 45)) * 1000;
 const BOARD = 16;
 const PIECE_VALUE = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 10 };
@@ -577,12 +580,20 @@ function tickGames() {
 
 const server = http.createServer(async (req,res)=>{
   const url=new URL(req.url,'http://localhost');
+  if(url.pathname==='/healthz'||url.pathname==='/health') {
+    return json(res, 200, { ok: true, name: 'Crownflux.io' });
+  }
   if(url.pathname.startsWith('/api/')) {
     try { await handleApi(req,res,url); } catch(err) { console.error(err);if(!res.headersSent)json(res,500,{error:'Erro interno do servidor.'}); }
     return;
   }
   let pathname=decodeURIComponent(url.pathname);
   if(pathname==='/')pathname='/index.html';
+  const allowedExts = new Set(['.html', '.css', '.js', '.json', '.svg', '.png', '.ico']);
+  if (!allowedExts.has(path.extname(pathname))) {
+    res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});res.end('Not found');
+    return;
+  }
   const file=path.resolve(PUBLIC_DIR,'.'+pathname);
   if(!file.startsWith(PUBLIC_DIR+path.sep)&&file!==PUBLIC_DIR)return json(res,403,{error:'Acesso negado.'});
   try {
@@ -596,7 +607,15 @@ server.on('upgrade',(req,socket,head)=>{
   const url=new URL(req.url,'http://localhost');
   if(url.pathname!=='/ws'){socket.destroy();return;}
   const origin=req.headers.origin;
-  if(origin){try{if(new URL(origin).host!==req.headers.host){socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return;}}catch{socket.destroy();return;}}
+  if(origin){
+    try{
+      const originHost=new URL(origin).hostname;
+      const reqHost=String(req.headers['x-forwarded-host']||req.headers.host||'').split(',')[0].trim().replace(/:\d+$/,'');
+      if(reqHost&&originHost!==reqHost&&originHost!=='localhost'&&originHost!=='127.0.0.1'){
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return;
+      }
+    }catch{socket.destroy();return;}
+  }
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
 wss.on('connection',ws=>{
@@ -626,6 +645,6 @@ const heartbeat=setInterval(()=>{
 setInterval(tickGames,100);
 
 await loadDb();
-server.listen(PORT,'0.0.0.0',()=>console.log(`Crownflux.io disponível em http://localhost:${PORT}`));
+server.listen(PORT, HOST, () => console.log(`Crownflux.io disponível em http://${HOST}:${PORT}`));
 process.on('SIGINT',()=>{clearInterval(heartbeat);server.close(()=>process.exit(0));});
 process.on('SIGTERM',()=>{clearInterval(heartbeat);server.close(()=>process.exit(0));});

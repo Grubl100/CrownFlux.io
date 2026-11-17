@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090e18">
+<meta name="description" content="Crownflux.io — uma batalha de xadrez em tempo real. Cresça, capture e domine o tabuleiro.">
+<title>Crownflux.io — Chess Arena</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#171a1c;--bg-soft:#1c2022;--panel:#222729;--panel-2:#282e30;--line:#3a4243;
+  --text:#e8e8e1;--muted:#a3aaa5;--quiet:#78817d;--blue:#83a9bb;--blue-deep:#385563;
+  --red:#c27b7b;--gold:#c7ac78;--green:#8eaa91;--board-light:#c9c4ad;--board-dark:#788b7d;
+}
+*{box-sizing:border-box}
+html,body{width:100%;min-height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+body{overflow:hidden;background:linear-gradient(180deg,#1c2021 0%,#171a1c 100%)}
+button,input{font:inherit}button{touch-action:manipulation}
+#app{height:100dvh;min-height:540px;display:flex;flex-direction:column;padding:16px 22px 18px;gap:14px}
+.topbar{height:54px;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;max-width:1320px;width:100%;margin:0 auto;border-bottom:1px solid #ffffff0c;padding-bottom:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:850;letter-spacing:1.2px;font-size:17px}
+.brand-mark{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:#34454a;color:#e2e8e2;font-size:17px;border:1px solid #60747755}
+.brand .io{color:#a4bac1}
+.top-right{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px}
+.pill{border:1px solid var(--line);background:#222729;border-radius:7px;padding:7px 10px;white-space:nowrap}
+.top-action{border:1px solid var(--line);border-radius:7px;background:#252b2d;color:var(--text);padding:7px 11px;font-size:11px;cursor:pointer}
+.top-action:hover{background:#30383a;border-color:#596465}
+#profileBtn.signed{background:#2d3939;border-color:#647b78;color:#dbe8df}
+.layout{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:22px;max-width:1320px;width:100%;margin:0 auto}
+.arena-panel{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0;min-height:0}
+.board-top{width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 2px;color:var(--muted);font-size:11px;gap:10px}
+#modeTag{color:#d9ded8;font-weight:750;letter-spacing:.4px}
+#statusTag{display:flex;align-items:center;gap:7px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+#wrap{position:relative;flex:0 0 auto;border-radius:8px;padding:6px;background:#262c2d;border:1px solid #414a49;box-shadow:0 12px 32px #0005}
+canvas{display:block;border-radius:3px;cursor:crosshair;touch-action:none;background:#75877a;max-width:100%}
+.overlay{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;border-radius:3px;padding:14px;background:#191e1fea;backdrop-filter:blur(5px);z-index:5;overflow:auto}
+.overlay.hidden{display:none}
+.modal{width:min(100%,470px);display:flex;flex-direction:column;align-items:center;gap:13px;text-align:center;padding:16px 12px}
+.eyebrow{font-size:10px;letter-spacing:1.5px;font-weight:800;color:#a8bdbe;text-transform:uppercase}
+.modal h1{font-size:clamp(25px,4vw,35px);line-height:1;margin:0;font-weight:850;letter-spacing:-.9px}
+.modal h1 em{font-style:normal;color:#a9bec1}
+.tagline{font-size:13px;color:#b4bcb7;line-height:1.55;max-width:360px;margin:0}
+.mode-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;width:100%;margin-top:4px}
+.mode-card{min-width:0;border:1px solid #3a4545;border-radius:8px;background:#242a2b;color:var(--text);padding:11px 8px;cursor:pointer;text-align:left;transition:background .15s,border-color .15s}
+.mode-card:hover{border-color:#718583;background:#2b3333}
+.mode-card.active{border-color:#91aeb1;background:#303b3b;box-shadow:inset 0 0 0 1px #91aeb122}
+.mode-icon{font-size:19px;display:block;margin-bottom:7px;filter:grayscale(.2)}
+.mode-name{display:block;font-size:11px;font-weight:800;line-height:1.2}
+.mode-sub{display:block;font-size:9px;color:var(--muted);line-height:1.35;margin-top:5px}
+.mode-desc{min-height:34px;font-size:11px;line-height:1.5;color:#b9c2bb;max-width:380px}
+.primary{border:1px solid #99b1b0;border-radius:7px;padding:11px 23px;background:#8ba8a8;color:#172021;font-size:12px;font-weight:850;letter-spacing:.25px;cursor:pointer;transition:background .15s,border-color .15s}
+.primary:hover{background:#a1b9b5;border-color:#bacbc5}
+.primary:active{transform:translateY(1px)}
+.secondary{border:1px solid #495454;border-radius:7px;padding:9px 13px;background:#293132;color:#e0e6df;font-size:11px;font-weight:700;cursor:pointer}
+.secondary:hover{border-color:#7b9290;background:#303a3b}
+.modal-note{font-size:10px;color:#87928b;line-height:1.45;max-width:370px}
+.result-score{font-size:13px;line-height:1.8;color:#c6cec7}
+.result-winner{font-size:22px;font-weight:850;color:#d2bc8d}
+.result-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+#hud{width:260px;flex:0 0 260px;max-height:min(690px,100%);display:flex;flex-direction:column;gap:9px;min-height:0}
+.card{background:#212729;border:1px solid #353e3e;border-radius:8px;padding:12px 13px;box-shadow:0 5px 15px #0002}
+.card-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;font-size:9px;font-weight:850;letter-spacing:1px;color:#a6b0aa;text-transform:uppercase}
+#lb{display:flex;flex-direction:column;gap:4px}
+.player-row{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:5px;background:#ffffff04;font-size:10px;min-width:0}
+.player-row.me{background:#829fa413;outline:1px solid #829fa420}
+.player-row .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.player-row .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
+.player-row .count{font-size:9px;color:var(--muted);white-space:nowrap}
+.player-row .score{font-weight:850;font-variant-numeric:tabular-nums;color:#e7ede7;min-width:25px;text-align:right}
+.player-row .dead{font-size:9px;color:#d58c8c;white-space:nowrap}
+.stat-line{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:10px;color:#b1bbb4}
+.stat-line strong{color:#e8ede7;font-size:11px;font-variant-numeric:tabular-nums}
+.xp-bar,.energy-bar{height:6px;border-radius:99px;overflow:hidden;background:#3a4543;margin:7px 0 5px}
+.xp-fill{height:100%;width:0;background:#85a8b6;border-radius:99px;transition:width .2s}
+.energy-fill{height:100%;width:0;background:#b6a17a;border-radius:99px;transition:width .2s}
+.muted{font-size:10px;line-height:1.5;color:#8f9c94}
+.ability-btn{width:100%;margin-top:7px;padding:9px 10px;border:1px solid #68604b;border-radius:6px;background:#39362e;color:#e4d7b8;font-size:10px;font-weight:850;letter-spacing:.4px;cursor:pointer}
+.ability-btn:disabled{opacity:.44;cursor:not-allowed}
+.ability-btn.ready{border-color:#a89467;background:#4a4537}
+#feed{display:flex;flex-direction:column;gap:7px;min-height:40px}
+.feed-item{font-size:10px;line-height:1.35;color:#aeb8b1;display:flex;gap:7px;align-items:flex-start}
+.feed-item b{color:#e7ece6;font-weight:800}
+.feed-mark{width:5px;height:5px;margin-top:4px;border-radius:50%;background:#b8a57d;flex:0 0 auto}
+.controls-card{font-size:10px;line-height:1.55;color:#9aa69e}
+.controls-card b{color:#dce5dc}
+.footer-hint{color:#828e87;font-size:10px;text-align:center;max-width:650px;line-height:1.4}
+.hidden{display:none!important}
+/* Social and online lobby */
+#onlinePanel{align-items:flex-start}
+#onlinePanel .modal{width:min(100%,590px);align-items:stretch;text-align:left;gap:12px;padding:8px 4px;margin:auto}
+.online-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.online-head h2{margin:0;font-size:20px;letter-spacing:-.4px}
+.online-head p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
+.close-btn{border:1px solid var(--line);background:#262d2e;color:var(--muted);width:30px;height:30px;border-radius:6px;cursor:pointer}
+.auth-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{width:100%;min-width:0;border:1px solid #475252;border-radius:6px;background:#202728;color:var(--text);padding:10px 11px;font-size:12px;outline:none}
+.field:focus{border-color:#88a9aa;box-shadow:0 0 0 2px #88a9aa1c}
+.field::placeholder{color:#798680}
+.inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+.inline-actions button{flex:1}
+.online-message{font-size:11px;line-height:1.4;color:#a8b5ae;min-height:15px}
+.online-message.error{color:#d99696}
+.online-message.success{color:#a5c2a5}
+.account-bar{display:flex;align-items:center;gap:10px;background:#252d2e;border:1px solid #3a4544;border-radius:7px;padding:10px}
+.avatar{width:38px;height:38px;display:grid;place-items:center;border-radius:7px;background:#3b4a49;color:#e3ece4;font-size:20px}
+.account-info{flex:1;min-width:0}
+.account-info strong{display:block;font-size:13px}
+.account-info span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.online-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#91b59a;margin-right:5px}
+.social-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:start}
+.social-section{min-width:0;background:#22292a;border:1px solid #384242;border-radius:7px;padding:10px}
+.social-section h3{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#a9b5ae;margin:0 0 9px}
+.social-row{display:flex;align-items:center;gap:7px;padding:7px 0;border-top:1px solid #ffffff0a;font-size:11px;min-width:0}
+.social-row:first-of-type{border-top:0}
+.social-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.social-meta{display:block;font-size:9px;color:#89968e;margin-top:2px}
+.mini-btn{border:1px solid #4a5754;background:#2d3736;color:#dce6dc;border-radius:5px;padding:5px 7px;font-size:9px;cursor:pointer;white-space:nowrap}
+.mini-btn:hover{border-color:#8ba7a2}
+.mini-btn.danger{border-color:#735050;color:#e0aaaa}
+.room-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.room-row .field{flex:1;min-width:100px}
+.room-code{font-size:18px;font-weight:850;letter-spacing:3px;color:#dfd2ad;background:#30342f;border:1px dashed #7e795f;border-radius:6px;padding:8px 12px;text-align:center}
+#noticeStack{position:fixed;right:18px;bottom:18px;z-index:20;display:flex;flex-direction:column;gap:7px;pointer-events:none;width:min(330px,calc(100vw - 36px))}
+.notice-toast{background:#293232;border:1px solid #566361;color:#e3e9e2;padding:10px 12px;border-radius:7px;font-size:11px;box-shadow:0 8px 24px #0005;animation:noticeIn .18s ease-out}
+@keyframes noticeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:980px){
+ #app{padding:12px 12px 14px;gap:8px}.layout{gap:12px}#hud{width:230px;flex-basis:230px}.card{padding:10px}
+}
+@media(max-width:700px){
+ body{overflow:auto}#app{height:auto;min-height:100dvh;padding:8px 9px 12px;gap:8px}.topbar{height:43px;padding-bottom:6px}.brand{font-size:15px;gap:8px}.brand-mark{width:29px;height:29px;border-radius:7px;font-size:15px}.top-right .pill:first-child{display:none}.top-right{gap:5px}.top-action{padding:6px 8px;font-size:10px}
+ .layout{flex-direction:column;justify-content:flex-start;gap:8px}.arena-panel{width:100%}#wrap{padding:5px;border-radius:7px}.overlay{inset:5px;padding:7px}#hud{width:min(100%,560px);max-height:none;flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr;align-items:stretch;gap:7px}#hud .card{padding:9px 10px}#scoreCard{grid-row:span 2}.footer-hint{display:none}.board-top{font-size:10px}
+ #start .modal{gap:8px;padding:4px 3px}#start .modal h1{font-size:26px}#start .tagline{font-size:11px;line-height:1.35}#start .mode-card{padding:8px 6px}#start .mode-icon{font-size:17px;margin-bottom:3px}#start .mode-desc{min-height:24px;font-size:10px}#start .modal-note{font-size:9px}
+ #onlinePanel .modal{padding:2px 0;gap:9px}.social-grid{grid-template-columns:1fr}.online-head h2{font-size:18px}.auth-fields{grid-template-columns:1fr}.social-section{padding:9px}.room-code{font-size:16px}
+}
+@media(max-width:390px){
+ .mode-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.mode-card{padding:8px 7px}.mode-name{font-size:11px}.mode-sub{font-size:9px}#hud{grid-template-columns:1fr 1fr}.top-right{font-size:9px}.top-action{font-size:9px;padding:6px}
+}
+@media(orientation:landscape) and (max-height:520px) and (max-width:900px){
+ #app{padding:6px 10px} .layout{flex-direction:row;align-items:center}#hud{width:200px;flex-basis:200px;grid-template-columns:1fr;max-height:calc(100dvh - 72px);overflow:auto}.arena-panel{width:auto}.footer-hint{display:none}
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">♛</span><span>CROWNFLUX<span class="io">.io</span></span></div>
+    <div class="top-right"><span class="pill">ESTRATÉGIA · EM TEMPO REAL</span><span class="pill" id="recordPill">RECORDE 0</span><button class="top-action" id="profileBtn">Entrar / Amigos</button></div>
+  </header>
+  <main class="layout">
+    <section class="arena-panel">
+      <div class="board-top"><span id="modeTag">ARENA · 4 FACÇÕES</span><span id="statusTag"><i class="status-dot"></i><span id="statusText">AGUARDANDO</span></span></div>
+      <div id="wrap">
+        <canvas id="cv" aria-label="Tabuleiro de Crownflux.io"></canvas>
+        <div id="start" class="overlay">
+          <div class="modal">
+            <div class="eyebrow">A arena está chamando</div>
+            <h1>CROWN<em>FLUX</em>.IO</h1>
+            <p class="tagline">Um tabuleiro. Peças em tempo real. Cresça seu exército e seja o último rei de pé.</p>
+            <div class="mode-grid">
+              <button class="mode-card active" data-mode="arena"><span class="mode-icon">⚔️</span><span class="mode-name">Arena</span><span class="mode-sub">4 facções<br>contra bots</span></button>
+              <button class="mode-card" data-mode="duel"><span class="mode-icon">👑</span><span class="mode-name">Duelo local</span><span class="mode-sub">1v1 no mesmo<br>dispositivo</span></button>
+              <button class="mode-card" data-mode="cpu"><span class="mode-icon">♟</span><span class="mode-name">Desafie a CPU</span><span class="mode-sub">1v1 contra<br>um rival</span></button>
+              <button class="mode-card" data-mode="online"><span class="mode-icon">◎</span><span class="mode-name">Duelo online</span><span class="mode-sub">Encontre alguém<br>ou convide amigo</span></button>
+            </div>
+            <div id="modeDesc" class="mode-desc">Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e transforme o rei rival em seu maior troféu.</div>
+            <button id="go" class="primary">ENTRAR NA ARENA →</button>
+            <div class="modal-note">Selecione uma peça e toque no destino. Cada peça tem seu próprio tempo de recuperação. No Duelo local, os jogadores compartilham o dispositivo.</div>
+          </div>
+        </div>
+        <div id="onlinePanel" class="overlay hidden">
+          <div class="modal">
+            <div class="online-head">
+              <div><div class="eyebrow">Crownflux online</div><h2 id="onlineTitle">Jogue com outras pessoas</h2><p id="onlineSubtitle">Entre na sua conta para procurar partidas e adicionar amigos.</p></div>
+              <button class="close-btn" id="onlineClose" aria-label="Fechar">×</button>
+            </div>
+            <section id="authView">
+              <div class="auth-fields">
+                <input class="field" id="authUsername" autocomplete="username" maxlength="18" placeholder="Nome de usuário">
+                <input class="field" id="authPassword" type="password" autocomplete="current-password" placeholder="Senha (mínimo 8 caracteres)">
+              </div>
+              <div class="inline-actions" style="margin-top:8px">
+                <button class="primary" id="loginBtn">ENTRAR</button>
+                <button class="secondary" id="registerBtn">CRIAR CONTA</button>
+              </div>
+              <p class="modal-note">Sua conta permite manter amigos e estatísticas entre dispositivos. Use uma senha exclusiva para este jogo.</p>
+            </section>
+            <section id="accountView" class="hidden">
+              <div class="account-bar">
+                <div class="avatar">♟</div>
+                <div class="account-info"><strong id="accountName">Jogador</strong><span><i class="online-dot"></i>Conectado · <span id="accountStats">0 partidas</span></span></div>
+                <button class="mini-btn" id="logoutBtn">Sair</button>
+              </div>
+              <div class="social-section">
+                <h3>Encontrar partida</h3>
+                <div class="inline-actions">
+                  <button class="primary" id="queueBtn">BUSCAR ADVERSÁRIO</button>
+                  <button class="secondary" id="createRoomBtn">CRIAR SALA PRIVADA</button>
+                </div>
+                <div id="queueStatus" class="online-message" style="margin-top:8px">Partidas 1v1 em tempo real.</div>
+                <div id="roomCreated" class="hidden" style="margin-top:8px;display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+                  <div><div class="muted">Código da sua sala</div><div class="room-code" id="roomCodeText">------</div></div>
+                  <button class="mini-btn" id="copyRoomCode">COPIAR CÓDIGO</button>
+                </div>
+                <div class="room-row" style="margin-top:9px">
+                  <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código da sala">
+                  <button class="secondary" id="joinRoomBtn">ENTRAR NA SALA</button>
+                </div>
+              </div>
+              <div class="social-grid">
+                <section class="social-section">
+                  <h3>Adicionar amigo</h3>
+                  <div class="room-row"><input class="field" id="searchPlayer" maxlength="18" placeholder="Buscar usuário"><button class="mini-btn" id="searchBtn">BUSCAR</button></div>
+                  <div id="searchResults" class="muted" style="margin-top:8px">Pesquise pelo nome de usuário.</div>
+                </section>
+                <section class="social-section">
+                  <h3>Solicitações</h3>
+                  <div id="friendRequests" class="muted">Nenhuma solicitação pendente.</div>
+                </section>
+                <section class="social-section" style="grid-column:1/-1">
+                  <h3>Amigos</h3>
+                  <div id="friendList" class="muted">Sua lista de amigos aparecerá aqui.</div>
+                </section>
+                <section class="social-section" style="grid-column:1/-1">
+                  <h3>Desafios recebidos</h3>
+                  <div id="challengeList" class="muted">Nenhum desafio recebido.</div>
+                </section>
+                <section class="social-section" style="grid-column:1/-1">
+                  <h3>Partidas recentes</h3>
+                  <div id="gameHistory" class="muted">Seu histórico aparecerá aqui.</div>
+                </section>
+              </div>
+            </section>
+            <div id="onlineMessage" class="online-message" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+        <div id="over" class="overlay hidden">
+          <div class="modal">
+            <div class="eyebrow">Fim de partida</div>
+            <h1 id="resultTitle">REI DERRUBADO</h1>
+            <div id="winnerText" class="result-winner">Vitória!</div>
+            <div id="res" class="result-score"></div>
+            <div class="result-actions"><button id="again" class="primary">JOGAR DE NOVO</button><button id="menu" class="secondary">MENU</button><button id="rematch" class="secondary hidden">PEDIR REVANCHE</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-hint">Clique/toque em uma peça da sua cor e depois no destino. <b>ESC</b> cancela a seleção · <b>ESPAÇO</b> ativa o Surto quando estiver carregado.</div>
+    </section>
+    <aside id="hud">
+      <section class="card" id="scoreCard">
+        <div class="card-heading"><span>Classificação</span><span id="playersLabel">4 PLAYERS</span></div>
+        <div id="lb"></div>
+      </section>
+      <section class="card">
+        <div class="card-heading"><span id="progressTitle">Sua evolução</span><span id="tm">0:00</span></div>
+        <div class="stat-line"><span id="lvl">Nível 0</span><strong id="xpText">0 / 4 XP</strong></div>
+        <div class="xp-bar"><div id="xp" class="xp-fill"></div></div>
+        <div class="muted" id="nx">Próxima peça: Cavalo</div>
+        <div class="stat-line" style="margin-top:9px"><span id="energyLabel">Surto</span><strong id="energyText">0%</strong></div>
+        <div class="energy-bar"><div id="energy" class="energy-fill"></div></div>
+        <button id="boost" class="ability-btn" disabled>SELECIONE UMA PEÇA</button>
+      </section>
+      <section class="card">
+        <div class="card-heading"><span>Eventos da arena</span><span>LIVE</span></div>
+        <div id="feed"><div class="feed-item"><i class="feed-mark"></i><span>A arena está pronta. Sua história começa agora.</span></div></div>
+      </section>
+      <section class="card controls-card">
+        <b>Como jogar</b><br>
+        Capture peças para ganhar XP e desbloquear reforços. Pegue os <b style="color:#c99aff">fragmentos roxos</b> para carregar o Surto. Ative-o para acelerar seu exército por alguns segundos.
+      </section>
+    </aside>
+  </main>
+</div>
+<div id="noticeStack" aria-live="polite"></div>
+<script>
+'use strict';
+const N=16;
+const ORTH=[[1,0],[-1,0],[0,1],[0,-1]], DIAG=[[1,1],[1,-1],[-1,1],[-1,-1]];
+const KN=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+const VAL={P:1,N:3,B:3,R:5,Q:9,K:10};
+const BASE={P:.9,N:1.4,B:1.6,R:1.8,Q:2.2,K:1.1};
+const GLYPH={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'};
+const NOME={P:'Peão',N:'Cavalo',B:'Bispo',R:'Torre',Q:'Rainha',K:'Rei'};
+const GROW=['P','P','N','B','R','N','B','R','Q','Q'];
+const FAC=[
+  {name:'Você',col:'#6f9daf',fwd:[0,-1],base:[8,14]},
+  {name:'Rival Rubi',col:'#bd7778',fwd:[0,1],base:[8,1]},
+  {name:'Oráculo',col:'#84a58c',fwd:[1,0],base:[1,8]},
+  {name:'Faísca',col:'#c4a66f',fwd:[-1,0],base:[14,8]}
+];
+const LAYOUT=[[-2,'R'],[-1,'B'],[0,'K'],[1,'Q'],[2,'N']];
+const MODE_INFO={
+  arena:{tag:'ARENA · 4 FACÇÕES',players:'4 PLAYERS',desc:'Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e transforme o rei rival em seu maior troféu.',record:'cf_best_arena'},
+  duel:{tag:'DUELO · 1V1 LOCAL',players:'2 PLAYERS',desc:'Dois jogadores reais, um mesmo dispositivo. Azul começa na parte de baixo e Rubi na parte de cima; os dois podem mover a qualquer momento.',record:'cf_best_duel'},
+  cpu:{tag:'DUELO · VS CPU',players:'1V1',desc:'Você contra um rival controlado pelo computador. A CPU procura capturas, protege o rei e disputa os fragmentos.',record:'cf_best_cpu'},
+  online:{tag:'DUELO · ONLINE',players:'2 PLAYERS',desc:'Encontre um adversário online ou crie uma sala privada para jogar com um amigo em outro dispositivo.',record:'cf_best_online'}
+};
+let selectedMode='arena',S=null,best=0,cell=40,dpr=1,last=performance.now(),hudTimer=0;
+let onlineSide=0,onlineOpponent='Adversário',onlineToken=localStorage.getItem('cf_token')||'',onlineUser=null,ws=null,wsReady=false,matchmaking=false,challengeInbox=new Map(),friendCache=[];
+let reconnectTimer=null,explicitLogout=false;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+
+function safeGet(k){try{return Number(localStorage.getItem(k))||0}catch(_){return 0}}
+function safeSet(k,v){try{localStorage.setItem(k,String(v))}catch(_){}}
+function fmt(t){t=Math.floor(t);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')}
+function rand(n){return Math.floor(Math.random()*n)}
+function activeTeams(){return S.mode==='arena'?[0,1,2,3]:[0,1]}
+function isBot(i){return S.mode==='arena'?i!==0:(S.mode==='cpu'&&i===1)}
+function teamName(i){return S?.mode==='online'?(i===onlineSide?(onlineUser?.username||'Você'):onlineOpponent):FAC[i].name;}
+function need(f){return 4+f.lvl*3}
+function feed(msg){
+  if(!S)return;
+  S.events.unshift({msg,t:S.T});S.events=S.events.slice(0,4);
+}
+function reset(mode=selectedMode){
+  selectedMode=mode;
+  const teamIds=mode==='arena'?[0,1,2,3]:[0,1];
+  S={mode,T:0,grid:Array.from({length:N},()=>Array(N).fill(null)),pieces:[],orbs:[],
+    f:FAC.map((d,i)=>({id:i,score:0,xp:0,lvl:0,alive:teamIds.includes(i),respawn:0,next:1+i*.25,kings:0,energy:18,boostUntil:0,captures:0})),
+    sel:null,over:false,started:false,nid:1,foodT:0,orbT:5,attT:0,att:null,fx:[],events:[],lastMove:null,winner:null};
+  for(const i of teamIds)spawnArmy(i);
+  for(let i=0;i<(mode==='arena'?24:18);i++)spawnFood();
+  calcAtt();
+  feed(mode==='duel'?'Duelo local preparado: Azul contra Rubi.':mode==='cpu'?'A CPU está pronta para o desafio.':'Quatro facções entraram na arena.');
+  best=safeGet(MODE_INFO[mode].record);
+  $('recordPill').textContent='RECORDE '+best;
+  $('modeTag').textContent=MODE_INFO[mode].tag;
+  $('playersLabel').textContent=MODE_INFO[mode].players;
+}
+function add(t,o,x,y){
+  const p={id:S.nid++,t,o,x,y,ready:S.T+1,cd0:1,q:null,shield:0};
+  S.grid[y][x]=p;S.pieces.push(p);return p;
+}
+function rm(p){
+  if(S.grid[p.y]?.[p.x]===p)S.grid[p.y][p.x]=null;
+  const i=S.pieces.indexOf(p);if(i>=0)S.pieces.splice(i,1);
+  if(S.sel===p)S.sel=null;
+}
+function spawnArmy(i){
+  const d=FAC[i],[bx,by]=d.base,[fx,fy]=d.fwd,rx=-fy,ry=fx;
+  const cells=[];
+  for(const [off,t] of LAYOUT)cells.push([bx+rx*off,by+ry*off,t]);
+  for(let off=-2;off<=2;off++)cells.push([bx+rx*off+fx,by+ry*off+fy,'P']);
+  const king=cells[2];
+  if(S.grid[king[1]]?.[king[0]])return false;
+  let count=0;
+  for(const [x,y,t] of cells){if(x>=0&&y>=0&&x<N&&y<N&&!S.grid[y][x]){add(t,i,x,y);count++}}
+  S.f[i].alive=true;
+  return count>=1;
+}
+function spawnFood(){
+  for(let k=0;k<40;k++){
+    const x=rand(N),y=rand(N);if(S.grid[y][x])continue;
+    const r=Math.random(),t=r<.78?'P':r<.88?'N':r<.95?'B':'R';
+    add(t,-1,x,y).ready=0;return true;
+  }
+  return false;
+}
+function spawnOrb(){
+  if(S.orbs.length>=5)return;
+  for(let k=0;k<80;k++){
+    const x=rand(N),y=rand(N);
+    if(S.grid[y][x]||S.orbs.some(o=>o.x===x&&o.y===y))continue;
+    S.orbs.push({x,y,t:S.T});return;
+  }
+}
+function moves(p,att=false){
+  const r=[],g=S.grid,{x,y,t,o}=p;
+  const ok=(a,b)=>a>=0&&b>=0&&a<N&&b<N;
+  const tryAdd=(a,b)=>{
+    if(!ok(a,b))return false;
+    const q=g[b][a];
+    if(q&&q.o===o&&!att)return false;
+    r.push([a,b]);return !q;
+  };
+  const slide=ds=>{for(const [dx,dy] of ds){let a=x+dx,b=y+dy;while(tryAdd(a,b)){a+=dx;b+=dy}}};
+  if(t==='R'||t==='Q')slide(ORTH);
+  if(t==='B'||t==='Q')slide(DIAG);
+  if(t==='N')for(const [dx,dy] of KN)tryAdd(x+dx,y+dy);
+  if(t==='K')for(const [dx,dy] of ORTH.concat(DIAG))tryAdd(x+dx,y+dy);
+  if(t==='P'&&o>=0){
+    const [fx,fy]=FAC[o].fwd,a=x+fx,b=y+fy;
+    if(!att&&ok(a,b)&&!g[b][a])r.push([a,b]);
+    for(const s of [-1,1]){
+      const c=x+(fx?fx: s),d=y+(fy?fy:s);
+      if(!ok(c,d))continue;
+      if(att)r.push([c,d]);
+      else{const q=g[d][c];if(q&&q.o!==o)r.push([c,d])}
+    }
+  }
+  return r;
+}
+function calcAtt(){
+  const a=Array.from({length:N},()=>Array(N).fill(0));
+  for(const p of S.pieces){if(p.o<0)continue;for(const [x,y] of moves(p,true))a[y][x]|=1<<p.o}
+  S.att=a;
+}
+function gain(o,v){
+  if(o<0)return;
+  const f=S.f[o];f.score+=v;f.xp+=v;f.energy=Math.min(100,f.energy+v*9);f.captures++;
+  while(f.xp>=need(f)){
+    f.xp-=need(f);f.lvl++;growPiece(o);
+    feed('<b>'+FAC[o].name+'</b> subiu para o nível '+f.lvl+' e ganhou '+NOME[GROW[Math.min(f.lvl-1,GROW.length-1)]]+'.');
+  }
+}
+function growPiece(o){
+  const k=S.pieces.find(p=>p.o===o&&p.t==='K');if(!k)return;
+  const t=GROW[Math.min(S.f[o].lvl-1,GROW.length-1)];
+  for(let r=1;r<=6;r++){
+    const c=[];
+    for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+      if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
+      const x=k.x+dx,y=k.y+dy;
+      if(x>=0&&y>=0&&x<N&&y<N&&!S.grid[y][x])c.push([x,y]);
+    }
+    if(c.length){const [x,y]=c[rand(c.length)];add(t,o,x,y).ready=S.T+.6;S.fx.push({x,y,t:S.T,col:FAC[o].col,big:1});return}
+  }
+}
+function collectOrb(p){
+  const i=S.orbs.findIndex(o=>o.x===p.x&&o.y===p.y);if(i<0||p.o<0)return;
+  S.orbs.splice(i,1);const f=S.f[p.o];
+  gain(p.o,3);f.energy=Math.min(100,f.energy+24);
+  S.fx.push({x:p.x,y:p.y,t:S.T,col:'#c48cff',big:1});
+  feed('<b>'+FAC[p.o].name+'</b> coletou um Fragmento Flux e recebeu XP + energia.');
+}
+function gameOver(winner,reason=''){
+  if(S.over)return;
+  S.over=true;S.winner=winner;
+  const mode=S.mode,winName=winner===0?'VOCÊ VENCEU!':winner===1?(mode==='duel'?'RUBI VENCEU!':'A CPU VENCEU!'):winner>=0?FAC[winner].name.toUpperCase()+' VENCEU!':'EMPATE';
+  const f0=S.f[0],f1=S.f[1];
+  const recordScore=mode==='duel'?(winner===0?f0.score:0):f0.score;
+  if(recordScore>best){best=recordScore;safeSet(MODE_INFO[mode].record,best)}
+  $('recordPill').textContent='RECORDE '+best;
+  $('resultTitle').textContent=(winner===0?'VITÓRIA':winner>=0?'FIM DE JOGO':'PARTIDA ENCERRADA');
+  $('winnerText').textContent=winName;
+  let details='Tempo: <b>'+fmt(S.T)+'</b><br>Seu placar: <b>'+f0.score+'</b> · Nível <b>'+f0.lvl+'</b><br>Reis capturados: <b>'+f0.kings+'</b>';
+  if(mode!=='arena')details+='<br>'+ (mode==='duel'?'Placar Rubi: ':'Placar CPU: ')+'<b>'+f1.score+'</b>';
+  if(reason)details+='<br>'+reason;
+  details+='<br>Recorde: <b>'+best+'</b>';
+  $('res').innerHTML=details;
+  $('over').classList.remove('hidden');
+  $('statusText').textContent='PARTIDA ENCERRADA';
+}
+function capture(p,q){
+  const owner=q.o,v=VAL[q.t]||1;
+  if(q.shield>0){q.shield--;S.fx.push({x:q.x,y:q.y,t:S.T,col:'#a6e9ff'});feed('<b>Escudo!</b> Um golpe foi bloqueado.');return false}
+  if(p.o>=0){gain(p.o,v);S.fx.push({x:q.x,y:q.y,t:S.T,col:FAC[p.o].col});}
+  rm(q);
+  if(q.t==='K'&&owner>=0){
+    S.f[p.o>=0?p.o:0].kings++;
+    if(S.mode!=='arena'){
+      S.f[owner].alive=false;
+      gameOver(p.o,'O rei foi capturado.');
+      return true;
+    }
+    const f=S.f[owner];f.alive=false;f.respawn=S.T+7;
+    for(const z of S.pieces)if(z.o===owner)z.o=p.o;
+    feed('<b>'+FAC[p.o].name+'</b> capturou o rei de <b>'+FAC[owner].name+'</b> e converteu seu exército!');
+    if(owner===0)gameOver(p.o,'Seu rei foi capturado.');
+  }else if(owner>=0){feed('<b>'+FAC[p.o].name+'</b> capturou uma peça de '+FAC[owner].name+'.')}
+  return true;
+}
+function doMove(p,a,b){
+  if(!p||S.grid[p.y]?.[p.x]!==p)return false;
+  const fromX=p.x,fromY=p.y,q=S.grid[b][a],d=Math.max(Math.abs(a-p.x),Math.abs(b-p.y));
+  if(q&&q.shield>0){
+    q.shield--;p.ready=S.T+Math.max(.35,BASE[p.t]);p.cd0=p.ready-S.T;
+    S.fx.push({x:q.x,y:q.y,t:S.T,col:'#a6e9ff',big:1});feed('<b>Escudo!</b> A peça resistiu ao ataque.');calcAtt();return false;
+  }
+  S.grid[p.y][p.x]=null;
+  if(q)capture(p,q);
+  if(S.over)return true;
+  S.grid[b][a]=p;p.x=a;p.y=b;
+  let cd=BASE[p.t]+(p.t==='N'?.25:d*.12);
+  if(p.o>=0&&S.f[p.o].boostUntil>S.T)cd*=.58;
+  p.cd0=cd;p.ready=S.T+cd;p.q=null;
+  S.lastMove={x0:fromX,y0:fromY,x1:a,y1:b,t:S.T};
+  if(p.t==='P'&&p.o>=0){
+    const [fx,fy]=FAC[p.o].fwd,na=a+fx,nb=b+fy;
+    if(na<0||nb<0||na>=N||nb>=N){p.t='Q';S.fx.push({x:a,y:b,t:S.T,col:FAC[p.o].col,big:1});feed('<b>Promoção!</b> Um peão virou Rainha.');}
+  }
+  collectOrb(p);
+  calcAtt();
+  return true;
+}
+function cheb(a,b,c,d){return Math.max(Math.abs(a-c),Math.abs(b-d))}
+function botThink(i){
+  const ps=S.pieces.filter(p=>p.o===i&&p.ready<=S.T),enemies=S.pieces.filter(p=>p.o!==i);
+  const me=1<<i;let bestMove=null,bs=-1e9;
+  for(const p of ps){
+    const ms=moves(p);if(!ms.length)continue;
+    let target=null,td=1e9;
+    for(const e of enemies){const d=cheb(p.x,p.y,e.x,e.y)-(e.o>=0?1.2:0)+(e.t==='K'?-2:0);if(d<td){td=d;target=e}}
+    const pv=VAL[p.t]*(p.t==='K'?2.5:1),danger=(S.att[p.y][p.x]&~me)!==0;
+    const d0=target?cheb(p.x,p.y,target.x,target.y):0;
+    for(const [a,b] of ms){
+      const q=S.grid[b][a];let score=Math.random()*1.6;
+      if(q)score+=q.t==='K'?350:(VAL[q.t]+.5)*10;
+      if((S.att[b][a]&~me)!==0)score-=pv*6.5;
+      if(danger)score+=pv*3.3;
+      if(target)score+=(d0-cheb(a,b,target.x,target.y))*(p.t==='P'?1.8:1.1);
+      if(p.t==='K'&&danger)score-=7;
+      if(S.orbs.some(o=>o.x===a&&o.y===b))score+=13;
+      if(score>bs){bs=score;bestMove=[p,a,b]}
+    }
+  }
+  if(bestMove&&bs>-25)doMove(bestMove[0],bestMove[1],bestMove[2]);
+}
+function activateBoost(i){
+  if(!S||S.over||i<0||!S.f[i]||S.f[i].energy<100)return false;
+  if(S.mode==='online'){sendSocket('game:boost');return true;}
+  const f=S.f[i];f.energy=0;f.boostUntil=S.T+6;
+  for(const p of S.pieces){if(p.o===i&&p.ready>S.T)p.ready=S.T+(p.ready-S.T)*.48}
+  S.fx.push({x:8,y:8,t:S.T,col:FAC[i].col,big:1});
+  feed('<b>'+FAC[i].name+'</b> ativou SURTO! Exército acelerado por 6 segundos.');
+  return true;
+}
+function abilityOwner(){
+  if(S.mode==='online')return onlineSide;
+  if(S.mode==='arena')return 0;
+  if(S.mode==='cpu')return 0;
+  return S.sel&&S.sel.o>=0?S.sel.o:0;
+}
+function update(dt){
+  if(!S||!S.started||S.over||S.mode==='online')return;
+  S.T+=dt;S.attT-=dt;
+  if(S.attT<=0){calcAtt();S.attT=.22}
+  const lvlBoost=Math.min(.35,S.T/500);
+  for(const i of activeTeams()){
+    if(!isBot(i))continue;
+    const f=S.f[i];
+    if(!f.alive){
+      if(S.mode==='arena'&&S.T>=f.respawn){if(!spawnArmy(i))f.respawn=S.T+2;}
+      continue;
+    }
+    if(S.T>=f.next){botThink(i);calcAtt();f.next=S.T+Math.max(.38,.95-lvlBoost)*(.75+Math.random()*.5)}
+  }
+  for(const p of S.pieces.slice()){
+    if(p.q&&p.ready<=S.T&&(p.o===0||S.mode==='duel')&&S.grid[p.y][p.x]===p){const [a,b]=p.q;p.q=null;if(moves(p).some(m=>m[0]===a&&m[1]===b))doMove(p,a,b)}
+  }
+  S.foodT-=dt;
+  if(S.foodT<=0){S.foodT=1.05;if(S.pieces.filter(p=>p.o<0).length<(S.mode==='arena'?45:34))spawnFood()}
+  S.orbT-=dt;
+  if(S.orbT<=0){S.orbT=6.8+Math.random()*2.4;spawnOrb()}
+  S.fx=S.fx.filter(e=>S.T-e.t<.65);
+}
+function handleClick(a,b){
+  if(!S||!S.started||S.over||a<0||b<0||a>=N||b>=N)return;
+  const q=S.grid[b][a],s=S.sel;
+  if(S.mode==='online'){
+    if(s&&moves(s).some(m=>m[0]===a&&m[1]===b)){
+      if(s.ready<=S.T){sendSocket('game:move',{pieceId:s.id,x:a,y:b});S.sel=null;}
+      else showToast('Essa peça ainda está se recuperando.');
+      return;
+    }
+    S.sel=q&&q.o===onlineSide?q:null;
+    return;
+  }
+  if(s){
+    if(moves(s).some(m=>m[0]===a&&m[1]===b)){
+      if(s.ready<=S.T){doMove(s,a,b);s.q=null;}
+      else if(s.o===0||S.mode==='duel')s.q=[a,b];
+      return;
+    }
+  }
+  const selectable=q&&q.o>=0&&(S.mode==='arena'?q.o===0:(S.mode==='cpu'?q.o===0:true));
+  if(selectable)S.sel=q;else S.sel=null;
+}
+cv.addEventListener('pointerdown',e=>{
+  const r=cv.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  handleClick(Math.floor(x/cell),Math.floor(y/cell));
+});
+function resize(){
+  const wide=innerWidth>700;
+  let availableWidth=wide?Math.min(720,innerWidth-330):innerWidth-22;
+  let availableHeight=wide?innerHeight-135:Math.min(innerHeight*.62,560);
+  let size=Math.max(180,Math.min(690,availableWidth,availableHeight));
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  cell=Math.max(10,Math.floor(size/N));
+  const px=cell*N;
+  cv.style.width=cv.style.height=px+'px';cv.width=cv.height=Math.floor(px*dpr);
+  $('wrap').style.width=(px+12)+'px';
+}
+function draw(){
+  if(!S)return;
+  const W=cell*N;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,W);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    ctx.fillStyle=(x+y)%2?'#788b7d':'#c9c4ad';ctx.fillRect(x*cell,y*cell,cell,cell);
+    if((x===0||y===0)){ctx.fillStyle='#24302a66';ctx.font=Math.max(7,cell*.19)+'px system-ui';ctx.textAlign='left';ctx.textBaseline='top';if(x===0)ctx.fillText(String(N-y),x*cell+2,y*cell+1);}
+  }
+  // Brilho sutil nas bordas do tabuleiro.
+  ctx.strokeStyle='#4f6257aa';ctx.lineWidth=1;ctx.strokeRect(.5,.5,W-1,W-1);
+  // Fragmentos de energia.
+  for(const o of S.orbs){
+    const x=o.x*cell+cell/2,y=o.y*cell+cell/2,pulse=.8+Math.sin(S.T*4+o.x)*.2;
+    ctx.save();ctx.fillStyle='#a88d70';ctx.beginPath();ctx.moveTo(x,y-cell*.25*pulse);ctx.lineTo(x+cell*.2*pulse,y);ctx.lineTo(x,y+cell*.25*pulse);ctx.lineTo(x-cell*.2*pulse,y);ctx.closePath();ctx.fill();
+    ctx.restore();ctx.strokeStyle='#eee0c5';ctx.lineWidth=1;ctx.stroke();
+  }
+  const sel=S.sel,ms=sel?moves(sel):[];
+  if(sel){ctx.fillStyle='#ffffff48';ctx.fillRect(sel.x*cell,sel.y*cell,cell,cell);ctx.strokeStyle='#eff8ff';ctx.lineWidth=2;ctx.strokeRect(sel.x*cell+1,sel.y*cell+1,cell-2,cell-2)}
+  for(const [a,b] of ms){
+    const q=S.grid[b][a],cx=a*cell+cell/2,cy=b*cell+cell/2;ctx.beginPath();
+    if(q){ctx.strokeStyle=q.shield>0?'#a4c1bf':'#bd7778';ctx.lineWidth=2.4;ctx.arc(cx,cy,cell*.39,0,Math.PI*2);ctx.stroke()}
+    else{ctx.fillStyle='#26362c66';ctx.arc(cx,cy,cell*.12,0,Math.PI*2);ctx.fill()}
+  }
+  if(S.lastMove&&S.T-S.lastMove.t<.8){ctx.fillStyle='#4c5e4d26';for(const [x,y] of [[S.lastMove.x0,S.lastMove.y0],[S.lastMove.x1,S.lastMove.y1]])ctx.fillRect(x*cell,y*cell,cell,cell)}
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font=Math.floor(cell*.76)+'px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif';
+  for(const p of S.pieces){
+    const col=p.o>=0?FAC[p.o].col:'#a0adbd',cx=p.x*cell+cell/2,cy=p.y*cell+cell/2;
+    ctx.fillStyle=p.o>=0?col+'20':'#3f474020';ctx.beginPath();ctx.arc(cx,cy,cell*.41,0,Math.PI*2);ctx.fill();
+    if(p.o>=0&&p.t==='K'){
+      ctx.strokeStyle=col;ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(cx,cy,cell*.43,0,Math.PI*2);ctx.stroke();
+      if(S.att&&(S.att[p.y][p.x]&~(1<<p.o))!==0){ctx.strokeStyle='#ff536d';ctx.lineWidth=2.3;ctx.beginPath();ctx.arc(cx,cy,cell*.48,0,Math.PI*2);ctx.stroke()}
+    }
+    if(p.shield>0){ctx.strokeStyle='#a6e9ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,cell*.35,0,Math.PI*2);ctx.stroke()}
+    ctx.lineWidth=Math.max(2,cell*.065);ctx.strokeStyle='#252b26';ctx.strokeText(GLYPH[p.t],cx,cy+cell*.025);
+    ctx.fillStyle=col;ctx.fillText(GLYPH[p.t],cx,cy+cell*.025);
+    const rem=p.ready-S.T;
+    if(rem>0&&p.o>=0){ctx.fillStyle='#29332c88';ctx.fillRect(p.x*cell,p.y*cell,cell,cell*Math.min(1,rem/(p.cd0||1)))}
+    if(p.q){ctx.strokeStyle='#c7ac78';ctx.lineWidth=2;ctx.strokeRect(p.q[0]*cell+3,p.q[1]*cell+3,cell-6,cell-6)}
+    if(p.o>=0&&S.f[p.o].boostUntil>S.T){ctx.strokeStyle=col+'cc';ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(cx,cy,cell*.47,0,Math.PI*2);ctx.stroke()}
+  }
+  for(const e of S.fx){
+    const k=(S.T-e.t)/.65;ctx.strokeStyle=e.col;ctx.globalAlpha=1-k;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(e.x*cell+cell/2,e.y*cell+cell/2,cell*(.25+k*(e.big?1:.7)),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+  }
+}
+function hud(){
+  if(!S)return;
+  const f0=S.f[0],teams=activeTeams();
+  const rows=teams.map(i=>({f:S.f[i],n:S.pieces.filter(p=>p.o===i).length})).sort((a,b)=>b.f.score-a.f.score);
+  $('lb').innerHTML=rows.map(({f,n})=>{
+    const isMe=f.id===(S.mode==='online'?onlineSide:0),down=!f.alive;
+    return '<div class="player-row'+(isMe?' me':'')+'"><span class="dot" style="background:'+FAC[f.id].col+';color:'+FAC[f.id].col+'"></span><span class="name">'+teamName(f.id)+'</span>'+ (down?'<span class="dead">☠ fora</span>':'<span class="count">'+n+' peças</span>')+'<span class="score">'+f.score+'</span></div>';
+  }).join('');
+  const owner=abilityOwner(),f=S.f[owner],selectedTeam=S.sel?S.sel.o:-1;
+  $('progressTitle').textContent=(S.mode==='online'?'Sua evolução':owner===0?'Sua evolução':FAC[owner].name);
+  $('lvl').textContent='Nível '+f.lvl;
+  $('tm').textContent=fmt(S.T);
+  $('xpText').textContent=f.xp+' / '+need(f)+' XP';
+  $('xp').style.width=Math.min(100,f.xp/need(f)*100)+'%';
+  $('nx').textContent='Próximo reforço: '+NOME[GROW[Math.min(f.lvl,GROW.length-1)]];
+  $('energyText').textContent=Math.floor(f.energy)+'%';$('energy').style.width=f.energy+'%';
+  $('energyLabel').textContent=(S.mode==='online'||owner===0)?'Surto':('Surto · '+(owner===1&&S.mode==='duel'?'P2':FAC[owner].name));
+  const boost=$('boost');
+  if(f.boostUntil>S.T){boost.textContent='SURTO ATIVO · '+(f.boostUntil-S.T).toFixed(1)+'s';boost.disabled=true;boost.classList.remove('ready')}
+  else{boost.textContent=f.energy>=100?'⚡ ATIVAR SURTO':'SURTO · '+Math.floor(f.energy)+'%';boost.disabled=f.energy<100||!f.alive;boost.classList.toggle('ready',!boost.disabled)}
+  if(S.mode==='duel'&&selectedTeam===1)$('progressTitle').textContent='Evolução · Rubi';
+  $('feed').innerHTML=S.events.slice(0,4).map(e=>'<div class="feed-item"><i class="feed-mark"></i><span>'+e.msg+'</span></div>').join('')||'<div class="feed-item"><i class="feed-mark"></i><span>Aguardando o primeiro movimento...</span></div>';
+  $('statusText').textContent=S.over?'PARTIDA ENCERRADA':(S.started?(S.mode==='online'?'ONLINE · AO VIVO':'EM BATALHA'):'AGUARDANDO');
+}
+function start(){
+  if(selectedMode==='online'){openOnlinePanel();return;}
+  reset(selectedMode);S.started=true;
+  $('start').classList.add('hidden');$('onlinePanel').classList.add('hidden');$('over').classList.add('hidden');$('rematch').classList.add('hidden');$('again').classList.remove('hidden');$('again').textContent='JOGAR DE NOVO';$('rematch').disabled=false;$('rematch').textContent='PEDIR REVANCHE';
+  $('statusText').textContent='EM BATALHA';hud();
+}
+function openMenu(){
+  if(S?.mode==='online'&&!S.over){if(!confirm('Sair agora contará como desistência. Deseja continuar?'))return;sendSocket('game:resign');}
+  if(S){S.started=false;S.over=false;}
+  $('over').classList.add('hidden');$('onlinePanel').classList.add('hidden');$('start').classList.remove('hidden');$('rematch').classList.add('hidden');
+}
+function chooseMode(mode){
+  selectedMode=mode;
+  document.querySelectorAll('.mode-card').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  $('modeDesc').textContent=MODE_INFO[mode].desc;
+  $('go').textContent=mode==='arena'?'ENTRAR NA ARENA →':mode==='duel'?'COMEÇAR DUELO →':mode==='cpu'?'DESAFIAR A CPU →':'JOGAR ONLINE →';
+  if(S&&!S.started){$('modeTag').textContent=MODE_INFO[mode].tag;}
+}
+
+async function apiRequest(path,body=null){
+  const headers={'Content-Type':'application/json'};
+  if(onlineToken)headers.Authorization='Bearer '+onlineToken;
+  const response=await fetch(path,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined});
+  let data={};try{data=await response.json()}catch(_){}
+  if(!response.ok)throw new Error(data.error||'Não foi possível concluir a solicitação.');
+  return data;
+}
+function showOnlineMessage(message='',kind=''){
+  const el=$('onlineMessage');el.textContent=message;el.className='online-message'+(kind?' '+kind:'');
+}
+function showToast(message){
+  const stack=$('noticeStack'),el=document.createElement('div');el.className='notice-toast';el.textContent=message;stack.appendChild(el);
+  while(stack.children.length>4)stack.removeChild(stack.firstChild);
+  setTimeout(()=>el.remove(),4200);
+}
+function sendSocket(type,payload={}){
+  if(wsReady&&ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type,...payload}));return true;}
+  showToast('Conectando ao servidor. Tente novamente em instantes.');
+  if(onlineToken&&!ws)connectSocket();
+  return false;
+}
+function renderAccount(){
+  const signed=!!onlineUser;
+  $('authView').classList.toggle('hidden',signed);$('accountView').classList.toggle('hidden',!signed);
+  $('profileBtn').textContent=signed?'@'+onlineUser.username:'Entrar / Amigos';
+  $('profileBtn').classList.toggle('signed',signed);
+  if(signed){
+    $('accountName').textContent=onlineUser.displayName||onlineUser.username;
+    const stats=onlineUser.stats||{};$('accountStats').textContent=(stats.games||0)+' partidas · '+(stats.wins||0)+' vitórias';
+    $('onlineTitle').textContent='Sua conta';$('onlineSubtitle').textContent='Adicione amigos, crie salas e encontre adversários.';
+  }else{$('onlineTitle').textContent='Jogue com outras pessoas';$('onlineSubtitle').textContent='Entre na sua conta para procurar partidas e adicionar amigos.';}
+}
+function openOnlinePanel(){
+  $('start').classList.add('hidden');$('over').classList.add('hidden');$('onlinePanel').classList.remove('hidden');
+  renderAccount();
+  if(onlineToken&&!wsReady)connectSocket();
+  setTimeout(()=>$('authUsername').focus(),60);
+}
+function closeOnlinePanel(){
+  $('onlinePanel').classList.add('hidden');
+  if(S?.over){$('over').classList.remove('hidden');if(S.mode==='online')showOnlineResult();}
+  else if(!S?.started)$('start').classList.remove('hidden');
+}
+function connectSocket(){
+  if(!onlineToken||ws&&[WebSocket.CONNECTING,WebSocket.OPEN].includes(ws.readyState))return;
+  if(location.protocol==='file:'){showOnlineMessage('Para usar o modo online, inicie o servidor com npm start e abra http://localhost:3000.','error');return;}
+  explicitLogout=false;clearTimeout(reconnectTimer);
+  const scheme=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(scheme+'//'+location.host+'/ws');
+  ws.addEventListener('open',()=>{ws.send(JSON.stringify({type:'auth',token:onlineToken}));});
+  ws.addEventListener('message',event=>{
+    let msg;try{msg=JSON.parse(event.data)}catch(_){return;}
+    handleSocketEvent(msg);
+  });
+  ws.addEventListener('close',()=>{
+    wsReady=false;
+    if(onlineToken&&!explicitLogout){showOnlineMessage('Conexão interrompida. Tentando reconectar…');reconnectTimer=setTimeout(connectSocket,2200);}
+  });
+  ws.addEventListener('error',()=>{showOnlineMessage('Não foi possível conectar ao servidor. Verifique se o Crownflux está em execução.','error');});
+}
+function renderSocial(data={}){
+  if(data.friends){friendCache=data.friends;renderFriends(friendCache);}
+  if(data.requests)renderRequests(data.requests);
+}
+function renderFriends(friends){
+  const box=$('friendList');box.replaceChildren();
+  if(!friends.length){box.textContent='Ainda não há amigos adicionados.';return;}
+  for(const friend of friends){
+    const row=document.createElement('div');row.className='social-row';
+    const name=document.createElement('div');name.className='social-name';
+    const strong=document.createElement('strong');strong.textContent='@'+friend.username;name.appendChild(strong);
+    const meta=document.createElement('span');meta.className='social-meta';meta.textContent=friend.online?'● Online':'○ Offline';meta.style.color=friend.online?'#9fbea3':'#89968e';name.appendChild(meta);row.appendChild(name);
+    if(friend.online){const challenge=document.createElement('button');challenge.className='mini-btn';challenge.textContent='DESAFIAR';challenge.addEventListener('click',()=>sendSocket('challenge:send',{userId:friend.id}));row.appendChild(challenge);}
+    const remove=document.createElement('button');remove.className='mini-btn danger';remove.textContent='REMOVER';remove.addEventListener('click',()=>{if(confirm('Remover @'+friend.username+' da sua lista?'))sendSocket('friend:remove',{userId:friend.id});});row.appendChild(remove);
+    const block=document.createElement('button');block.className='mini-btn danger';block.textContent='BLOQUEAR';block.addEventListener('click',()=>{if(confirm('Bloquear @'+friend.username+'?'))sendSocket('friend:block',{userId:friend.id});});row.appendChild(block);
+    box.appendChild(row);
+  }
+}
+function renderRequests(requests){
+  const box=$('friendRequests');box.replaceChildren();
+  if(!requests.length){box.textContent='Nenhuma solicitação pendente.';return;}
+  for(const request of requests){
+    const row=document.createElement('div');row.className='social-row';
+    const name=document.createElement('span');name.className='social-name';name.textContent='@'+(request.from?.username||'jogador');row.appendChild(name);
+    const accept=document.createElement('button');accept.className='mini-btn';accept.textContent='ACEITAR';accept.addEventListener('click',()=>sendSocket('friend:respond',{requestId:request.id,accept:true}));row.appendChild(accept);
+    const reject=document.createElement('button');reject.className='mini-btn danger';reject.textContent='RECUSAR';reject.addEventListener('click',()=>sendSocket('friend:respond',{requestId:request.id,accept:false}));row.appendChild(reject);box.appendChild(row);
+  }
+}
+function renderSearchResults(users){
+  const box=$('searchResults');box.replaceChildren();
+  if(!users.length){box.textContent='Nenhum jogador encontrado.';return;}
+  for(const user of users){
+    const row=document.createElement('div');row.className='social-row';
+    const name=document.createElement('span');name.className='social-name';name.textContent='@'+user.username+(user.online?' · online':'');row.appendChild(name);
+    const add=document.createElement('button');add.className='mini-btn';add.textContent='ADICIONAR';add.addEventListener('click',()=>sendSocket('friend:request',{username:user.username}));row.appendChild(add);box.appendChild(row);
+  }
+}
+function renderGameHistory(games){
+  const box=$('gameHistory');box.replaceChildren();
+  if(!games.length){box.textContent='Você ainda não disputou partidas online.';return;}
+  for(const game of games){
+    const row=document.createElement('div');row.className='social-row';
+    const name=document.createElement('span');name.className='social-name';name.textContent=(game.result==='Vitória'?'✓ ':game.result==='Derrota'?'× ':'= ')+game.result+' · @'+game.opponent+' · '+game.duration+'s';row.appendChild(name);
+    const meta=document.createElement('span');meta.className='social-meta';meta.textContent=new Date(game.createdAt).toLocaleDateString();name.appendChild(meta);box.appendChild(row);
+  }
+}
+function renderChallenges(){
+  const box=$('challengeList');box.replaceChildren();
+  if(!challengeInbox.size){box.textContent='Nenhum desafio recebido.';return;}
+  for(const challenge of challengeInbox.values()){
+    const row=document.createElement('div');row.className='social-row';
+    const name=document.createElement('span');name.className='social-name';name.textContent='@'+(challenge.from?.username||'jogador')+' desafiou você';row.appendChild(name);
+    const accept=document.createElement('button');accept.className='mini-btn';accept.textContent='ACEITAR';accept.addEventListener('click',()=>{sendSocket('challenge:respond',{challengeId:challenge.id,accept:true});challengeInbox.delete(challenge.id);renderChallenges();});row.appendChild(accept);
+    const decline=document.createElement('button');decline.className='mini-btn danger';decline.textContent='RECUSAR';decline.addEventListener('click',()=>{sendSocket('challenge:respond',{challengeId:challenge.id,accept:false});challengeInbox.delete(challenge.id);renderChallenges();});row.appendChild(decline);box.appendChild(row);
+  }
+}
+function applyOnlineState(data){
+  if(!data)return;
+  onlineSide=Number(data.side)||0;onlineOpponent=data.opponent?.displayName||data.opponent?.username||'Adversário';
+  const selectedId=S?.sel?.id??null;
+  const pieces=(data.pieces||[]).map(p=>({id:p.id,t:p.type,o:p.owner,x:p.x,y:p.y,ready:p.ready,cd0:p.cd0||1,q:null,shield:p.shield||0}));
+  const grid=Array.from({length:N},()=>Array(N).fill(null));
+  for(const p of pieces)if(p.x>=0&&p.y>=0&&p.x<N&&p.y<N)grid[p.y][p.x]=p;
+  const teams=(data.teams||[]).map(t=>({id:t.id,score:t.score||0,xp:t.xp||0,lvl:t.level||0,alive:t.alive!==false,respawn:0,kings:t.kings||0,energy:t.energy||0,boostUntil:t.boostUntil||0,captures:t.captures||0}));
+  S={mode:'online',T:data.T||0,grid,pieces,orbs:data.orbs||[],f:teams,sel:selectedId?pieces.find(p=>p.id===selectedId)||null:null,over:!!data.over,started:true,nid:0,foodT:0,orbT:0,attT:0,att:null,fx:[],events:data.events||[],lastMove:data.lastMove||null,winner:data.winner??null,reason:data.reason||''};
+  calcAtt();
+  $('start').classList.add('hidden');$('onlinePanel').classList.add('hidden');
+  $('modeTag').textContent='DUELO ONLINE · '+(onlineUser?.username||'VOCÊ')+' × '+onlineOpponent;
+  $('playersLabel').textContent='2 JOGADORES';$('recordPill').textContent='ONLINE';
+  $('statusText').textContent=S.over?'PARTIDA ENCERRADA':'ONLINE · AO VIVO';
+  $('rematch').classList.toggle('hidden',!S.over);
+  $('again').classList.toggle('hidden',!S.over);
+  $('again').textContent='NOVO JOGO LOCAL';
+  if(S.over)showOnlineResult();else $('over').classList.add('hidden');
+  hud();
+}
+function showOnlineResult(){
+  const won=S.winner===onlineSide,draw=S.winner===null;
+  $('resultTitle').textContent=won?'VITÓRIA':draw?'EMPATE':'FIM DE JOGO';
+  $('winnerText').textContent=won?'Você venceu!':draw?'Partida empatada.':onlineOpponent+' venceu.';
+  const mine=S.f[onlineSide],theirs=S.f[1-onlineSide];
+  $('res').innerHTML='Tempo: <b>'+fmt(S.T)+'</b><br>Seu placar: <b>'+mine.score+'</b> · Nível <b>'+mine.lvl+'</b><br>'+onlineOpponent+': <b>'+theirs.score+'</b><br>'+String(S.reason||'Partida encerrada.');
+  $('over').classList.remove('hidden');$('rematch').classList.remove('hidden');$('again').classList.add('hidden');
+}
+function handleSocketEvent(msg){
+  switch(msg.type){
+    case 'auth:ok':
+      wsReady=true;onlineUser=msg.user;renderAccount();renderSocial({friends:msg.friends||[],requests:msg.requests||[]});sendSocket('games:history');showOnlineMessage('Conectado ao Crownflux.','success');break;
+    case 'profile:stats':onlineUser=msg.user;renderAccount();break;
+    case 'games:history':renderGameHistory(msg.games||[]);break;
+    case 'social:update':renderSocial(msg);break;
+    case 'profile:results':renderSearchResults(msg.users||[]);break;
+    case 'notice':showToast(msg.message||'Atualização recebida.');break;
+    case 'error':
+      showOnlineMessage(msg.message||'Ocorreu um erro.','error');showToast(msg.message||'Ocorreu um erro.');
+      if(msg.code==='AUTH_EXPIRED'){onlineToken='';localStorage.removeItem('cf_token');onlineUser=null;wsReady=false;explicitLogout=true;if(ws)ws.close();ws=null;renderAccount();}
+      break;
+    case 'presence:update':
+      friendCache=friendCache.map(f=>f.id===msg.userId?{...f,online:!!msg.online}:f);renderFriends(friendCache);break;
+    case 'challenge:incoming':challengeInbox.set(msg.id,msg);renderChallenges();showToast('@'+(msg.from?.username||'Alguém')+' desafiou você.');break;
+    case 'challenge:declined':showToast('@'+(msg.by?.username||'Seu amigo')+' recusou o desafio.');break;
+    case 'challenge:expired':if(msg.id)challengeInbox.delete(msg.id);renderChallenges();showToast('Um desafio expirou.');break;
+    case 'challenge:accepted':showToast('@'+(msg.by?.username||'Seu amigo')+' aceitou o desafio.');break;
+    case 'match:waiting':matchmaking=true;$('queueBtn').textContent='CANCELAR BUSCA';$('queueStatus').textContent='Procurando adversário…';break;
+    case 'match:cancelled':matchmaking=false;$('queueBtn').textContent='BUSCAR ADVERSÁRIO';$('queueStatus').textContent='Busca cancelada.';break;
+    case 'room:created':
+      $('roomCreated').classList.remove('hidden');$('roomCodeText').textContent=msg.code;$('queueStatus').textContent='Aguardando outra pessoa entrar. Compartilhe o código da sala.';showToast('Sala privada criada.');break;
+    case 'game:started':case 'game:state':case 'game:ended':
+      matchmaking=false;$('queueBtn').textContent='BUSCAR ADVERSÁRIO';$('queueStatus').textContent='';applyOnlineState(msg.state);break;
+    case 'game:connection':showToast(msg.connected?'Seu adversário voltou à partida.':'Seu adversário perdeu a conexão. Há um tempo para reconectar.');break;
+    case 'game:rematch-request':if(confirm('@'+(msg.from?.username||'Seu adversário')+' pediu revanche. Aceitar?'))sendSocket('game:rematch');break;
+    case 'game:rematch-waiting':$('rematch').textContent='AGUARDANDO RESPOSTA…';$('rematch').disabled=true;showToast('Pedido de revanche enviado.');break;
+    case 'game:rematch-started':$('rematch').disabled=false;$('rematch').textContent='PEDIR REVANCHE';break;
+  }
+}
+async function doAuth(kind){
+  const username=$('authUsername').value.trim(),password=$('authPassword').value;
+  if(!username||!password){showOnlineMessage('Informe usuário e senha.','error');return;}
+  showOnlineMessage(kind==='login'?'Entrando…':'Criando conta…');
+  try{
+    const data=await apiRequest(kind==='login'?'/api/login':'/api/register',{username,password});
+    onlineToken=data.token;localStorage.setItem('cf_token',onlineToken);onlineUser=data.user;renderAccount();connectSocket();showOnlineMessage('Conta pronta. Conectando ao jogo…','success');
+  }catch(err){showOnlineMessage(err.message,'error');}
+}
+function logout(){
+  if(S?.mode==='online'&&!S.over&&!confirm('Sair da conta durante uma partida contará como desistência. Continuar?'))return;
+  if(S?.mode==='online'&&!S.over)sendSocket('game:resign');
+  const tokenBeforeLogout=onlineToken;
+  if(tokenBeforeLogout)fetch('/api/logout',{method:'POST',headers:{Authorization:'Bearer '+tokenBeforeLogout}}).catch(()=>{});
+  explicitLogout=true;clearTimeout(reconnectTimer);
+  if(ws){ws.close();ws=null;}wsReady=false;matchmaking=false;onlineUser=null;onlineToken='';localStorage.removeItem('cf_token');
+  renderAccount();showOnlineMessage('Você saiu da conta.');
+}
+
+$('profileBtn').addEventListener('click',openOnlinePanel);
+$('onlineClose').addEventListener('click',closeOnlinePanel);
+$('loginBtn').addEventListener('click',()=>doAuth('login'));
+$('registerBtn').addEventListener('click',()=>doAuth('register'));
+$('logoutBtn').addEventListener('click',logout);
+$('searchBtn').addEventListener('click',()=>{const query=$('searchPlayer').value.trim();if(query.length<2){showOnlineMessage('Digite pelo menos 2 caracteres para pesquisar.','error');return;}sendSocket('profile:search',{query});});
+$('searchPlayer').addEventListener('keydown',e=>{if(e.key==='Enter')$('searchBtn').click();});
+$('queueBtn').addEventListener('click',()=>{
+  if(matchmaking){sendSocket('match:cancel');matchmaking=false;$('queueBtn').textContent='BUSCAR ADVERSÁRIO';$('queueStatus').textContent='Busca cancelada.';}
+  else{sendSocket('match:queue');$('queueStatus').textContent='Entrando na fila…';}
+});
+$('createRoomBtn').addEventListener('click',()=>sendSocket('room:create'));
+$('joinRoomBtn').addEventListener('click',()=>{const code=$('joinRoomCode').value.trim().toUpperCase();if(code.length!==6){showOnlineMessage('O código da sala precisa ter 6 caracteres.','error');return;}sendSocket('room:join',{code});});
+$('joinRoomCode').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6));
+$('copyRoomCode').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('roomCodeText').textContent);showToast('Código copiado.');}catch(_){showToast('Não foi possível copiar automaticamente.');}});
+$('rematch').addEventListener('click',()=>sendSocket('game:rematch'));
+
+document.querySelectorAll('.mode-card').forEach(b=>b.addEventListener('click',()=>chooseMode(b.dataset.mode)));
+$('go').addEventListener('click',start);$('again').addEventListener('click',start);$('menu').addEventListener('click',openMenu);
+$('boost').addEventListener('click',()=>activateBoost(abilityOwner()));
+addEventListener('keydown',e=>{
+  const editing=['INPUT','TEXTAREA'].includes(e.target?.tagName);
+  if(e.code==='Escape'&&!$('onlinePanel').classList.contains('hidden')){closeOnlinePanel();return;}
+  if(e.code==='Escape'&&S){S.sel=null;hud();}
+  if(e.code==='Space'&&!editing&&S&&S.started&&!S.over){e.preventDefault();activateBoost(abilityOwner());}
+});
+addEventListener('resize',resize);
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  update(dt);draw();hudTimer-=dt;if(hudTimer<=0){hud();hudTimer=.18}
+  requestAnimationFrame(loop);
+}
+resize();reset();hud();requestAnimationFrame(loop);
+if(onlineToken)connectSocket();
+// API pequena para testes locais no console, sem dependências externas.
+window.__crownflux={get state(){return S},reset,start,handleClick,doMove,moves,botThink,activateBoost};
+</script>
+</body>
+</html>
