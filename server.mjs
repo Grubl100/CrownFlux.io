@@ -1340,7 +1340,9 @@ class TacticalDraftMatch {
     const enemyVisible = enemyHasCrown ||
       this.manhattan(myUnit.x, myUnit.y, enemyUnit.x, enemyUnit.y) <= TACTICAL_VISION_RADIUS;
     const opponentId = this.players[enemySide];
-    const opp = db.users.find(u => u.id === opponentId);
+    const opp = isBotUid(opponentId)
+      ? { username: 'crownbot', displayName: 'CrownBot (CPU)', avatar: '🤖' }
+      : db.users.find(u => u.id === opponentId);
 
     return {
       gameId: this.id,
@@ -1374,6 +1376,250 @@ class TacticalDraftMatch {
       },
       replayLog: this.over ? this.replayLog : undefined
     };
+  }
+}
+
+function isBotUid(uid) {
+  return String(uid || '').startsWith('bot:');
+}
+
+class BotController {
+  constructor() {
+    this.pendingTimers = new Map(); // gameId -> timeoutId
+  }
+
+  clear(gameId) {
+    const t = this.pendingTimers.get(gameId);
+    if (t) {
+      clearTimeout(t);
+      this.pendingTimers.delete(gameId);
+    }
+  }
+
+  humanDelay(minMs = 1000, maxMs = 2000) {
+    return Math.floor(minMs + Math.random() * (maxMs - minMs));
+  }
+
+  // BFS para menor caminho até (targetX, targetY) evitando paredes e unidades
+  findNextStep(game, fromX, fromY, targetX, targetY) {
+    const queue = [[fromX, fromY, null]];
+    const visited = new Set([`${fromX},${fromY}`]);
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    while (queue.length > 0) {
+      const [cx, cy, firstStep] = queue.shift();
+      if (cx === targetX && cy === targetY) return firstStep;
+
+      for (const [dx, dy] of dirs) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        const key = `${nx},${ny}`;
+        if (visited.has(key) || !game.isInside(nx, ny) || game.hasWall(nx, ny)) continue;
+        const occ = game.unitAt(nx, ny);
+        if (occ && !(nx === targetX && ny === targetY)) continue;
+        visited.add(key);
+        queue.push([nx, ny, firstStep || { x: nx, y: ny }]);
+      }
+    }
+    return null;
+  }
+
+  scheduleTurn(game, botSide) {
+    if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen) return;
+    this.clear(game.id);
+    const step = () => {
+      if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen) return;
+      const acted = this.executeSingleAction(game, botSide);
+      if (acted && !game.over && game.teams[botSide].ap > 0) {
+        this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(1000, 1800)));
+      } else if (!game.over && game.phase === 'turn' && game.activeSide === botSide) {
+        this.pendingTimers.set(game.id, setTimeout(() => {
+          if (game.over || game.phase !== 'turn' || game.activeSide !== botSide) return;
+          const res = game.endTurn(botSide);
+          if (res.ended) publishTactical(game, 'game:ended');
+          else if (res.phase === 'draft') {
+            publishTactical(game, 'tactical:startDraft');
+            this.scheduleDraft(game, botSide);
+          } else {
+            publishTactical(game, 'tactical:state');
+            this.maybeAct(game);
+          }
+        }, this.humanDelay(1000, 1600)));
+      }
+    };
+    this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(1100, 1900)));
+  }
+
+  executeSingleAction(game, botSide) {
+    const team = game.teams[botSide];
+    const unit = game.units[botSide];
+    const enemySide = 1 - botSide;
+    const enemyUnit = game.units[enemySide];
+    if (team.ap <= 0) return false;
+
+    // 1. Se inimigo tem a Coroa e Bot tem Sifão de Fluxo, usa a carta ofensiva
+    if (game.crown.holder === enemySide) {
+      const siphon = team.hand.find(c => c.id === 'flux_siphon' && team.ap >= c.cost);
+      if (siphon) {
+        const res = game.playCard(botSide, siphon.uid);
+        if (res.ok) {
+          publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: enemySide });
+          return true;
+        }
+      }
+    }
+
+    // 2. Se a Coroa está livre, calcula menor caminho e anda até ela (ou usa Teleporte Curto)
+    if (game.crown.holder === null) {
+      const distToCrown = game.manhattan(unit.x, unit.y, game.crown.x, game.crown.y);
+      const tp = team.hand.find(c => c.id === 'short_teleport' && team.ap >= c.cost);
+      if (tp && distToCrown === 2 && !game.hasWall(game.crown.x, game.crown.y) && !game.unitAt(game.crown.x, game.crown.y)) {
+        const res = game.playCard(botSide, tp.uid, { x: game.crown.x, y: game.crown.y });
+        if (res.ok) {
+          publishTactical(game, 'tactical:state');
+          return true;
+        }
+      }
+      const next = this.findNextStep(game, unit.x, unit.y, game.crown.x, game.crown.y);
+      if (next && team.ap >= 1) {
+        const res = game.moveUnit(botSide, next.x, next.y);
+        if (res.ok) {
+          publishTactical(game, 'tactical:state');
+          return true;
+        }
+      }
+    }
+
+    // 3. Caso contrário, aproxima-se do oponente ou ergue Parede de Fluxo
+    const wallCard = team.hand.find(c => c.id === 'flux_wall' && team.ap >= c.cost);
+    if (wallCard && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= wallCard.range) {
+      const wx = Math.round((unit.x + enemyUnit.x) / 2);
+      const wy = Math.round((unit.y + enemyUnit.y) / 2);
+      const res = game.playCard(botSide, wallCard.uid, { x: wx, y: wy });
+      if (res.ok) {
+        publishTactical(game, 'tactical:state');
+        return true;
+      }
+    }
+
+    const stepToEnemy = this.findNextStep(game, unit.x, unit.y, enemyUnit.x, enemyUnit.y);
+    if (stepToEnemy && team.ap >= 1) {
+      const res = game.moveUnit(botSide, stepToEnemy.x, stepToEnemy.y);
+      if (res.ok) {
+        publishTactical(game, 'tactical:state');
+        return true;
+      }
+    }
+    return false;
+  }
+
+  scheduleDraft(game, botSide) {
+    if (game.over || game.phase !== 'draft' || game.teams[botSide].draftPicked) return;
+    // Delay de 3 a 5 segundos simulando escolha humana no Draft
+    setTimeout(() => {
+      if (game.over || game.phase !== 'draft' || game.teams[botSide].draftPicked || game.tutorialFrozen) return;
+      const opts = game.teams[botSide].draftOptions;
+      if (opts.length === 0) return;
+      const pick = opts[Math.floor(Math.random() * opts.length)];
+      game.pickDraftCard(botSide, pick.uid);
+      publishTactical(game, 'tactical:state');
+      this.maybeAct(game);
+    }, this.humanDelay(3000, 5000));
+  }
+
+  maybeAct(game) {
+    if (game.over || game.tutorialFrozen) return;
+    for (let side = 0; side < 2; side++) {
+      if (!isBotUid(game.players[side])) continue;
+      if (game.phase === 'turn' && game.activeSide === side) this.scheduleTurn(game, side);
+      else if (game.phase === 'draft' && !game.teams[side].draftPicked) this.scheduleDraft(game, side);
+    }
+  }
+}
+
+const botController = new BotController();
+
+class TutorialRoom extends TacticalDraftMatch {
+  constructor(playerUid) {
+    const botUid = `bot:tutor:${id().slice(0, 6)}`;
+    super({
+      id: id(),
+      players: [playerUid, botUid],
+      options: { mode: 'tactical_draft', isTutorial: true }
+    });
+    this.isTutorial = true;
+    this.tutorialStep = 1; // 1: PA & Movimento, 2: Draft, 3: Coroa & Debuff
+    this.tutorialFrozen = true;
+    this.frozenRemainingMs = TACTICAL_TURN_MS;
+
+    // Posições e Coroa fixas para o roteiro do tutorial
+    this.units = [
+      { side: 0, x: 2, y: 5, hp: 3 },
+      { side: 1, x: 9, y: 5, hp: 3 }
+    ];
+    this.crown = { x: 4, y: 5, holder: null };
+    this.teams[0].hand = [
+      { ...CARD_CATALOG.short_teleport, uid: id() },
+      { ...CARD_CATALOG.flux_wall, uid: id() }
+    ];
+  }
+
+  freezeForStep(step) {
+    this.tutorialStep = step;
+    this.tutorialFrozen = true;
+    const now = Date.now();
+    this.frozenRemainingMs = this.phase === 'draft'
+      ? Math.max(4000, this.draftDeadline - now)
+      : Math.max(10_000, this.turnDeadline - now);
+  }
+
+  completeTutorialStep(step) {
+    if (Number(step) !== this.tutorialStep) return false;
+    this.tutorialFrozen = false;
+    const now = Date.now();
+    if (this.phase === 'draft') this.draftDeadline = now + this.frozenRemainingMs;
+    else this.turnDeadline = now + this.frozenRemainingMs;
+    botController.maybeAct(this);
+    return true;
+  }
+
+  checkCrownCapture(side) {
+    const captured = super.checkCrownCapture(side);
+    if (captured && side === 0 && this.tutorialStep < 3) {
+      this.freezeForStep(3);
+    }
+    return captured;
+  }
+
+  startDraftPhase() {
+    this.phase = 'draft';
+    this.draftDeadline = Date.now() + TACTICAL_DRAFT_MS;
+    this.teams[0].draftOptions = [
+      { ...CARD_CATALOG.short_teleport, uid: id() },
+      { ...CARD_CATALOG.flux_siphon, uid: id() },
+      { ...CARD_CATALOG.flux_wall, uid: id() }
+    ];
+    this.teams[0].draftPicked = false;
+    this.teams[1].draftOptions = randomCardChoices(3);
+    this.teams[1].draftPicked = false;
+    this.logEvent('draft_start', null, { round: this.round, scripted: true });
+    if (this.tutorialStep < 2) this.freezeForStep(2);
+  }
+
+  tick(now) {
+    if (this.tutorialFrozen) return null;
+    return super.tick(now);
+  }
+
+  serializeFor(side) {
+    const base = super.serializeFor(side);
+    base.isTutorial = true;
+    base.tutorialStep = this.tutorialStep;
+    base.tutorialFrozen = this.tutorialFrozen;
+    if (isBotUid(this.players[1 - side])) {
+      base.opponent = { username: 'crownbot', displayName: 'CrownBot (CPU)', avatar: '🤖' };
+    }
+    return base;
   }
 }
 
@@ -1818,6 +2064,7 @@ async function handleSocketMessage(ws, msg) {
       const res = game.moveUnit(side, Number(msg.x), Number(msg.y));
       if (!res.ok) return sendError(ws, res.error);
       publishTactical(game, 'tactical:state');
+      botController.maybeAct(game);
       break;
     }
     case 'tactical:playCard': {
@@ -1830,6 +2077,7 @@ async function handleSocketMessage(ws, msg) {
         effect: res.card.id,
         hitSide: res.hitEnemy
       });
+      botController.maybeAct(game);
       break;
     }
     case 'tactical:endTurn': {
@@ -1839,8 +2087,13 @@ async function handleSocketMessage(ws, msg) {
       const res = game.endTurn(side);
       if (!res.ok) return;
       if (res.ended) publishTactical(game, 'game:ended');
-      else if (res.phase === 'draft') publishTactical(game, 'tactical:startDraft');
-      else publishTactical(game, 'tactical:state');
+      else if (res.phase === 'draft') {
+        publishTactical(game, 'tactical:startDraft');
+        botController.maybeAct(game);
+      } else {
+        publishTactical(game, 'tactical:state');
+        botController.maybeAct(game);
+      }
       break;
     }
     case 'tactical:pickDraft': {
@@ -1850,6 +2103,30 @@ async function handleSocketMessage(ws, msg) {
       const res = game.pickDraftCard(side, msg.cardUid);
       if (!res.ok) return sendError(ws, res.error);
       publishTactical(game, 'tactical:state');
+      botController.maybeAct(game);
+      break;
+    }
+    case 'tactical:startCpu': {
+      if (findGameFor(ws.userId)) return sendError(ws, 'Você já está em uma partida.');
+      const botUid = `bot:cpu:${id().slice(0, 6)}`;
+      const room = createRoom([ws.userId, botUid], 'cpu', { mode: 'tactical_draft' });
+      const game = activeGames.get(room.gameId);
+      if (game) botController.maybeAct(game);
+      break;
+    }
+    case 'tactical:startTutorial': {
+      if (findGameFor(ws.userId)) return sendError(ws, 'Você já está em uma partida.');
+      const game = new TutorialRoom(ws.userId);
+      activeGames.set(game.id, game);
+      send(ws, 'game:started', { state: game.serializeFor(0) });
+      break;
+    }
+    case 'tactical:tutorialStepComplete': {
+      const game = gameForSocket(ws);
+      if (!game || !game.isTutorial) return;
+      if (game.completeTutorialStep(msg.step)) {
+        publishTactical(game, 'tactical:state');
+      }
       break;
     }
     case 'game:rematch':
@@ -1870,7 +2147,10 @@ function tickGames() {
     if (game.mode === 'tactical_draft') {
       const evt = game.tick(now);
       if (evt === 'ended') publishTactical(game, 'game:ended');
-      else if (evt === 'draft_ended' || evt === 'turn_timeout') publishTactical(game, 'tactical:state');
+      else if (evt === 'draft_ended' || evt === 'turn_timeout') {
+        publishTactical(game, 'tactical:state');
+        botController.maybeAct(game);
+      }
       continue;
     }
     const dt = Math.min(0.25, Math.max(0, (now - game.lastTick) / 1000));
