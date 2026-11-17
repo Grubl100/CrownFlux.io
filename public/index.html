@@ -1353,6 +1353,13 @@ label.field-label {
                     <span class="mode-sub">2 jogadores no mesmo dispositivo</span>
                   </span>
                 </button>
+                <button class="mode-card" data-mode="tactical_draft" type="button" style="grid-column: 1 / -1;">
+                  <span class="mode-icon">🃏</span>
+                  <span>
+                    <span class="mode-name">Cerco Tático (Cartas & Turnos)</span>
+                    <span class="mode-sub">Grid tático 12×12, 3 PA por turno, Draft de cartas e disputa pela Coroa</span>
+                  </span>
+                </button>
               </div>
               <div id="modeDesc" class="mode-desc">Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e transforme o rei rival em seu maior troféu.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
@@ -2107,6 +2114,12 @@ const MODE_INFO = {
     players: '1V1 CPU',
     desc: 'Enfrente o computador em 5 níveis de dificuldade com comportamentos e estratégias reais distintas.',
     record: 'cf_best_cpu'
+  },
+  tactical_draft: {
+    tag: 'CERCO TÁTICO · CARTAS',
+    players: '1V1 TURNOS',
+    desc: 'Modo por turnos com 3 PA, Draft de cartas a cada 3 rodadas, Coroa com risco/recompensa e salas privadas de 4 letras.',
+    record: 'cf_best_online'
   },
   online: {
     tag: 'DUELO · ONLINE',
@@ -3618,8 +3631,11 @@ function launchSelectedGame(mode) {
 }
 
 function start() {
-  if (selectedMode === 'online') {
+  if (selectedMode === 'online' || selectedMode === 'tactical_draft') {
     openOnlineLobby();
+    if (selectedMode === 'tactical_draft') {
+      setTimeout(() => $('createTacticalRoomBtn')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    }
     return;
   }
   if (selectedMode === 'cpu') {
@@ -3658,7 +3674,9 @@ function chooseMode(mode) {
       ? 'COMEÇAR DUELO LOCAL →'
       : mode === 'cpu'
         ? 'ESCOLHER DIFICULDADE →'
-        : 'ABRIR LOBBY ONLINE →';
+        : mode === 'tactical_draft'
+          ? 'ABRIR CERCO TÁTICO →'
+          : 'ABRIR LOBBY ONLINE →';
   if (S && !S.started) $('modeTag').textContent = MODE_INFO[mode].tag;
 }
 
