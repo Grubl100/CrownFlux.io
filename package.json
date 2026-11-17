@@ -1,0 +1,18 @@
+{
+  "name": "crownflux-io",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Crownflux.io — jogo de estratégia multiplayer em tempo real",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "check": "node --check server.mjs && node scripts/check-client.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  }
+}
