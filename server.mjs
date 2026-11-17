@@ -1337,8 +1337,7 @@ class TacticalDraftMatch {
     const enemySide = 1 - side;
     const enemyUnit = this.units[enemySide];
     const enemyHasCrown = this.crown.holder === enemySide;
-    const enemyVisible = enemyHasCrown ||
-      this.manhattan(myUnit.x, myUnit.y, enemyUnit.x, enemyUnit.y) <= TACTICAL_VISION_RADIUS;
+    const enemyVisible = true;
     const opponentId = this.players[enemySide];
     const opp = isBotUid(opponentId)
       ? { username: 'crownbot', displayName: 'CrownBot (CPU)', avatar: '🤖' }

@@ -1158,6 +1158,189 @@ label.field-label {
   .play-layout { flex-direction: row; align-items: flex-start; }
   #hud { width: 210px; flex-basis: 210px; grid-template-columns: 1fr; }
 }
+  /* Cerco Tático com Cartas — UI/UX com Toque Humano */
+  .cf-turn-pill[hidden],
+  .cf-hand-dock[hidden],
+  .cf-tactical-wrap[hidden],
+  .cf-tactical-modal[hidden] {
+    display: none !important;
+  }
+  .cf-turn-pill {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    padding: 10px 22px; border-radius: 999px;
+    background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f8fafc; font-weight: 600; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 12px; z-index: 90;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  .cf-turn-pill.my-turn {
+    border-color: rgba(56, 189, 248, 0.7);
+    box-shadow: 0 10px 32px rgba(56, 189, 248, 0.28);
+  }
+  .cf-hand-dock {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 14px; padding: 12px 18px; z-index: 90;
+  }
+  .cf-card {
+    width: 152px; padding: 14px; border-radius: 16px; cursor: pointer;
+    background: linear-gradient(155deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    color: #e2e8f0; user-select: none; position: relative;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.25s ease, opacity 0.25s ease;
+  }
+  .cf-card:hover:not(.disabled) {
+    transform: translateY(-16px) scale(1.04) rotate(-1deg);
+    border-color: #38bdf8;
+    box-shadow: 0 18px 34px rgba(56, 189, 248, 0.28);
+  }
+  .cf-card.selected {
+    transform: translateY(-22px) scale(1.06);
+    border-color: #facc15;
+    box-shadow: 0 20px 38px rgba(250, 204, 21, 0.34);
+  }
+  .cf-card.playing {
+    transform: translateY(-70px) scale(0.82);
+    opacity: 0; pointer-events: none;
+  }
+  .cf-card.disabled { opacity: 0.45; cursor: not-allowed; }
+  .cf-card-cost {
+    position: absolute; top: -9px; right: -9px; width: 28px; height: 28px;
+    border-radius: 50%; background: #0284c7; color: #fff; font-weight: 800;
+    display: grid; place-items: center; font-size: 13px;
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.5);
+  }
+  .cf-ap-bar { display: flex; gap: 8px; align-items: center; }
+  .cf-ap-orb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(148, 163, 184, 0.25);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease;
+  }
+  .cf-ap-orb.active {
+    background: #38bdf8; transform: scale(1.18);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+  }
+  .cf-tactical-wrap {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    background: rgba(9, 12, 20, 0.88); backdrop-filter: blur(8px); z-index: 80;
+  }
+  .cf-tactical-grid {
+    display: grid; grid-template-columns: repeat(12, 38px); gap: 3px;
+    padding: 12px; border-radius: 18px; background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .cf-cell {
+    width: 38px; height: 38px; border-radius: 8px;
+    background: rgba(30, 41, 59, 0.72); display: grid; place-items: center;
+    transition: background 0.2s ease, transform 0.2s ease; font-size: 18px;
+  }
+  .cf-cell.valid-move {
+    background: rgba(16, 185, 129, 0.24);
+    box-shadow: inset 0 0 0 1.5px rgba(52, 211, 153, 0.65); cursor: pointer;
+  }
+  .cf-cell.valid-move:hover { background: rgba(16, 185, 129, 0.42); transform: scale(1.06); }
+  .cf-cell.valid-card {
+    background: rgba(250, 204, 21, 0.22);
+    box-shadow: inset 0 0 0 1.5px rgba(250, 204, 21, 0.75); cursor: crosshair;
+  }
+  .cf-cell.wall { background: rgba(139, 92, 246, 0.42); border: 1px solid #a78bfa; }
+  .cf-tactical-modal {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(15, 23, 42, 0.96); border: 1px solid rgba(250, 204, 21, 0.4);
+    border-radius: 20px; padding: 24px; z-index: 100; color: #f8fafc;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65); max-width: 92vw;
+  }
+  @keyframes cf-shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-6px, 3px); }
+    40% { transform: translate(5px, -4px); }
+    60% { transform: translate(-4px, -2px); }
+    80% { transform: translate(4px, 3px); }
+  }
+  .cf-shake { animation: cf-shake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+  /* Sistema de Tooltips em Overlay (Foco em UI) */
+  .cf-tut-layer[hidden] { display: none !important; }
+  .cf-tut-layer {
+    position: fixed; inset: 0; z-index: 120; pointer-events: auto;
+  }
+  .cf-spotlight-ring {
+    position: fixed; border-radius: 14px; pointer-events: none;
+    border: 2px solid #facc15;
+    box-shadow: 0 0 0 9999px rgba(6, 9, 18, 0.78), 0 0 28px rgba(250, 204, 21, 0.45);
+    transition: top 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .cf-tooltip-card {
+    position: fixed; width: 310px; padding: 18px; border-radius: 16px;
+    background: rgba(15, 23, 42, 0.97); border: 1px solid rgba(250, 204, 21, 0.5);
+    color: #f8fafc; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Painel Lateral, Cronômetro por Jogada e Responsividade Aprimorada */
+  body { overflow-x: hidden; }
+  .turn-banner-box {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 7px 9px; border-radius: 6px;
+    background: #1a1e1b; border: 1px solid var(--border-strong);
+    margin-bottom: 8px; font-size: 11.5px;
+  }
+  .turn-banner-box.my-turn {
+    border-color: rgba(111, 157, 175, 0.65);
+    background: rgba(111, 157, 175, 0.11);
+  }
+  .turn-banner-box.bot-turn {
+    border-color: rgba(189, 119, 120, 0.65);
+    background: rgba(189, 119, 120, 0.11);
+  }
+  .turn-owner-label {
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 750; color: var(--text);
+  }
+  .turn-timer-pill {
+    font-variant-numeric: tabular-nums; font-weight: 800; font-size: 12px;
+    color: var(--gold); background: #26231b; padding: 2px 7px;
+    border-radius: 4px; border: 1px solid #4d432e;
+  }
+  .move-meta-box {
+    margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted);
+  }
+  .move-history-list {
+    display: flex; flex-direction: column; gap: 3px; margin-top: 3px;
+    max-height: 76px; overflow-y: auto;
+  }
+  .move-history-item {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10.5px; padding: 2px 5px; border-radius: 4px;
+    background: rgba(255, 255, 255, 0.025); font-variant-numeric: tabular-nums;
+  }
+  .hud-tut-expected {
+    margin-top: 6px; padding: 6px 8px; border-radius: 5px;
+    background: #2c271d; border-left: 3px solid var(--gold);
+    color: #efe2c2; font-size: 11px; line-height: 1.4;
+  }
+  .match-controls-col {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .match-controls-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .review-step-item {
+    padding: 9px 11px; border-radius: 6px; background: var(--bg-elev);
+    border: 1px solid var(--border); text-align: left; margin-bottom: 7px;
+  }
+  .review-step-item.current {
+    border-color: var(--gold); background: #26231b;
+  }
+  @media (max-width: 860px) {
+    #hud { width: 100%; max-width: 640px; flex: 0 0 auto; }
+  }
 </style>
 </head>
 <body data-board-theme="classic">
@@ -1199,9 +1382,11 @@ label.field-label {
         <!-- Tutorial Guide Banner (Appears outside the canvas so it never obscures pieces) -->
         <div id="tutorialBanner" class="hidden" role="region" aria-label="Guia do tutorial">
           <div class="tut-top">
-            <span class="tut-step-badge" id="tutStepBadge">Etapa 1 de 7</span>
+            <span class="tut-step-badge" id="tutStepBadge">Etapa 1 de 8</span>
             <div class="tut-progress-track"><div class="tut-progress-fill" id="tutProgressFill"></div></div>
             <div class="tut-controls">
+              <button class="mini-btn" id="tutPrevBtn" type="button" title="Etapa anterior">◀ Anterior</button>
+              <button class="mini-btn" id="tutReviewBtn" type="button" title="Consultar todas as explicações">📖 Etapas</button>
               <button class="mini-btn" id="tutPauseBtn" type="button">Pausar</button>
               <button class="mini-btn" id="tutNextBtn" type="button">Avançar →</button>
               <button class="mini-btn danger" id="tutExitBtn" type="button">Sair</button>
@@ -1248,6 +1433,13 @@ label.field-label {
                   <span>
                     <span class="mode-name">Duelo Local</span>
                     <span class="mode-sub">2 jogadores no mesmo dispositivo</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="tactical_draft" type="button" style="grid-column: 1 / -1;">
+                  <span class="mode-icon">🃏</span>
+                  <span>
+                    <span class="mode-name">Cerco Tático (Cartas & Turnos)</span>
+                    <span class="mode-sub">Grid tático 12×12, 3 PA por turno, Draft de cartas e disputa pela Coroa</span>
                   </span>
                 </button>
               </div>
@@ -1311,7 +1503,10 @@ label.field-label {
                   <h3>Sala Privada com Código</h3>
                   <div class="field-row">
                     <button class="secondary" id="createRoomBtn" type="button">CRIAR SALA PRIVADA</button>
-                    <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código de 6 letras" style="flex:1;min-width:130px">
+                    <button class="secondary" id="createTacticalRoomBtn" type="button">CERCO TÁTICO (CARTAS)</button>
+                    <button class="secondary" id="startTacticalCpuBtn" type="button">TREINAR VS BOT (CPU)</button>
+                    <button class="secondary" id="startTacticalTutorialBtn" type="button">TUTORIAL GUIADO</button>
+                    <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código (4 ou 6 letras)" style="flex:1;min-width:130px">
                     <button class="secondary" id="joinRoomBtn" type="button">ENTRAR</button>
                   </div>
                   <div id="roomCreated" class="hidden" style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#191815;padding:8px 11px;border-radius:6px;border:1px dashed var(--gold)">
@@ -1348,11 +1543,35 @@ label.field-label {
         </div>
       </section>
 
-      <!-- HUD Lateral -->
-      <aside id="hud">
+      <!-- HUD Lateral Permanente -->
+      <aside id="hud" aria-label="Painel lateral da partida">
         <section class="hud-section" id="scoreCard">
-          <div class="section-head"><span>Placar da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
+          <div class="section-head"><span>Informações da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
+          <div class="turn-banner-box my-turn" id="turnBannerBox">
+            <span class="turn-owner-label">
+              <span class="dot" id="turnOwnerDot" style="width:8px;height:8px;border-radius:50%;background:#6f9daf;display:inline-block"></span>
+              <span id="turnOwnerText">Sua vez (Azul)</span>
+            </span>
+            <span class="turn-timer-pill" id="currentMoveTimer" title="Cronômetro da jogada atual">0.0s</span>
+          </div>
           <div id="lb"></div>
+          <div class="move-meta-box">
+            <div class="stat-line"><span>Jogada anterior:</span><strong id="lastMoveTimeText">—</strong></div>
+            <div class="stat-line" id="hudTutProgressRow" style="display:none"><span>Progresso do tutorial:</span><strong id="hudTutProgressText" style="color:var(--gold)">Etapa 1 de 8</strong></div>
+            <div id="moveHistoryList" class="move-history-list"></div>
+          </div>
+        </section>
+
+        <section class="hud-section hidden" id="hudTutorialCard">
+          <div class="section-head"><span>Orientações do Tutorial</span><span id="hudTutBadge">ETAPA 1/8</span></div>
+          <strong id="hudTutTitle" style="font-size:12.5px;display:block;margin-bottom:4px;color:var(--text)">Conhecendo o jogo</strong>
+          <div id="hudTutDesc" class="muted" style="font-size:11.5px;line-height:1.45"></div>
+          <div id="hudTutExpected" class="hud-tut-expected"></div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+            <button class="mini-btn" id="hudTutPrevBtn" type="button">◀ Anterior</button>
+            <button class="mini-btn" id="hudTutReviewBtn" type="button">📖 Explicações</button>
+            <button class="mini-btn" id="hudTutNextBtn" type="button">Avançar →</button>
+          </div>
         </section>
 
         <section class="hud-section" id="progressCard">
@@ -1370,14 +1589,17 @@ label.field-label {
           <div id="feed"></div>
         </section>
 
-        <section class="hud-section" style="display:flex;flex-direction:column;gap:7px">
+        <section class="hud-section match-controls-col" id="matchControlsCard">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <strong style="font-size:12px">Ações da Partida</strong>
+            <strong style="font-size:12px">Controles da Partida</strong>
             <span class="muted" id="recordPill">Recorde: 0</span>
           </div>
+          <div class="match-controls-row">
+            <button class="mini-btn danger" id="hudResignBtn" type="button">🏳️ Desistir</button>
+            <button class="mini-btn" id="hudMenuBtn" type="button">🏠 Menu Principal</button>
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="mini-btn" id="hudGuideBtn" type="button">Como jogar</button>
-            <button class="mini-btn" id="hudMenuBtn" type="button">Trocar modo</button>
+            <button class="mini-btn" id="hudGuideBtn" type="button" style="flex:1">📖 Como jogar</button>
           </div>
         </section>
       </aside>
@@ -1918,6 +2140,36 @@ label.field-label {
   </div>
 </div>
 
+<!-- Modal: Confirmação de Desistência ou Retorno ao Menu -->
+<div class="modal-backdrop hidden" id="confirmExitModal" role="dialog" aria-modal="true">
+  <div class="dialog" style="width:min(100%,420px)">
+    <div class="dialog-head">
+      <h3 id="confirmExitTitle">Confirmar ação</h3>
+      <button class="close-btn" id="confirmExitCloseBtn" type="button">×</button>
+    </div>
+    <p class="muted" id="confirmExitMessage" style="margin:0;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+      <button class="secondary" id="confirmExitCancelBtn" type="button">Cancelar e continuar</button>
+      <button class="primary" id="confirmExitConfirmBtn" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Consultar Explicações do Tutorial -->
+<div class="modal-backdrop hidden" id="tutorialReviewModal" role="dialog" aria-modal="true">
+  <div class="dialog" style="width:min(100%,520px);max-height:82vh;overflow-y:auto">
+    <div class="dialog-head">
+      <h3>Explicações do Tutorial (Etapas 1 a 8)</h3>
+      <button class="close-btn" id="tutorialReviewCloseBtn" type="button">×</button>
+    </div>
+    <p class="muted" style="margin:0 0 8px">Consulte qualquer orientação abaixo ou clique em uma etapa para revisá-la no tabuleiro:</p>
+    <div id="tutorialReviewList"></div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="primary" id="tutorialReviewOkBtn" type="button">Voltar à partida</button>
+    </div>
+  </div>
+</div>
+
 <div id="noticeStack" aria-live="polite"></div>
 
 <script>
@@ -2004,6 +2256,12 @@ const MODE_INFO = {
     desc: 'Enfrente o computador em 5 níveis de dificuldade com comportamentos e estratégias reais distintas.',
     record: 'cf_best_cpu'
   },
+  tactical_draft: {
+    tag: 'CERCO TÁTICO · CARTAS',
+    players: '1V1 TURNOS',
+    desc: 'Modo por turnos com 3 PA, Draft de cartas a cada 3 rodadas, Coroa com risco/recompensa e salas privadas de 4 letras.',
+    record: 'cf_best_online'
+  },
   online: {
     tag: 'DUELO · ONLINE',
     players: '2 JOGADORES',
@@ -2021,51 +2279,58 @@ const MODE_INFO = {
 const TUTORIAL_STEPS = [
   {
     step: 1,
-    title: 'Conhecendo o tabuleiro em tempo real',
-    text: 'Você comanda o exército Azul na parte de baixo (seu Rei ♚ tem um anel ao redor). No topo está o Rival Rubi, e pelo mapa há peças neutras cinzas. Aqui não há turnos: observe o cronômetro e o placar à direita.',
-    hint: 'Clique em "Avançar →" ou toque em qualquer peça Azul sua para ir à Etapa 2.',
+    title: 'Conhecendo o jogo',
+    text: 'Bem-vindo ao Crownflux.io! Você comanda o Exército Azul na base inferior (seu Rei ♚ está destacado com um anel dourado). No topo do tabuleiro 16×16 está o seu adversário: o Mentor Rubi (Bot), com todas as peças dele posicionadas. Para vencer uma partida 1v1, você deve evoluir seu exército e capturar o Rei adversário (♚) enquanto protege o seu.',
+    hint: 'Próxima ação: observe os dois exércitos no tabuleiro e clique em "Avançar →" (ou toque em uma peça Azul) para conhecer as peças.',
     hudHighlight: 'scoreCard'
   },
   {
     step: 2,
-    title: 'Selecionando uma peça',
-    text: 'Toque em qualquer uma das suas peças Azuis destacadas no tabuleiro. Ao selecioná-la, pontos mostram as casas vazias válidas e círculos indicam peças que podem ser capturadas.',
-    hint: 'Toque em uma peça Azul do seu exército.',
+    title: 'Conhecendo as peças',
+    text: 'Cada exército começa com 10 peças: 5 Peões (♟) na fileira da frente e, atrás deles, Torre (♜), Bispo (♝), Rei (♚), Rainha (♛) e Cavalo (♞). Cada tipo de peça se move de um jeito próprio: Peões avançam 1 casa e capturam na diagonal; Cavalos saltam em "L"; Bispos usam diagonais; Torres andam em linha reta; e a Rainha combina linha reta e diagonal.',
+    hint: 'Próxima ação: toque em qualquer peça Azul do seu exército (destacada na parte inferior) para ver o alcance dela.',
     hudHighlight: null
   },
   {
     step: 3,
-    title: 'Fazendo o primeiro movimento',
-    text: 'Ótimo! Agora toque em uma das casas marcadas para mover sua peça. Repare que após mover, apenas essa peça entra em uma rápida recarga (~1s), enquanto todas as outras continuam prontas!',
-    hint: 'Toque em um ponto válido no tabuleiro para concluir seu primeiro movimento.',
+    title: 'Primeira movimentação',
+    text: 'Ao selecionar uma peça sua, o tabuleiro mostra pontos escuros nas casas vazias disponíveis e círculos nas peças que podem ser capturadas. Para confirmar um movimento, basta tocar em uma dessas casas marcadas. Repare também no cronômetro da jogada no painel lateral: ele registra o tempo de decisão de cada lance.',
+    hint: 'Próxima ação: toque em um dos pontos válidos no tabuleiro para realizar seu primeiro movimento.',
     hudHighlight: null
   },
   {
     step: 4,
-    title: 'Entendendo as capturas e evolução',
-    text: 'Destacamos uma peça vulnerável próxima ao seu exército! Mova uma peça sua até ela para capturá-la. Capturar dá pontos, XP para subir de nível (gerando reforços perto do seu Rei) e energia de Surto.',
-    hint: 'Selecione uma peça sua e capture a peça destacada com anel dourado.',
-    hudHighlight: 'progressCard'
+    title: 'Entendendo o turno do adversário',
+    text: 'Você realizou sua primeira jogada! Veja agora o Mentor Rubi (Bot) responder movimentando uma peça dele no topo do tabuleiro (destacada com moldura Rubi). O adversário analisa o tabuleiro no turno dele e avança suas peças — acompanhar para onde o inimigo se move é essencial para defender seu território e preparar contra-ataques.',
+    hint: 'Próxima ação: aguarde o movimento do Mentor Rubi e, quando voltar a ser a sua vez, realize mais 1 movimento com qualquer peça Azul.',
+    hudHighlight: 'scoreCard'
   },
   {
     step: 5,
-    title: 'Estratégia e proteção do Rei',
-    text: 'Boa captura! Dica essencial: se o seu Rei (♚) ficar sob a mira de uma peça inimiga, um círculo vermelho alerta você. Avance suas peças em grupo para que uma proteja a outra. Faça 2 movimentos para praticar!',
-    hint: 'Realize mais 2 movimentos ou capturas mantendo seu Rei protegido.',
-    hudHighlight: null
-  },
-  {
-    step: 6,
-    title: 'Fragmentos Flux e a habilidade Surto',
-    text: 'Um Fragmento Flux (losango dourado) surgiu perto de você e sua barra de Surto está pronta! Colete o Fragmento ou clique no botão "⚡ ATIVAR SURTO" (ou tecla Espaço) para acelerar todo o seu exército por 6 segundos!',
-    hint: 'Ative o botão "⚡ ATIVAR SURTO" no painel (ou pressione ESPAÇO) ou colete o Fragmento.',
+    title: 'Capturas',
+    text: 'Destacamos uma oportunidade de captura próxima ao seu exército (com um anel dourado pulsante)! Para capturar, selecione uma peça Azul que alcance aquela casa e mova para cima dela. Capturar peças inimigas ou neutras dá pontos, acumula XP para subir de nível (fazendo nascer reforços perto do seu Rei) e carrega sua habilidade Surto.',
+    hint: 'Próxima ação: selecione uma peça Azul e capture a peça destacada com anel dourado no tabuleiro.',
     hudHighlight: 'progressCard'
   },
   {
+    step: 6,
+    title: 'Estratégia',
+    text: 'Excelente captura! No Crownflux.io, peças isoladas são alvos fáceis. Procure avançar suas peças em conjunto para que uma proteja a outra e fique atento ao seu Rei (♚): se ele ficar na mira de uma peça adversária, um círculo vermelho de alerta aparecerá ao redor dele.',
+    hint: 'Próxima ação: faça 2 movimentos estratégicos com suas peças observando a resposta do Mentor Rubi a cada turno.',
+    hudHighlight: null
+  },
+  {
     step: 7,
-    title: 'Finalizando a partida!',
-    text: 'Você dominou os fundamentos do Crownflux.io! Agora lidere seu exército para capturar o Rei adversário (♚) no topo do tabuleiro (ou alcance 15 pontos) para concluir o treinamento!',
-    hint: 'Capture o Rei Rubi (♚) ou chegue a 15 pontos para vencer o tutorial.',
+    title: 'Mecânicas especiais',
+    text: 'Durante a batalha surgem Fragmentos Flux (losangos dourados no mapa): coletá-los concede +3 XP imediatos e +24% de energia. Quando a barra chega a 100%, você pode ativar a habilidade SURTO (botão "⚡ ATIVAR SURTO" ou tecla ESPAÇO), que reduz quase pela metade o tempo de recarga de todas as suas peças por 6 segundos!',
+    hint: 'Próxima ação: colete o Fragmento Flux dourado próximo a você ou clique em "⚡ ATIVAR SURTO" no painel lateral.',
+    hudHighlight: 'progressCard'
+  },
+  {
+    step: 8,
+    title: 'Conclusão',
+    text: 'Parabéns! Você concluiu todas as orientações e já conhece movimentação, turnos do adversário, capturas, evolução e Surto. Agora continue a partida livremente contra o Mentor Rubi para praticar: capture o Rei Rubi (♚) no topo do tabuleiro (ou alcance 15 pontos) para vencer!',
+    hint: 'Próxima ação: continue jogando até capturar o Rei do Mentor Rubi (♚) ou clique em "Avançar →" para concluir o tutorial.',
     hudHighlight: null
   }
 ];
@@ -2179,7 +2444,8 @@ function teamName(i) {
     const info = CPU_LEVELS.find(c => c.level === cpuDifficulty);
     return 'CPU ' + (info ? info.name : '');
   }
-  if (S?.mode === 'tutorial' && i === 1) return 'Mentor Bot';
+  if (S?.mode === 'tutorial' && i === 1) return 'Mentor Rubi (Bot)';
+  if (i === 0) return onlineUser?.displayName || onlineUser?.username || 'Você (Azul)';
   return FAC[i].name;
 }
 function need(f) { return 4 + f.lvl * 3; }
@@ -2333,6 +2599,80 @@ $('welcomeLaterBtn').addEventListener('click', () => {
   showToast('Sem problemas! Você pode iniciar o tutorial em "Como jogar" quando quiser.');
 });
 
+/* Individual Move Timer Controller */
+let confirmModalOpen = false;
+
+function createTurnTimer() {
+  const now = performance.now();
+  return {
+    activeOwner: 0,
+    startedAtMs: now,
+    accumulatedMs: 0,
+    paused: false,
+    animLockUntilMs: 0,
+    lastMove: null,
+    history: []
+  };
+}
+
+function syncTurnTimerPauseState() {
+  if (!S || !S.turnTimer) return;
+  const shouldPause = !S.started || S.over || (S.mode === 'tutorial' && tut.paused) || confirmModalOpen;
+  const tt = S.turnTimer;
+  const now = performance.now();
+  if (shouldPause && !tt.paused) {
+    if (now > tt.animLockUntilMs) {
+      tt.accumulatedMs += Math.max(0, now - Math.max(tt.startedAtMs, tt.animLockUntilMs));
+    }
+    tt.paused = true;
+  } else if (!shouldPause && tt.paused) {
+    tt.startedAtMs = now;
+    tt.paused = false;
+  }
+}
+
+function getCurrentTurnElapsedSec() {
+  if (!S || !S.turnTimer) return 0;
+  syncTurnTimerPauseState();
+  const tt = S.turnTimer;
+  let totalMs = tt.accumulatedMs;
+  if (!tt.paused && S.started && !S.over) {
+    const now = performance.now();
+    if (now > tt.animLockUntilMs) {
+      totalMs += Math.max(0, now - Math.max(tt.startedAtMs, tt.animLockUntilMs));
+    }
+  }
+  return totalMs / 1000;
+}
+
+function recordMoveAndSwitchTurn(moverOwner, pieceType, fromX, fromY, toX, toY) {
+  if (!S || !S.turnTimer || moverOwner < 0) return;
+  const elapsedSec = Math.max(0.1, getCurrentTurnElapsedSec());
+  const tt = S.turnTimer;
+  const actorName = teamName(moverOwner);
+  const pieceName = NOME[pieceType] || pieceType;
+  const entry = {
+    owner: moverOwner,
+    actorName,
+    pieceName,
+    from: `${fromX},${fromY}`,
+    to: `${toX},${toY}`,
+    durationSec: elapsedSec,
+    at: S.T
+  };
+  tt.lastMove = entry;
+  tt.history.unshift(entry);
+  tt.history = tt.history.slice(0, 6);
+
+  const nextOwner = S.mode === 'arena' ? 0 : (moverOwner === 0 ? 1 : 0);
+  S.turnOwner = nextOwner;
+  const now = performance.now();
+  tt.activeOwner = nextOwner;
+  tt.accumulatedMs = 0;
+  tt.animLockUntilMs = now + 220; // Ignora transição visual pós-jogada
+  tt.startedAtMs = now + 220;
+}
+
 /* Core Game Setup & Mechanics */
 function reset(mode = selectedMode) {
   selectedMode = mode;
@@ -2340,12 +2680,15 @@ function reset(mode = selectedMode) {
   S = {
     mode,
     T: 0,
+    turnOwner: 0,
+    turnTimer: createTurnTimer(),
+    lastBotMove: null,
     grid: Array.from({ length: N }, () => Array(N).fill(null)),
     pieces: [],
     orbs: [],
     f: FAC.map((d, i) => ({
       id: i, score: 0, xp: 0, lvl: 0, alive: teamIds.includes(i),
-      respawn: 0, next: 1.2 + i * 0.25, kings: 0, energy: 18, boostUntil: 0, captures: 0
+      respawn: 0, next: mode === 'tutorial' ? 9999 : (1.2 + i * 0.25), kings: 0, energy: 18, boostUntil: 0, captures: 0
     })),
     sel: null,
     over: false,
@@ -2361,11 +2704,12 @@ function reset(mode = selectedMode) {
     winner: null
   };
   for (const i of teamIds) spawnArmy(i);
-  for (let i = 0; i < (mode === 'arena' ? 24 : 18); i++) spawnFood();
+  const initialFoodCount = mode === 'arena' ? 24 : mode === 'tutorial' ? 6 : 18;
+  for (let i = 0; i < initialFoodCount; i++) spawnFood(mode === 'tutorial');
   calcAtt();
 
   if (mode === 'tutorial') {
-    feed('Tutorial prático iniciado: siga as dicas acima do tabuleiro.');
+    feed('Partida 1v1 iniciada: Você (Azul) contra Mentor Rubi (Bot).');
   } else if (mode === 'cpu') {
     const info = CPU_LEVELS.find(c => c.level === cpuDifficulty) || CPU_LEVELS[0];
     feed(`Duelo contra CPU (${info.name}) preparado.`);
@@ -2402,7 +2746,8 @@ function rm(p) {
 }
 
 function spawnArmy(i) {
-  const d = FAC[i], [bx, by] = d.base, [fx, fy] = d.fwd, rx = -fy, ry = fx;
+  const d = FAC[i], [bx, by] = d.base, [fx, fy] = d.fwd;
+  const rx = fy !== 0 ? 1 : 0, ry = fx !== 0 ? 1 : 0;
   const cells = [];
   for (const [off, t] of LAYOUT) cells.push([bx + rx * off, by + ry * off, t]);
   for (let off = -2; off <= 2; off++) cells.push([bx + rx * off + fx, by + ry * off + fy, 'P']);
@@ -2412,7 +2757,7 @@ function spawnArmy(i) {
   for (const [x, y, t] of cells) {
     if (x >= 0 && y >= 0 && x < N && y < N && !S.grid[y][x]) {
       const p = add(t, i, x, y);
-      if (S.mode === 'tutorial' && i === 0) p.ready = 0;
+      if (S.mode === 'tutorial') p.ready = 0;
       count++;
     }
   }
@@ -2420,9 +2765,10 @@ function spawnArmy(i) {
   return count >= 1;
 }
 
-function spawnFood() {
+function spawnFood(centerOnly = false) {
   for (let k = 0; k < 40; k++) {
-    const x = rand(N), y = rand(N);
+    const x = centerOnly ? (3 + rand(N - 6)) : rand(N);
+    const y = centerOnly ? (6 + rand(4)) : rand(N);
     if (S.grid[y][x]) continue;
     const r = Math.random(), t = r < 0.78 ? 'P' : r < 0.88 ? 'N' : r < 0.95 ? 'B' : 'R';
     add(t, -1, x, y).ready = 0;
@@ -2533,9 +2879,9 @@ function collectOrb(p) {
   S.fx.push({ x: p.x, y: p.y, t: S.T, col: '#cfaf72', big: 1 });
   feed('<b>' + teamName(p.o) + '</b> coletou um Fragmento Flux (+3 XP e +24% Surto).');
   playTone('orb');
-  if (S.mode === 'tutorial' && p.o === 0 && tut.step === 6) {
+  if (S.mode === 'tutorial' && p.o === 0 && tut.step === 7) {
     f.energy = 100;
-    setTutorialHint('Fragmento coletado! Sua energia chegou a 100%. Clique em "⚡ ATIVAR SURTO" (ou pressione ESPAÇO)!');
+    setTutorialHint('Fragmento Flux coletado! Sua energia chegou a 100%. Clique em "⚡ ATIVAR SURTO" (ou pressione ESPAÇO) para concluir a Etapa 7!');
   }
   return true;
 }
@@ -2546,7 +2892,7 @@ async function recordOfflineMatchToBackend(winner, reason) {
     id: 'local-' + Date.now(),
     mode: S.mode,
     difficulty: S.mode === 'cpu' ? cpuDifficulty : null,
-    opponent: S.mode === 'cpu' ? teamName(1) : S.mode === 'tutorial' ? 'Mentor (Tutorial)' : S.mode === 'duel' ? 'Duelo Local' : 'Arena 4 Facções',
+    opponent: S.mode === 'cpu' ? teamName(1) : S.mode === 'tutorial' ? 'Mentor Rubi (Bot)' : S.mode === 'duel' ? 'Duelo Local' : 'Arena 4 Facções',
     result: winner === null ? 'Empate' : winner === 0 ? 'Vitória' : 'Derrota',
     reason,
     duration: Math.max(1, Math.floor(S.T)),
@@ -2579,6 +2925,7 @@ function gameOver(winner, reason = '') {
   if (S.over) return;
   S.over = true;
   S.winner = winner;
+  syncTurnTimerPauseState();
   if (winner === 0) playTone('win');
 
   const mode = S.mode;
@@ -2591,20 +2938,27 @@ function gameOver(winner, reason = '') {
   }
   $('recordPill').textContent = 'Recorde: ' + best;
 
-  if (mode === 'tutorial') {
+  if (mode === 'tutorial' && winner === 0) {
     tut.active = false;
     $('tutorialBanner').classList.add('hidden');
+    $('hudTutorialCard').classList.add('hidden');
     clearHudHighlights();
     try { localStorage.setItem('cf_tutorial_completed', '1'); } catch (_) {}
     setTutorialPromptChoice('completed');
     $('overEyebrow').textContent = 'Treinamento concluído';
     $('resultTitle').textContent = 'TUTORIAL CONCLUÍDO!';
     $('winnerText').textContent = 'Você está pronto para a arena!';
-    $('res').innerHTML = `Você completou todas as 7 etapas do guia prático!<br>Tempo: <b>${fmt(S.T)}</b> · Placar: <b>${f0.score}</b> · Nível <b>${f0.lvl}</b><br>Agora experimente desafiar a CPU nos 5 níveis ou jogar online com amigos.`;
+    $('res').innerHTML = `Você completou todas as 8 etapas do tutorial prático contra o Mentor Rubi!<br>Tempo total: <b>${fmt(S.T)}</b> · Seu placar: <b>${f0.score}</b> · Mentor Rubi: <b>${f1.score}</b><br>Agora experimente desafiar a CPU nos 5 níveis ou jogar online com amigos.`;
     $('again').textContent = 'REPETIR TUTORIAL';
     $('changeCpuDiffBtn').classList.remove('hidden');
     $('changeCpuDiffBtn').textContent = 'DESAFIAR A CPU';
   } else {
+    if (mode === 'tutorial') {
+      tut.active = false;
+      $('tutorialBanner').classList.add('hidden');
+      $('hudTutorialCard').classList.add('hidden');
+      clearHudHighlights();
+    }
     $('overEyebrow').textContent = 'Fim de partida';
     const winName = winner === 0
       ? 'VOCÊ VENCEU!'
@@ -2613,16 +2967,16 @@ function gameOver(winner, reason = '') {
         : winner >= 0
           ? FAC[winner].name.toUpperCase() + ' VENCEU!'
           : 'EMPATE';
-    $('resultTitle').textContent = winner === 0 ? 'VITÓRIA' : winner >= 0 ? 'FIM DE JOGO' : 'PARTIDA ENCERRADA';
+    $('resultTitle').textContent = winner === 0 ? 'VITÓRIA' : winner >= 0 ? 'DERROTA' : 'PARTIDA ENCERRADA';
     $('winnerText').textContent = winName;
     let details = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${f0.score}</b> · Nível <b>${f0.lvl}</b>`;
     if (mode !== 'arena') details += `<br>${teamName(1)}: <b>${f1.score}</b>`;
     if (reason) details += `<br>${reason}`;
     details += `<br>Recorde no modo: <b>${best}</b>`;
     $('res').innerHTML = details;
-    $('again').textContent = 'JOGAR NOVAMENTE';
-    $('changeCpuDiffBtn').classList.toggle('hidden', mode !== 'cpu');
-    $('changeCpuDiffBtn').textContent = 'MUDAR DIFICULDADE';
+    $('again').textContent = mode === 'tutorial' ? 'REPETIR TUTORIAL' : 'JOGAR NOVAMENTE';
+    $('changeCpuDiffBtn').classList.toggle('hidden', mode !== 'cpu' && mode !== 'tutorial');
+    $('changeCpuDiffBtn').textContent = mode === 'tutorial' ? 'DESAFIAR A CPU' : 'MUDAR DIFICULDADE';
   }
 
   $('rematch').classList.add('hidden');
@@ -2647,9 +3001,8 @@ function capture(p, q) {
   rm(q);
   if (q.t === 'K' && owner >= 0) {
     if (S.mode === 'tutorial' && owner === 0) {
-      // Never punish the learner with a sudden Game Over during the tutorial! Respawn their King safely.
       add('K', 0, 8, 14).ready = 0;
-      setTutorialHint('Cuidado! O Mentor alcançou seu Rei, mas no tutorial seu Rei foi reposicionado na base para você continuar aprendendo.');
+      setTutorialHint('Cuidado! O Mentor Rubi alcançou seu Rei, mas no tutorial seu Rei foi reposicionado em segurança na base para você continuar praticando.');
       return true;
     }
     S.f[p.o >= 0 ? p.o : 0].kings++;
@@ -2685,16 +3038,22 @@ function doMove(p, a, b) {
   }
   S.grid[p.y][p.x] = null;
   if (q) capture(p, q);
-  if (S.over) return true;
+  if (S.over) {
+    recordMoveAndSwitchTurn(p.o, p.t, fromX, fromY, a, b);
+    return true;
+  }
   S.grid[b][a] = p;
   p.x = a;
   p.y = b;
   let cd = BASE[p.t] + (p.t === 'N' ? 0.25 : d * 0.12);
   if (p.o >= 0 && S.f[p.o].boostUntil > S.T) cd *= 0.58;
   p.cd0 = cd;
-  p.ready = S.T + cd;
+  p.ready = S.mode === 'tutorial' ? S.T + Math.min(0.65, cd) : S.T + cd;
   p.q = null;
-  S.lastMove = { x0: fromX, y0: fromY, x1: a, y1: b, t: S.T };
+  S.lastMove = { x0: fromX, y0: fromY, x1: a, y1: b, t: S.T, owner: p.o };
+  if (p.o === 1) {
+    S.lastBotMove = { x0: fromX, y0: fromY, x1: a, y1: b, t: S.T, pieceType: p.t };
+  }
   if (!hadCapture) playTone('move');
   if (p.t === 'P' && p.o >= 0) {
     const [fx, fy] = FAC[p.o].fwd, na = a + fx, nb = b + fy;
@@ -2707,8 +3066,22 @@ function doMove(p, a, b) {
   collectOrb(p);
   calcAtt();
 
-  if (S.mode === 'tutorial' && p.o === 0) {
-    onTutorialPlayerMoved(p, hadCapture);
+  if (p.o >= 0) {
+    recordMoveAndSwitchTurn(p.o, p.t, fromX, fromY, a, b);
+  }
+
+  if (S.mode === 'tutorial') {
+    if (p.o === 0) {
+      onTutorialPlayerMoved(p, hadCapture);
+      if (!S.over) {
+        S.turnOwner = 1;
+        S.f[1].next = S.T + 1.05; // Agendar resposta natural do Mentor Rubi
+      }
+    } else if (p.o === 1) {
+      S.turnOwner = 0;
+      S.f[1].next = S.T + 9999; // Aguarda o próximo lance do jogador
+      onTutorialBotMoved(p, hadCapture);
+    }
   }
   return true;
 }
@@ -2717,26 +3090,41 @@ function cheb(a, b, c, d) { return Math.max(Math.abs(a - c), Math.abs(b - d)); }
 
 /* 5 Distinct CPU AI Difficulty Levels + Tutorial Cooperative Bot */
 function botThink(i) {
-  const ps = S.pieces.filter(p => p.o === i && p.ready <= S.T);
+  let ps = S.pieces.filter(p => p.o === i && p.ready <= S.T);
+  if (!ps.length && S.mode === 'tutorial') {
+    for (const p of S.pieces) if (p.o === i) p.ready = 0;
+    ps = S.pieces.filter(p => p.o === i);
+  }
   if (!ps.length) return;
   const enemies = S.pieces.filter(p => p.o !== i);
   const me = 1 << i;
   const level = S.mode === 'tutorial' ? 1 : (S.mode === 'cpu' ? cpuDifficulty : 3);
 
-  // Tutorial bot: gentle, never captures the player's King while the player is learning Stages 1-6
+  // Tutorial bot (Mentor Rubi — IA Iniciante real, avança para o centro e responde a cada turno)
   if (S.mode === 'tutorial') {
-    if (tut.paused || tut.step < 3) return;
-    const safePieces = ps.filter(p => p.t === 'P' || p.t === 'N');
-    const pool = safePieces.length ? safePieces : ps;
-    const p = pool[rand(pool.length)];
-    const ms = moves(p).filter(([a, b]) => {
-      const target = S.grid[b][a];
-      if (target && target.o === 0 && (target.t === 'K' || tut.step < 5)) return false;
-      return true;
-    });
-    if (ms.length) {
-      const [a, b] = ms[rand(ms.length)];
-      doMove(p, a, b);
+    if (tut.paused || S.turnOwner !== 1) return;
+    let bestMove = null, bs = -1e9;
+    for (const p of ps) {
+      const ms = moves(p);
+      for (const [a, b] of ms) {
+        const target = S.grid[b][a];
+        // Não captura o Rei do jogador nem a peça reservada da Etapa 5
+        if (target && target.o === 0 && (target.t === 'K' || tut.step < 6)) continue;
+        if (target && target.id === tut.targetPieceId) continue;
+
+        let score = Math.random() * 2.5;
+        // Incentiva avançar na direção do centro do tabuleiro (y maior)
+        score += (b - p.y) * (p.t === 'P' ? 3.2 : p.t === 'N' || p.t === 'B' ? 2.4 : 1.0);
+        // Incentiva aproximar-se das colunas centrais (x entre 5 e 10)
+        score -= Math.abs(a - 7.5) * 0.25;
+        if (p.t === 'K') score -= 6;
+        if (target && target.o < 0) score += VAL[target.t] * 3.5;
+        else if (target && target.o === 0 && tut.step >= 6) score += VAL[target.t] * 4.0;
+        if (score > bs) { bs = score; bestMove = [p, a, b]; }
+      }
+    }
+    if (bestMove) {
+      doMove(bestMove[0], bestMove[1], bestMove[2]);
     }
     return;
   }
@@ -2891,8 +3279,8 @@ function activateBoost(i) {
   S.fx.push({ x: 8, y: 8, t: S.T, col: FAC[i].col, big: 1 });
   feed('<b>' + teamName(i) + '</b> ativou SURTO! Exército acelerado por 6 segundos.');
   playTone('boost');
-  if (S.mode === 'tutorial' && i === 0 && tut.step === 6) {
-    advanceTutorialStep(7);
+  if (S.mode === 'tutorial' && i === 0 && tut.step === 7) {
+    advanceTutorialStep(8);
   }
   return true;
 }
@@ -2903,18 +3291,31 @@ function abilityOwner() {
   return S.sel && S.sel.o >= 0 ? S.sel.o : 0;
 }
 
-/* Interactive 7-Step Tutorial System */
+/* Interactive 8-Step Tutorial System */
 function startInteractiveTutorial() {
   switchNav('play');
-  tut = { active: true, step: 1, paused: false, movesInStep5: 0, targetPieceId: null };
+  tut = {
+    active: true,
+    step: 1,
+    maxUnlockedStep: 1,
+    paused: false,
+    botMovedInStep4: false,
+    movesInStep6: 0,
+    targetPieceId: null,
+    attackerPieceId: null
+  };
   reset('tutorial');
   S.started = true;
+  S.turnOwner = 0;
+  S.turnTimer = createTurnTimer();
   $('start').classList.add('hidden');
   $('cpuDiffOverlay').classList.add('hidden');
   $('onlineLobbyOverlay').classList.add('hidden');
   $('over').classList.add('hidden');
   $('tutorialBanner').classList.remove('hidden');
-  $('statusText').textContent = 'TUTORIAL PRÁTICO';
+  $('hudTutorialCard').classList.remove('hidden');
+  $('hudTutProgressRow').style.display = 'flex';
+  $('statusText').textContent = 'TUTORIAL PRÁTICO · 1V1';
   renderTutorialStep();
   hud();
   setTimeout(resize, 20);
@@ -2923,6 +3324,7 @@ function startInteractiveTutorial() {
 function clearHudHighlights() {
   $('scoreCard').classList.remove('highlight-ring');
   $('progressCard').classList.remove('highlight-ring');
+  $('hudTutorialCard')?.classList.remove('highlight-ring');
 }
 
 function setTutorialHint(msg) {
@@ -2934,29 +3336,32 @@ function setTutorialHint(msg) {
     el.textContent = msg;
     el.classList.remove('hidden');
   }
+  if ($('hudTutExpected')) {
+    $('hudTutExpected').textContent = msg || 'Siga a orientação da etapa atual no tabuleiro.';
+  }
 }
 
-function ensureCapturableTargetForStep4() {
-  const myPieces = S.pieces.filter(p => p.o === 0);
-  // Check if any player piece can already capture something right now
+function ensureCapturableTargetForStep5() {
+  const myPieces = S.pieces.filter(p => p.o === 0 && p.t !== 'K');
   for (const mp of myPieces) {
     for (const [mx, my] of moves(mp)) {
       const q = S.grid[my][mx];
       if (q && q.o !== 0) {
         tut.targetPieceId = q.id;
+        tut.attackerPieceId = mp.id;
         return;
       }
     }
   }
-  // Spawn a neutral piece directly in front-diagonal of a player pawn or within Knight reach
   const pawn = myPieces.find(p => p.t === 'P') || myPieces[0];
   if (pawn) {
-    const candidates = [[pawn.x - 1, pawn.y - 1], [pawn.x + 1, pawn.y - 1], [pawn.x, pawn.y - 2]];
+    const candidates = [[pawn.x - 1, pawn.y - 1], [pawn.x + 1, pawn.y - 1]];
     for (const [cx, cy] of candidates) {
       if (cx >= 0 && cy >= 0 && cx < N && cy < N && !S.grid[cy][cx]) {
         const np = add('P', -1, cx, cy);
         np.ready = 0;
         tut.targetPieceId = np.id;
+        tut.attackerPieceId = pawn.id;
         calcAtt();
         return;
       }
@@ -2964,7 +3369,7 @@ function ensureCapturableTargetForStep4() {
   }
 }
 
-function ensureOrbForStep6() {
+function ensureOrbForStep7() {
   const myPiece = S.pieces.find(p => p.o === 0 && p.t !== 'K') || S.pieces.find(p => p.o === 0);
   if (myPiece) {
     const ms = moves(myPiece).filter(([x, y]) => !S.grid[y][x]);
@@ -2981,75 +3386,140 @@ function ensureOrbForStep6() {
 
 function renderTutorialStep() {
   if (!tut.active) return;
+  const total = TUTORIAL_STEPS.length;
   const info = TUTORIAL_STEPS.find(s => s.step === tut.step) || TUTORIAL_STEPS[0];
-  $('tutStepBadge').textContent = `Etapa ${info.step} de 7`;
-  $('tutProgressFill').style.width = `${Math.round((info.step / 7) * 100)}%`;
-  $('tutTitle').textContent = info.title;
+  $('tutStepBadge').textContent = `Etapa ${info.step} de ${total}`;
+  $('tutProgressFill').style.width = `${Math.round((info.step / total) * 100)}%`;
+  $('tutTitle').textContent = `${info.step}. ${info.title}`;
   $('tutText').textContent = info.text;
+  $('tutPrevBtn').disabled = info.step <= 1;
+
+  $('hudTutorialCard').classList.remove('hidden');
+  $('hudTutProgressRow').style.display = 'flex';
+  $('hudTutProgressText').textContent = `Etapa ${info.step} de ${total}`;
+  $('hudTutBadge').textContent = `ETAPA ${info.step}/${total}`;
+  $('hudTutTitle').textContent = `${info.step}. ${info.title}`;
+  $('hudTutDesc').textContent = info.text;
+  $('hudTutPrevBtn').disabled = info.step <= 1;
+
   setTutorialHint(info.hint);
   clearHudHighlights();
   if (info.hudHighlight && $(info.hudHighlight)) {
     $(info.hudHighlight).classList.add('highlight-ring');
   }
-  if (tut.step === 4) ensureCapturableTargetForStep4();
-  if (tut.step === 6) ensureOrbForStep6();
+  if (tut.step === 5) ensureCapturableTargetForStep5();
+  if (tut.step === 7) ensureOrbForStep7();
 }
 
 function advanceTutorialStep(nextStep) {
   if (!tut.active) return;
-  tut.step = Math.min(7, Math.max(1, nextStep));
+  const total = TUTORIAL_STEPS.length;
+  tut.step = Math.min(total, Math.max(1, nextStep));
+  tut.maxUnlockedStep = Math.max(tut.maxUnlockedStep || 1, tut.step);
   renderTutorialStep();
   hud();
 }
 
 function onTutorialPlayerMoved(piece, hadCapture) {
   if (!tut.active) return;
-  if (tut.step === 1 || tut.step === 2 || tut.step === 3) {
+  if (tut.step <= 3) {
+    tut.botMovedInStep4 = false;
     advanceTutorialStep(4);
-    setTutorialHint('Excelente movimento! Veja a barra de recarga na peça que você moveu. Agora na Etapa 4, vamos fazer uma captura!');
+    setTutorialHint(`Boa jogada com ${NOME[piece.t]}! Agora observe o Mentor Rubi (Bot) pensando e realizando o movimento dele no topo do tabuleiro...`);
     return;
   }
   if (tut.step === 4) {
-    if (hadCapture) {
-      tut.movesInStep5 = 0;
-      advanceTutorialStep(5);
-    } else {
-      setTutorialHint('Bom movimento! Agora escolha uma peça sua que alcance uma peça cinza ou Rubi (marcada com círculo) para capturá-la.');
-    }
+    advanceTutorialStep(5);
+    setTutorialHint('Excelente! Você já entendeu a alternância de jogadas. Agora na Etapa 5, selecione sua peça Azul e capture a peça destacada com anel dourado!');
     return;
   }
   if (tut.step === 5) {
-    tut.movesInStep5++;
-    if (tut.movesInStep5 >= 2) {
+    if (hadCapture) {
+      tut.movesInStep6 = 0;
       advanceTutorialStep(6);
+      setTutorialHint('Captura perfeita! Você ganhou pontos, XP e energia de Surto. Agora na Etapa 6, realize 2 movimentos estratégicos mantendo seu Rei protegido.');
     } else {
-      setTutorialHint('Ótimo posicionamento! Faça mais 1 movimento ou captura para avançar às mecânicas especiais.');
+      ensureCapturableTargetForStep5();
+      setTutorialHint('Bom movimento! Para concluir a Etapa 5, selecione uma peça Azul que alcance a peça marcada com anel dourado e capture-a.');
     }
     return;
   }
-  if (tut.step === 7 && S.f[0].score >= 15 && !S.over) {
+  if (tut.step === 6) {
+    tut.movesInStep6 = (tut.movesInStep6 || 0) + 1;
+    if (tut.movesInStep6 >= 2) {
+      advanceTutorialStep(7);
+    } else {
+      setTutorialHint('Ótimo posicionamento! Aguarde a resposta do Mentor Rubi e faça mais 1 movimento estratégico para ir à Etapa 7.');
+    }
+    return;
+  }
+  if (tut.step === 8 && S.f[0].score >= 15 && !S.over) {
     gameOver(0, 'Objetivo de pontuação do tutorial concluído com sucesso!');
   }
 }
 
+function onTutorialBotMoved(piece, hadCapture) {
+  if (!tut.active) return;
+  const moveDesc = `${NOME[piece.t]} (${GLYPH[piece.t]})`;
+  if (tut.step === 4) {
+    tut.botMovedInStep4 = true;
+    setTutorialHint(`O Mentor Rubi respondeu movendo ${moveDesc} (destacado em Rubi no tabuleiro)! Agora voltou a ser a sua vez: faça mais 1 movimento para ir à Etapa 5.`);
+  }
+}
+
+function openTutorialReviewModal() {
+  const modal = $('tutorialReviewModal');
+  const list = $('tutorialReviewList');
+  list.replaceChildren();
+  for (const s of TUTORIAL_STEPS) {
+    const item = document.createElement('div');
+    item.className = 'review-step-item' + (tut.step === s.step ? ' current' : '');
+    item.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="font-size:12.5px;color:var(--gold)">Etapa ${s.step} de ${TUTORIAL_STEPS.length} — ${s.title}</strong>
+        <button class="mini-btn" type="button">Ir para etapa</button>
+      </div>
+      <div class="muted" style="font-size:11.5px;line-height:1.45">${s.text}</div>
+    `;
+    item.querySelector('button').addEventListener('click', () => {
+      modal.classList.add('hidden');
+      if (tut.active) advanceTutorialStep(s.step);
+    });
+    list.appendChild(item);
+  }
+  modal.classList.remove('hidden');
+}
+
+$('tutorialReviewCloseBtn').addEventListener('click', () => $('tutorialReviewModal').classList.add('hidden'));
+$('tutorialReviewOkBtn').addEventListener('click', () => $('tutorialReviewModal').classList.add('hidden'));
+$('tutReviewBtn').addEventListener('click', openTutorialReviewModal);
+$('hudTutReviewBtn').addEventListener('click', openTutorialReviewModal);
+
+$('tutPrevBtn').addEventListener('click', () => {
+  if (tut.active && tut.step > 1) advanceTutorialStep(tut.step - 1);
+});
+$('hudTutPrevBtn').addEventListener('click', () => {
+  if (tut.active && tut.step > 1) advanceTutorialStep(tut.step - 1);
+});
+
 $('tutPauseBtn').addEventListener('click', () => {
   if (!tut.active) return;
   tut.paused = !tut.paused;
+  syncTurnTimerPauseState();
   $('tutPauseBtn').textContent = tut.paused ? 'Continuar' : 'Pausar';
-  $('statusText').textContent = tut.paused ? 'TUTORIAL PAUSADO' : 'TUTORIAL PRÁTICO';
+  $('statusText').textContent = tut.paused ? 'TUTORIAL PAUSADO' : 'TUTORIAL PRÁTICO · 1V1';
 });
 $('tutNextBtn').addEventListener('click', () => {
   if (!tut.active) return;
-  if (tut.step < 7) advanceTutorialStep(tut.step + 1);
+  if (tut.step < TUTORIAL_STEPS.length) advanceTutorialStep(tut.step + 1);
   else gameOver(0, 'Tutorial finalizado pelo jogador.');
 });
-$('tutExitBtn').addEventListener('click', () => {
-  tut.active = false;
-  $('tutorialBanner').classList.add('hidden');
-  clearHudHighlights();
-  openMenu();
-  setTimeout(resize, 20);
+$('hudTutNextBtn').addEventListener('click', () => {
+  if (!tut.active) return;
+  if (tut.step < TUTORIAL_STEPS.length) advanceTutorialStep(tut.step + 1);
+  else gameOver(0, 'Tutorial finalizado pelo jogador.');
 });
+$('tutExitBtn').addEventListener('click', () => requestReturnToMenu());
 
 $('startTutorialFromMenuBtn').addEventListener('click', startInteractiveTutorial);
 $('guideStartTutorialBtn').addEventListener('click', startInteractiveTutorial);
@@ -3058,7 +3528,10 @@ $('settingsStartTutorialBtn').addEventListener('click', startInteractiveTutorial
 /* Game Loop Update */
 function update(dt) {
   if (!S || !S.started || S.over || S.mode === 'online') return;
-  if (S.mode === 'tutorial' && tut.paused) return;
+  if ((S.mode === 'tutorial' && tut.paused) || confirmModalOpen) {
+    syncTurnTimerPauseState();
+    return;
+  }
 
   S.T += dt;
   S.attT -= dt;
@@ -3075,19 +3548,26 @@ function update(dt) {
       continue;
     }
     if (S.T >= f.next) {
-      botThink(i);
-      calcAtt();
-      const baseInt = S.mode === 'tutorial'
-        ? 1.9
-        : S.mode === 'cpu'
+      if (S.mode === 'tutorial') {
+        if (S.turnOwner === 1) {
+          botThink(i);
+          calcAtt();
+        }
+        f.next = S.T + 1.1;
+      } else {
+        botThink(i);
+        calcAtt();
+        const baseInt = S.mode === 'cpu'
           ? (CPU_LEVELS.find(c => c.level === cpuDifficulty)?.interval || 0.9)
           : Math.max(0.38, 0.95 - lvlBoost);
-      f.next = S.T + baseInt * (0.78 + Math.random() * 0.44);
+        f.next = S.T + baseInt * (0.78 + Math.random() * 0.44);
+      }
     }
   }
 
   for (const p of S.pieces.slice()) {
     if (p.q && p.ready <= S.T && (p.o === 0 || S.mode === 'duel') && S.grid[p.y][p.x] === p) {
+      if (S.mode === 'tutorial' && S.turnOwner !== 0) continue;
       const [a, b] = p.q;
       p.q = null;
       if (moves(p).some(m => m[0] === a && m[1] === b)) doMove(p, a, b);
@@ -3096,8 +3576,9 @@ function update(dt) {
 
   S.foodT -= dt;
   if (S.foodT <= 0) {
-    S.foodT = 1.05;
-    if (S.pieces.filter(p => p.o < 0).length < (S.mode === 'arena' ? 45 : 34)) spawnFood();
+    S.foodT = S.mode === 'tutorial' ? 3.2 : 1.05;
+    const maxNeutral = S.mode === 'arena' ? 45 : S.mode === 'tutorial' ? 10 : 34;
+    if (S.pieces.filter(p => p.o < 0).length < maxNeutral) spawnFood(S.mode === 'tutorial');
   }
   S.orbT -= dt;
   if (S.orbT <= 0) {
@@ -3107,27 +3588,34 @@ function update(dt) {
   S.fx = S.fx.filter(e => S.T - e.t < 0.65);
 }
 
+const PIECE_RULE_SUMMARY = {
+  P: 'O Peão (♟) avança 1 casa para frente (se vazia) e captura 1 casa na diagonal frontal.',
+  N: 'O Cavalo (♞) salta em formato de "L" (2×1) e pode pular sobre outras peças.',
+  B: 'O Bispo (♝) desliza pelas diagonais livres quantas casas quiser.',
+  R: 'A Torre (♜) desliza em linha reta (horizontal ou vertical) por casas livres.',
+  Q: 'A Rainha (♛) combina Torre e Bispo: move-se em linha reta ou diagonal.',
+  K: 'O Rei (♚) move-se 1 casa em qualquer direção. Proteja-o a todo custo!'
+};
+
 function explainInvalidMoveInTutorial(piece, targetX, targetY) {
-  const rules = {
-    P: 'O Peão (♟) avança apenas 1 casa para frente (se estiver vazia) e captura 1 casa na diagonal frontal.',
-    N: 'O Cavalo (♞) salta em formato de "L" (2 casas em uma direção e 1 para o lado).',
-    B: 'O Bispo (♝) move-se apenas pelas diagonais livres.',
-    R: 'A Torre (♜) move-se em linha reta (horizontal ou vertical) por casas livres.',
-    Q: 'A Rainha (♛) move-se em linha reta ou diagonal por casas livres.',
-    K: 'O Rei (♚) move-se 1 casa em qualquer direção.'
-  };
-  setTutorialHint(`Casa inválida para ${NOME[piece.t]}: ${rules[piece.t] || ''} Toque em um dos pontos ou círculos destacados.`);
+  setTutorialHint(`Movimento inválido para ${NOME[piece.t]}: ${PIECE_RULE_SUMMARY[piece.t] || ''} Toque em um dos pontos ou círculos destacados no tabuleiro.`);
 }
 
 function handleClick(a, b) {
   if (!S || !S.started || S.over || a < 0 || b < 0 || a >= N || b >= N) return;
-  if (S.mode === 'tutorial' && tut.paused) return;
+  if ((S.mode === 'tutorial' && tut.paused) || confirmModalOpen) return;
+
+  if (S.mode === 'tutorial' && S.turnOwner === 1) {
+    setTutorialHint('Aguarde um instante: é a vez do Mentor Rubi (Bot) responder à sua jogada...');
+    return;
+  }
 
   const q = S.grid[b][a], s = S.sel;
 
   if (S.mode === 'online') {
     if (s && moves(s).some(m => m[0] === a && m[1] === b)) {
       if (s.ready <= S.T) {
+        recordMoveAndSwitchTurn(onlineSide, s.t, s.x, s.y, a, b);
         sendSocket('game:move', { pieceId: s.id, x: a, y: b });
         S.sel = null;
       } else {
@@ -3161,13 +3649,18 @@ function handleClick(a, b) {
   const selectable = q && q.o >= 0 && (S.mode === 'duel' ? true : q.o === 0);
   if (selectable) {
     S.sel = q;
-    if (S.mode === 'tutorial' && (tut.step === 1 || tut.step === 2)) {
-      advanceTutorialStep(3);
+    if (S.mode === 'tutorial') {
+      if (tut.step === 1 || tut.step === 2) {
+        advanceTutorialStep(3);
+      }
+      setTutorialHint(`${NOME[q.t]} selecionado(a)! ${PIECE_RULE_SUMMARY[q.t] || ''} Toque em uma casa destacada para mover.`);
     }
   } else {
     S.sel = null;
     if (S.mode === 'tutorial' && tut.step === 2) {
-      setTutorialHint('Toque em uma peça AZUL (na parte inferior do tabuleiro) para selecioná-la.');
+      setTutorialHint('Toque em uma peça AZUL (na parte inferior do tabuleiro) para selecioná-la e ver seus movimentos.');
+    } else if (S.mode === 'tutorial' && q && q.o === 1) {
+      setTutorialHint(`Essa peça pertence ao Mentor Rubi (${NOME[q.t]}). Selecione uma peça AZUL sua na parte inferior.`);
     }
   }
 }
@@ -3179,7 +3672,7 @@ cv.addEventListener('pointerdown', e => {
 });
 
 function resize() {
-  const wide = innerWidth > 760;
+  const wide = innerWidth > 860;
   const tutHeight = !$('tutorialBanner').classList.contains('hidden') ? ($('tutorialBanner').offsetHeight + 10) : 0;
   let availableWidth = wide ? Math.min(720, innerWidth - 330) : innerWidth - 22;
   let availableHeight = wide ? innerHeight - 130 - tutHeight : Math.min(innerHeight * 0.64, 540);
@@ -3240,9 +3733,9 @@ function draw() {
     ctx.strokeStyle = '#f3e5c8';
     ctx.lineWidth = 1.2;
     ctx.stroke();
-    if (S.mode === 'tutorial' && tut.step === 6) {
+    if (S.mode === 'tutorial' && tut.step === 7) {
       ctx.strokeStyle = '#ffdf7e';
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.arc(x, y, cell * 0.44 * pulse, 0, Math.PI * 2);
       ctx.stroke();
@@ -3250,29 +3743,63 @@ function draw() {
     ctx.restore();
   }
 
+  // Highlight last Bot move so player sees opponent action clearly
+  if (S.lastBotMove && S.T - S.lastBotMove.t < 3.2) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(189, 119, 120, 0.26)';
+    ctx.strokeStyle = '#e07a7c';
+    ctx.lineWidth = 2;
+    for (const [bx, by] of [[S.lastBotMove.x0, S.lastBotMove.y0], [S.lastBotMove.x1, S.lastBotMove.y1]]) {
+      ctx.fillRect(bx * cell, by * cell, cell, cell);
+      ctx.strokeRect(bx * cell + 1.5, by * cell + 1.5, cell - 3, cell - 3);
+    }
+    ctx.restore();
+  }
+
   // Tutorial Visual Guides on the Board
   if (S.mode === 'tutorial' && tut.active) {
     const pulse = 0.42 + Math.sin(S.T * 5) * 0.05;
-    if (tut.step === 2 && !S.sel) {
+    ctx.save();
+    if (tut.step === 1) {
+      // Highlight both Kings (Player & Mentor Bot)
+      for (const p of S.pieces) {
+        if (p.t === 'K') {
+          ctx.strokeStyle = p.o === 0 ? '#f0c869' : '#e07a7c';
+          ctx.lineWidth = 2.6;
+          ctx.beginPath();
+          ctx.arc(p.x * cell + cell / 2, p.y * cell + cell / 2, cell * (pulse + 0.05), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    } else if ((tut.step === 2 || tut.step === 3) && !S.sel) {
       ctx.strokeStyle = '#f0c869';
       ctx.lineWidth = 2.2;
       for (const p of S.pieces) {
-        if (p.o === 0 && (p.t === 'P' || p.t === 'N')) {
+        if (p.o === 0) {
           ctx.beginPath();
           ctx.arc(p.x * cell + cell / 2, p.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
-    } else if (tut.step === 4) {
+    } else if (tut.step === 5) {
       const targetP = S.pieces.find(p => p.id === tut.targetPieceId);
       if (targetP) {
         ctx.strokeStyle = '#f0c869';
-        ctx.lineWidth = 2.6;
+        ctx.lineWidth = 2.8;
         ctx.beginPath();
-        ctx.arc(targetP.x * cell + cell / 2, targetP.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
+        ctx.arc(targetP.x * cell + cell / 2, targetP.y * cell + cell / 2, cell * (pulse + 0.04), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const attP = S.pieces.find(p => p.id === tut.attackerPieceId);
+      if (attP && !S.sel) {
+        ctx.strokeStyle = '#6f9daf';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(attP.x * cell + cell / 2, attP.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
+    ctx.restore();
   }
 
   const sel = S.sel, ms = sel ? moves(sel) : [];
@@ -3378,11 +3905,49 @@ function draw() {
 function hud() {
   if (!S) return;
   const teams = activeTeams();
-  const rows = teams.map(i => ({ f: S.f[i], n: S.pieces.filter(p => p.o === i).length })).sort((a, b) => b.f.score - a.f.score);
+  const rows = teams.map(i => ({ f: S.f[i], n: S.pieces.filter(p => p.o === i).length })).sort((a, b) => a.f.id - b.f.id);
   $('lb').innerHTML = rows.map(({ f, n }) => {
     const isMe = f.id === (S.mode === 'online' ? onlineSide : 0), down = !f.alive;
-    return `<div class="player-row${isMe ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)}</span>${down ? '<span class="dead">☠ fora</span>' : `<span class="count">${n} peças</span>`}<span class="score">${f.score}</span></div>`;
+    const isActiveTurn = (S.turnTimer?.activeOwner ?? 0) === f.id && S.started && !S.over;
+    return `<div class="player-row${isMe ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)}${isActiveTurn ? ' · jogando' : ''}</span>${down ? '<span class="dead">☠ fora</span>' : `<span class="count">${n} peças</span>`}<span class="score">${f.score} pts</span></div>`;
   }).join('');
+
+  // Individual Turn Timer & Previous Move Display
+  if (S.turnTimer) {
+    const activeOwner = S.turnTimer.activeOwner ?? 0;
+    const isMyTurn = activeOwner === (S.mode === 'online' ? onlineSide : 0);
+    const turnBox = $('turnBannerBox');
+    if (turnBox) {
+      turnBox.classList.toggle('my-turn', isMyTurn);
+      turnBox.classList.toggle('bot-turn', !isMyTurn);
+      $('turnOwnerDot').style.background = FAC[activeOwner]?.col || '#6f9daf';
+      $('turnOwnerText').textContent = !S.started
+        ? 'Aguardando início'
+        : S.over
+          ? 'Partida encerrada'
+          : isMyTurn
+            ? `Vez: ${teamName(activeOwner)}`
+            : `Vez: ${teamName(activeOwner)}`;
+      $('currentMoveTimer').textContent = getCurrentTurnElapsedSec().toFixed(1) + 's';
+    }
+    const lastM = S.turnTimer.lastMove;
+    if ($('lastMoveTimeText')) {
+      $('lastMoveTimeText').textContent = lastM
+        ? `${lastM.durationSec.toFixed(1)}s · ${lastM.actorName} (${lastM.pieceName})`
+        : '—';
+    }
+    const histEl = $('moveHistoryList');
+    if (histEl) {
+      histEl.innerHTML = S.turnTimer.history.slice(0, 4).map(h =>
+        `<div class="move-history-item"><span>${h.actorName} · ${h.pieceName}</span><strong>${h.durationSec.toFixed(1)}s</strong></div>`
+      ).join('');
+    }
+  }
+
+  if (!tut.active) {
+    $('hudTutorialCard')?.classList.add('hidden');
+    if ($('hudTutProgressRow')) $('hudTutProgressRow').style.display = 'none';
+  }
 
   const owner = abilityOwner(), f = S.f[owner], selectedTeam = S.sel ? S.sel.o : -1;
   $('progressTitle').textContent = (S.mode === 'online' || owner === 0) ? 'Sua Evolução' : FAC[owner].name;
@@ -3499,9 +4064,11 @@ $('openFriendsFromLobbyBtn').addEventListener('click', () => {
 function launchSelectedGame(mode) {
   tut.active = false;
   $('tutorialBanner').classList.add('hidden');
+  $('hudTutorialCard').classList.add('hidden');
   clearHudHighlights();
   reset(mode);
   S.started = true;
+  S.turnTimer = createTurnTimer();
   $('start').classList.add('hidden');
   $('cpuDiffOverlay').classList.add('hidden');
   $('onlineLobbyOverlay').classList.add('hidden');
@@ -3514,8 +4081,11 @@ function launchSelectedGame(mode) {
 }
 
 function start() {
-  if (selectedMode === 'online') {
+  if (selectedMode === 'online' || selectedMode === 'tactical_draft') {
     openOnlineLobby();
+    if (selectedMode === 'tactical_draft') {
+      setTimeout(() => $('createTacticalRoomBtn')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    }
     return;
   }
   if (selectedMode === 'cpu') {
@@ -3525,24 +4095,95 @@ function start() {
   launchSelectedGame(selectedMode);
 }
 
-function openMenu() {
-  if (S?.mode === 'online' && !S.over) {
-    if (prefs.confirmResign !== false && !confirm('Sair agora contará como desistência na partida online. Deseja continuar?')) return;
+/* Confirmação dedicada para Desistir vs Voltar ao Menu Principal */
+let pendingConfirmCallback = null;
+
+function openConfirmExitModal(title, message, confirmLabel, onConfirm) {
+  confirmModalOpen = true;
+  syncTurnTimerPauseState();
+  $('confirmExitTitle').textContent = title;
+  $('confirmExitMessage').textContent = message;
+  $('confirmExitConfirmBtn').textContent = confirmLabel;
+  pendingConfirmCallback = onConfirm;
+  $('confirmExitModal').classList.remove('hidden');
+}
+
+function closeConfirmExitModal() {
+  confirmModalOpen = false;
+  pendingConfirmCallback = null;
+  $('confirmExitModal').classList.add('hidden');
+  syncTurnTimerPauseState();
+}
+
+$('confirmExitCloseBtn').addEventListener('click', closeConfirmExitModal);
+$('confirmExitCancelBtn').addEventListener('click', closeConfirmExitModal);
+$('confirmExitConfirmBtn').addEventListener('click', () => {
+  const cb = pendingConfirmCallback;
+  closeConfirmExitModal();
+  if (typeof cb === 'function') cb();
+});
+
+function executeResignMatch() {
+  if (!S || !S.started || S.over) return;
+  if (S.mode === 'online') {
     sendSocket('game:resign');
-  } else if (S?.started && !S.over && S.mode !== 'tutorial' && prefs.confirmResign !== false) {
-    if (!confirm('Deseja encerrar a partida atual e voltar ao menu de modos?')) return;
+    return;
   }
+  gameOver(1, 'Você desistiu da partida.');
+}
+
+function requestResignMatch() {
+  if (!S || !S.started || S.over) {
+    showToast('Não há uma partida em andamento para desistir.');
+    return;
+  }
+  openConfirmExitModal(
+    'Confirmar Desistência',
+    'Tem certeza que deseja desistir da partida atual? A partida será encerrada imediatamente e o resultado será registrado como Derrota.',
+    'Sim, desistir da partida',
+    executeResignMatch
+  );
+}
+
+function forceOpenMenu() {
   tut.active = false;
   $('tutorialBanner').classList.add('hidden');
+  $('hudTutorialCard').classList.add('hidden');
   clearHudHighlights();
-  if (S) { S.started = false; S.over = false; }
+  if (S) { S.started = false; S.over = false; syncTurnTimerPauseState(); }
   $('over').classList.add('hidden');
   $('cpuDiffOverlay').classList.add('hidden');
   $('onlineLobbyOverlay').classList.add('hidden');
   $('start').classList.remove('hidden');
   $('rematch').classList.add('hidden');
   switchNav('play');
+  setTimeout(resize, 20);
 }
+
+function requestReturnToMenu() {
+  if (S && S.started && !S.over) {
+    const msg = S.mode === 'online'
+      ? 'Você está em uma partida online em andamento. Sair para o menu principal encerrará sua participação. Deseja realmente sair?'
+      : 'Deseja sair da partida atual e retornar diretamente ao menu principal?';
+    openConfirmExitModal(
+      'Voltar ao Menu Principal',
+      msg,
+      'Sair para o Menu',
+      () => {
+        if (S?.mode === 'online' && !S.over) sendSocket('game:resign');
+        forceOpenMenu();
+      }
+    );
+    return;
+  }
+  forceOpenMenu();
+}
+
+function openMenu() {
+  requestReturnToMenu();
+}
+
+$('hudResignBtn').addEventListener('click', requestResignMatch);
 
 function chooseMode(mode) {
   selectedMode = mode;
@@ -3554,7 +4195,9 @@ function chooseMode(mode) {
       ? 'COMEÇAR DUELO LOCAL →'
       : mode === 'cpu'
         ? 'ESCOLHER DIFICULDADE →'
-        : 'ABRIR LOBBY ONLINE →';
+        : mode === 'tactical_draft'
+          ? 'ABRIR CERCO TÁTICO →'
+          : 'ABRIR LOBBY ONLINE →';
   if (S && !S.started) $('modeTag').textContent = MODE_INFO[mode].tag;
 }
 
@@ -4291,7 +4934,20 @@ function handleSocketEvent(msg) {
     case 'game:ended':
       matchmaking = false;
       $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
-      applyOnlineState(msg.state);
+      if (msg.state?.mode === 'tactical_draft') {
+        renderTacticalState(msg.state);
+        if (msg.type === 'game:ended') renderReplaySummary(msg.state.replayLog || []);
+      } else {
+        applyOnlineState(msg.state);
+      }
+      break;
+    case 'tactical:state':
+    case 'tactical:startDraft':
+      renderTacticalState(msg.state);
+      break;
+    case 'tactical:cardEffect':
+      renderTacticalState(msg.state);
+      if (msg.hitSide === msg.state?.side) triggerScreenShake();
       break;
     case 'game:connection':
       showToast(msg.connected ? 'Seu adversário reconectou à partida.' : 'Seu adversário perdeu a conexão. Aguardando reconexão...');
@@ -4549,10 +5205,13 @@ $('queueBtn').addEventListener('click', () => {
   }
 });
 $('createRoomBtn').addEventListener('click', () => sendSocket('room:create'));
+$('createTacticalRoomBtn').addEventListener('click', () => sendSocket('room:create', { options: { mode: 'tactical_draft' } }));
+$('startTacticalCpuBtn').addEventListener('click', () => sendSocket('tactical:startCpu'));
+$('startTacticalTutorialBtn').addEventListener('click', () => sendSocket('tactical:startTutorial'));
 $('joinRoomBtn').addEventListener('click', () => {
   const code = $('joinRoomCode').value.trim().toUpperCase();
-  if (code.length !== 6) {
-    showToast('O código da sala precisa ter 6 caracteres.');
+  if (code.length !== 4 && code.length !== 6) {
+    showToast('O código da sala precisa ter 4 ou 6 caracteres.');
     return;
   }
   sendSocket('room:join', { code });
@@ -4613,6 +5272,278 @@ window.__crownflux = {
   setCpuDifficulty(lv) { cpuDifficulty = lv; },
   reset, start, launchSelectedGame, startInteractiveTutorial, handleClick, doMove, moves, botThink, activateBoost, switchNav
 };
+</script>
+<div id="tacticalTurnPill" class="cf-turn-pill" hidden>
+  <span id="turnStatusText">Sua Vez</span>
+  <div id="apOrbs" class="cf-ap-bar"></div>
+  <span id="turnCrownScore">👑 0/10</span>
+  <button class="mini-btn" id="btnEndTurn" type="button">Encerrar Turno</button>
+</div>
+
+<div id="tacticalBoardWrap" class="cf-tactical-wrap" hidden>
+  <div id="tacticalGrid" class="cf-tactical-grid"></div>
+</div>
+
+<div id="tacticalHand" class="cf-hand-dock" hidden></div>
+
+<div id="draftModal" class="cf-tactical-modal" hidden>
+  <h3 style="margin-bottom:12px;">Fase de Draft — Escolha 1 Carta (<span id="draftCountdown">8</span>s)</h3>
+  <div id="draftChoices" style="display:flex;gap:14px;flex-wrap:wrap;"></div>
+</div>
+
+<div id="replaySummaryModal" class="cf-tactical-modal" hidden>
+  <h3 style="margin-bottom:10px;">Resumo Tático da Partida</h3>
+  <ul id="replayTimeline" style="max-height:240px;overflow:auto;padding-left:18px;margin-bottom:14px;"></ul>
+  <button class="primary" id="btnCloseReplay" type="button">Fechar</button>
+</div>
+
+<div id="tacticalTutorialOverlay" class="cf-tut-layer" hidden>
+  <div id="tacticalSpotlight" class="cf-spotlight-ring"></div>
+  <div id="tacticalTooltipCard" class="cf-tooltip-card">
+    <strong id="tutStepTitle" style="color:#facc15;display:block;margin-bottom:6px;"></strong>
+    <p id="tutStepDesc" style="font-size:13px;line-height:1.45;margin-bottom:14px;"></p>
+    <button class="primary" id="btnTutNext" type="button">Entendi, continuar →</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  let tacticalState = null;
+  let selectedCard = null;
+  let prevActiveSide = null;
+
+  function playTacticalSfx(kind) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+      const presets = {
+        cardHover: { freq: 520, endFreq: 620, dur: 0.06, type: 'sine', vol: 0.04 },
+        cardPlay:  { freq: 340, endFreq: 680, dur: 0.16, type: 'triangle', vol: 0.11 },
+        turnStart: { freq: 440, endFreq: 554, dur: 0.22, type: 'sine', vol: 0.09 },
+        damage:    { freq: 140, endFreq: 75,  dur: 0.24, type: 'sawtooth', vol: 0.12 },
+        crown:     { freq: 587, endFreq: 880, dur: 0.30, type: 'triangle', vol: 0.12 }
+      };
+      const p = presets[kind] || presets.cardHover;
+      osc.type = p.type;
+      osc.frequency.setValueAtTime(p.freq, now);
+      osc.frequency.exponentialRampToValueAtTime(p.endFreq, now + p.dur);
+      gain.gain.setValueAtTime(p.vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + p.dur);
+      osc.start(now);
+      osc.stop(now + p.dur);
+    } catch (_) {}
+  }
+
+  document.getElementById('btnEndTurn').addEventListener('click', () => {
+    selectedCard = null;
+    sendSocket('tactical:endTurn');
+  });
+
+  document.getElementById('btnCloseReplay').addEventListener('click', () => {
+    document.getElementById('replaySummaryModal').hidden = true;
+    document.getElementById('tacticalTurnPill').hidden = true;
+    document.getElementById('tacticalBoardWrap').hidden = true;
+    document.getElementById('tacticalHand').hidden = true;
+  });
+
+  window.renderTacticalState = function(state) {
+    tacticalState = state;
+    const isMyTurn = state.phase === 'turn' && state.activeSide === state.side;
+    if (prevActiveSide !== state.activeSide && isMyTurn) playTacticalSfx('turnStart');
+    prevActiveSide = state.activeSide;
+
+    const pill = document.getElementById('tacticalTurnPill');
+    pill.hidden = false;
+    pill.classList.toggle('my-turn', isMyTurn);
+
+    document.getElementById('turnStatusText').textContent = state.frozen
+      ? '⏸ Oponente reconectando (30s)...'
+      : state.phase === 'draft'
+        ? '✨ Fase de Draft'
+        : isMyTurn ? `Sua Vez · Rodada ${state.round}` : `Aguardando Oponente · Rodada ${state.round}`;
+
+    document.getElementById('turnCrownScore').textContent = `👑 ${state.myTeam.vp}/10`;
+    document.getElementById('btnEndTurn').disabled = !isMyTurn;
+
+    const apWrap = document.getElementById('apOrbs');
+    apWrap.innerHTML = '';
+    const maxOrbs = Math.max(3, state.myTeam.ap);
+    for (let i = 0; i < maxOrbs; i++) {
+      const orb = document.createElement('span');
+      orb.className = 'cf-ap-orb' + (i < state.myTeam.ap ? ' active' : '');
+      apWrap.appendChild(orb);
+    }
+
+    renderTacticalGrid(state, isMyTurn);
+    renderTacticalHand(state, isMyTurn);
+    renderDraftModal(state);
+    if (state.isTutorial && state.tutorialFrozen) {
+      requestAnimationFrame(() => showTutorialSpotlight(state.tutorialStep));
+    } else {
+      document.getElementById('tacticalTutorialOverlay').hidden = true;
+    }
+  };
+
+  const TUTORIAL_STEPS = {
+    1: {
+      selector: '#apOrbs',
+      title: 'Passo 1 · Pontos de Ação (PA)',
+      desc: 'Você tem 3 de Energia (PA) por turno. Clique em uma casa destacada no grid para andar (1 PA) ou use uma carta.'
+    },
+    2: {
+      selector: '#draftChoices',
+      title: 'Passo 2 · Fase de Draft',
+      desc: 'A cada 3 rodadas completas, escolha 1 entre 3 habilidades aleatórias para adicionar à sua mão.'
+    },
+    3: {
+      selector: '#turnCrownScore',
+      title: 'Passo 3 · Poder e Risco da Coroa',
+      desc: 'A Coroa dá +2 Pontos de Vitória no fim do seu turno, mas revela sua posição no mapa e reduz 1 PA base por turno!'
+    }
+  };
+
+  function showTutorialSpotlight(step) {
+    const cfg = TUTORIAL_STEPS[step];
+    const layer = document.getElementById('tacticalTutorialOverlay');
+    if (!cfg) { layer.hidden = true; return; }
+    const target = document.querySelector(cfg.selector);
+    if (!target) return;
+
+    layer.hidden = false;
+    const rect = target.getBoundingClientRect();
+    const pad = 10;
+    const ring = document.getElementById('tacticalSpotlight');
+    ring.style.top = `${rect.top - pad}px`;
+    ring.style.left = `${rect.left - pad}px`;
+    ring.style.width = `${rect.width + pad * 2}px`;
+    ring.style.height = `${rect.height + pad * 2}px`;
+
+    const card = document.getElementById('tacticalTooltipCard');
+    card.style.top = `${Math.min(window.innerHeight - 190, rect.bottom + 18)}px`;
+    card.style.left = `${Math.max(16, Math.min(window.innerWidth - 326, rect.left))}px`;
+    document.getElementById('tutStepTitle').textContent = cfg.title;
+    document.getElementById('tutStepDesc').textContent = cfg.desc;
+    document.getElementById('btnTutNext').onclick = () => {
+      layer.hidden = true;
+      sendSocket('tactical:tutorialStepComplete', { step });
+    };
+  }
+
+  function renderTacticalGrid(state, isMyTurn) {
+    document.getElementById('tacticalBoardWrap').hidden = false;
+    const grid = document.getElementById('tacticalGrid');
+    grid.innerHTML = '';
+    const my = state.myUnit;
+    const walls = new Set(state.walls.map(w => `${w.x},${w.y}`));
+
+    for (let y = 0; y < state.boardSize; y++) {
+      for (let x = 0; x < state.boardSize; x++) {
+        const cell = document.createElement('div');
+        cell.className = 'cf-cell';
+        const dist = Math.abs(my.x - x) + Math.abs(my.y - y);
+        const isWall = walls.has(`${x},${y}`);
+        if (isWall) cell.classList.add('wall');
+
+        if (isMyTurn && selectedCard && selectedCard.targetType === 'cell') {
+          if (!isWall && dist >= 1 && dist <= selectedCard.range) {
+            cell.classList.add('valid-card');
+            cell.onclick = () => {
+              playTacticalSfx('cardPlay');
+              sendSocket('tactical:playCard', { cardUid: selectedCard.uid, target: { x, y } });
+              selectedCard = null;
+            };
+          }
+        } else if (isMyTurn && !selectedCard && state.myTeam.ap >= 1 && dist === 1 && !isWall) {
+          cell.classList.add('valid-move');
+          cell.onclick = () => sendSocket('tactical:move', { x, y });
+        }
+
+        if (my.x === x && my.y === y) cell.textContent = state.crown.holder === state.side ? '👑' : '🔷';
+        else if (state.enemyUnit && state.enemyUnit.x === x && state.enemyUnit.y === y) {
+          cell.textContent = state.enemyUnit.revealedByCrown ? '👑' : '🔺';
+        } else if (state.crown.holder === null && state.crown.x === x && state.crown.y === y) {
+          cell.textContent = '👑';
+        }
+        grid.appendChild(cell);
+      }
+    }
+  }
+
+  function renderTacticalHand(state, isMyTurn) {
+    const dock = document.getElementById('tacticalHand');
+    dock.hidden = false;
+    dock.innerHTML = '';
+    for (const card of state.myTeam.hand) {
+      const el = document.createElement('div');
+      const canAfford = isMyTurn && state.myTeam.ap >= card.cost;
+      el.className = 'cf-card' + (!canAfford ? ' disabled' : '') + (selectedCard?.uid === card.uid ? ' selected' : '');
+      el.innerHTML = `<span class="cf-card-cost">${card.cost}</span><strong>${card.name}</strong><p style="font-size:12px;opacity:.8;margin-top:6px;">${card.desc}</p>`;
+      if (canAfford) {
+        el.onmouseenter = () => playTacticalSfx('cardHover');
+        el.onclick = () => {
+          if (card.targetType === 'none') {
+            el.classList.add('playing');
+            playTacticalSfx('cardPlay');
+            setTimeout(() => sendSocket('tactical:playCard', { cardUid: card.uid }), 180);
+          } else {
+            selectedCard = selectedCard?.uid === card.uid ? null : card;
+            window.renderTacticalState(state);
+          }
+        };
+      }
+      dock.appendChild(el);
+    }
+  }
+
+  function renderDraftModal(state) {
+    const modal = document.getElementById('draftModal');
+    if (state.phase !== 'draft' || state.myTeam.draftOptions.length === 0) {
+      modal.hidden = true;
+      return;
+    }
+    modal.hidden = false;
+    document.getElementById('draftCountdown').textContent = Math.ceil(state.draftRemainingMs / 1000);
+    const box = document.getElementById('draftChoices');
+    box.innerHTML = '';
+    for (const opt of state.myTeam.draftOptions) {
+      const el = document.createElement('div');
+      el.className = 'cf-card';
+      el.innerHTML = `<span class="cf-card-cost">${opt.cost}</span><strong>${opt.name}</strong><p style="font-size:12px;margin-top:6px;">${opt.desc}</p>`;
+      el.onclick = () => {
+        playTacticalSfx('cardPlay');
+        sendSocket('tactical:pickDraft', { cardUid: opt.uid });
+        modal.hidden = true;
+      };
+      box.appendChild(el);
+    }
+  }
+
+  window.triggerScreenShake = function() {
+    playTacticalSfx('damage');
+    const wrap = document.getElementById('tacticalBoardWrap');
+    wrap.classList.remove('cf-shake');
+    void wrap.offsetWidth;
+    wrap.classList.add('cf-shake');
+  };
+
+  window.renderReplaySummary = function(replayLog = []) {
+    const modal = document.getElementById('replaySummaryModal');
+    const list = document.getElementById('replayTimeline');
+    list.innerHTML = '';
+    const highlights = replayLog.filter(e => ['crown_captured', 'card_played', 'match_end'].includes(e.type));
+    for (const ev of highlights) {
+      const li = document.createElement('li');
+      li.textContent = `[Rodada ${ev.round}] Jogador ${ev.side ?? '-'} · ${ev.type} ${ev.data?.cardName || ''}`;
+      list.appendChild(li);
+    }
+    modal.hidden = false;
+  };
+})();
 </script>
 </body>
 </html>
