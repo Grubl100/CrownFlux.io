@@ -416,14 +416,17 @@ function sanitizeMatchOptions(raw = {}) {
   const paceValues = ['standard', 'fast', 'tactical'];
   const orbValues = ['normal', 'abundant', 'none'];
   const timeValues = [0, 180, 300];
+  const modeValues = ['realtime', 'tactical_draft'];
   const pace = paceValues.includes(raw?.pace) ? raw.pace : 'standard';
   const orbs = orbValues.includes(raw?.orbs) ? raw.orbs : 'normal';
   const timeLimit = timeValues.includes(Number(raw?.timeLimit)) ? Number(raw.timeLimit) : 0;
-  return { pace, orbs, timeLimit };
+  const mode = modeValues.includes(raw?.mode) ? raw.mode : 'realtime';
+  return { pace, orbs, timeLimit, mode };
 }
 
 function formatMatchOptionsSummary(opts = {}) {
   const o = sanitizeMatchOptions(opts);
+  if (o.mode === 'tactical_draft') return 'Cerco Tático · Draft de Cartas · Turnos';
   const paceLabel = o.pace === 'fast' ? 'Ritmo Rápido' : o.pace === 'tactical' ? 'Ritmo Tático' : 'Ritmo Padrão';
   const orbsLabel = o.orbs === 'abundant' ? 'Muitos Fragmentos' : o.orbs === 'none' ? 'Sem Fragmentos' : 'Fragmentos Normais';
   const timeLabel = o.timeLimit === 180 ? '3 min' : o.timeLimit === 300 ? '5 min' : 'Sem limite de tempo';
@@ -1000,24 +1003,410 @@ function makeGame(room) {
   return game;
 }
 
+const TACTICAL_BOARD = 12;
+const TACTICAL_BASE_PA = 3;
+const TACTICAL_CROWN_PA_PENALTY = 1;
+const TACTICAL_TURN_MS = 25_000;
+const TACTICAL_DRAFT_MS = 8_000;
+const TACTICAL_RECONNECT_MS = 30_000;
+const TACTICAL_TARGET_VP = 10;
+const TACTICAL_VISION_RADIUS = 4;
+
+const CARD_CATALOG = {
+  short_teleport: {
+    id: 'short_teleport',
+    name: 'Teleporte Curto',
+    cost: 2,
+    targetType: 'cell',
+    range: 2,
+    desc: 'Pula até 2 casas no grid, ignorando paredes no caminho.'
+  },
+  flux_siphon: {
+    id: 'flux_siphon',
+    name: 'Sifão de Fluxo',
+    cost: 1,
+    targetType: 'none',
+    range: 0,
+    desc: 'Rouba 1 PA do inimigo mais próximo (+1 PA imediato, -1 PA no próximo turno dele).'
+  },
+  flux_wall: {
+    id: 'flux_wall',
+    name: 'Parede de Fluxo',
+    cost: 1,
+    targetType: 'cell',
+    range: 4,
+    durationRounds: 2,
+    desc: 'Bloqueia uma casa vazia no grid por 2 rodadas.'
+  },
+  crown_dash: {
+    id: 'crown_dash',
+    name: 'Impulso Real',
+    cost: 3,
+    targetType: 'cell',
+    range: 3,
+    desc: 'Avança até 3 casas em linha reta e ganha +1 VP se estiver com a Coroa.'
+  }
+};
+
+function randomCardChoices(count = 3) {
+  const keys = Object.keys(CARD_CATALOG);
+  const pool = [...keys].sort(() => Math.random() - 0.5);
+  return pool.slice(0, count).map(k => ({ ...CARD_CATALOG[k], uid: id() }));
+}
+
+class TacticalDraftMatch {
+  constructor(room) {
+    this.id = id();
+    this.roomId = room.id;
+    this.mode = 'tactical_draft';
+    this.players = [...room.players];
+    this.options = room.options;
+    this.over = false;
+    this.winner = null;
+    this.reason = '';
+    this.endedAt = null;
+    this.phase = 'turn';
+    this.round = 1;
+    this.activeSide = 0;
+    this.turnDeadline = Date.now() + TACTICAL_TURN_MS;
+    this.draftDeadline = 0;
+    this.boardSize = TACTICAL_BOARD;
+    this.units = [
+      { side: 0, x: 1, y: 1, hp: 3 },
+      { side: 1, x: TACTICAL_BOARD - 2, y: TACTICAL_BOARD - 2, hp: 3 }
+    ];
+    this.crown = {
+      x: Math.floor(TACTICAL_BOARD / 2),
+      y: Math.floor(TACTICAL_BOARD / 2),
+      holder: null
+    };
+    this.walls = [];
+    this.teams = [0, 1].map(side => ({
+      side,
+      vp: 0,
+      ap: side === 0 ? TACTICAL_BASE_PA : 0,
+      nextTurnDeltaAp: 0,
+      hand: [
+        { ...CARD_CATALOG.short_teleport, uid: id() },
+        { ...CARD_CATALOG.flux_wall, uid: id() }
+      ],
+      draftOptions: [],
+      draftPicked: false
+    }));
+    this.disconnects = new Map();
+    this.replayLog = [];
+    this.logEvent('match_start', null, { boardSize: this.boardSize });
+  }
+
+  logEvent(type, side, data = {}) {
+    this.replayLog.push({ t: Date.now(), round: this.round, type, side, data });
+  }
+
+  isInside(x, y) {
+    return x >= 0 && y >= 0 && x < this.boardSize && y < this.boardSize;
+  }
+
+  hasWall(x, y) {
+    return this.walls.some(w => w.x === x && w.y === y);
+  }
+
+  unitAt(x, y) {
+    return this.units.find(u => u.x === x && u.y === y) || null;
+  }
+
+  manhattan(ax, ay, bx, by) {
+    return Math.abs(ax - bx) + Math.abs(ay - by);
+  }
+
+  moveUnit(side, toX, toY) {
+    if (this.over || this.phase !== 'turn') return { ok: false, error: 'Aguarde a fase de turno.' };
+    if (side !== this.activeSide) return { ok: false, error: 'Não é a sua vez.' };
+    const team = this.teams[side];
+    const unit = this.units[side];
+    if (team.ap < 1) return { ok: false, error: 'Pontos de Ação insuficientes.' };
+    if (!this.isInside(toX, toY)) return { ok: false, error: 'Casa fora do tabuleiro.' };
+    if (this.manhattan(unit.x, unit.y, toX, toY) !== 1) {
+      return { ok: false, error: 'Movimento inválido: apenas 1 casa ortogonal por vez.' };
+    }
+    if (this.hasWall(toX, toY)) return { ok: false, error: 'Casa bloqueada por Parede de Fluxo.' };
+    if (this.unitAt(toX, toY)) return { ok: false, error: 'Casa ocupada por outro jogador.' };
+
+    const from = { x: unit.x, y: unit.y };
+    unit.x = toX;
+    unit.y = toY;
+    team.ap -= 1;
+    this.logEvent('move', side, { from, to: { x: toX, y: toY }, apLeft: team.ap });
+    this.checkCrownCapture(side);
+    return { ok: true };
+  }
+
+  checkCrownCapture(side) {
+    const unit = this.units[side];
+    if (this.crown.holder === null && unit.x === this.crown.x && unit.y === this.crown.y) {
+      this.crown.holder = side;
+      this.logEvent('crown_captured', side, { x: unit.x, y: unit.y });
+      return true;
+    }
+    return false;
+  }
+
+  playCard(side, cardUid, target = {}) {
+    if (this.over || this.phase !== 'turn') return { ok: false, error: 'Aguarde a fase de turno.' };
+    if (side !== this.activeSide) return { ok: false, error: 'Não é a sua vez.' };
+    const team = this.teams[side];
+    const cardIdx = team.hand.findIndex(c => c.uid === cardUid);
+    if (cardIdx < 0) return { ok: false, error: 'Carta não encontrada na mão.' };
+    const card = team.hand[cardIdx];
+    if (team.ap < card.cost) return { ok: false, error: `Requer ${card.cost} PA.` };
+
+    const unit = this.units[side];
+    const enemySide = 1 - side;
+    const tx = Number(target?.x);
+    const ty = Number(target?.y);
+
+    if (card.id === 'short_teleport') {
+      if (!this.isInside(tx, ty)) return { ok: false, error: 'Destino fora do mapa.' };
+      const dist = this.manhattan(unit.x, unit.y, tx, ty);
+      if (dist < 1 || dist > card.range) return { ok: false, error: 'Teleporte limitado a 2 casas.' };
+      if (this.hasWall(tx, ty) || this.unitAt(tx, ty)) return { ok: false, error: 'Destino ocupado ou bloqueado.' };
+      unit.x = tx;
+      unit.y = ty;
+      this.checkCrownCapture(side);
+    } else if (card.id === 'flux_siphon') {
+      this.teams[enemySide].nextTurnDeltaAp -= 1;
+      team.ap += 1;
+    } else if (card.id === 'flux_wall') {
+      if (!this.isInside(tx, ty)) return { ok: false, error: 'Posição inválida.' };
+      if (this.manhattan(unit.x, unit.y, tx, ty) > card.range) return { ok: false, error: 'Fora do alcance da Parede de Fluxo.' };
+      if (this.hasWall(tx, ty) || this.unitAt(tx, ty) ||
+          (this.crown.holder === null && this.crown.x === tx && this.crown.y === ty)) {
+        return { ok: false, error: 'Não é possível erguer parede nessa casa.' };
+      }
+      this.walls.push({ x: tx, y: ty, expiresAtRound: this.round + card.durationRounds, owner: side });
+    } else if (card.id === 'crown_dash') {
+      if (!this.isInside(tx, ty)) return { ok: false, error: 'Destino fora do mapa.' };
+      const dx = Math.abs(tx - unit.x);
+      const dy = Math.abs(ty - unit.y);
+      if (!((dx === 0 && dy > 0 && dy <= 3) || (dy === 0 && dx > 0 && dx <= 3))) {
+        return { ok: false, error: 'Impulso Real exige linha reta de até 3 casas.' };
+      }
+      if (this.hasWall(tx, ty) || this.unitAt(tx, ty)) return { ok: false, error: 'Destino bloqueado.' };
+      unit.x = tx;
+      unit.y = ty;
+      this.checkCrownCapture(side);
+      if (this.crown.holder === side) team.vp += 1;
+    }
+
+    team.ap -= card.cost;
+    team.hand.splice(cardIdx, 1);
+    this.logEvent('card_played', side, {
+      cardId: card.id,
+      cardName: card.name,
+      target: card.targetType === 'cell' ? { x: tx, y: ty } : { targetSide: enemySide },
+      apLeft: team.ap
+    });
+    return { ok: true, card, hitEnemy: card.id === 'flux_siphon' ? enemySide : null };
+  }
+
+  endTurn(side) {
+    if (this.over || this.phase !== 'turn' || side !== this.activeSide) return { ok: false };
+    const team = this.teams[side];
+    team.ap = 0;
+
+    if (this.crown.holder === side) {
+      team.vp += 2;
+      this.logEvent('crown_vp', side, { vp: team.vp });
+      if (team.vp >= TACTICAL_TARGET_VP) {
+        this.finish(side, 'Domínio da Coroa atingido!');
+        return { ok: true, ended: true };
+      }
+    }
+
+    if (side === 0) {
+      this.startTurnFor(1);
+      return { ok: true, phase: 'turn' };
+    }
+
+    this.walls = this.walls.filter(w => w.expiresAtRound > this.round);
+    if (this.round % 3 === 0) {
+      this.startDraftPhase();
+      return { ok: true, phase: 'draft' };
+    }
+
+    this.round += 1;
+    this.startTurnFor(0);
+    return { ok: true, phase: 'turn' };
+  }
+
+  startTurnFor(side) {
+    this.phase = 'turn';
+    this.activeSide = side;
+    const team = this.teams[side];
+    const crownPenalty = this.crown.holder === side ? TACTICAL_CROWN_PA_PENALTY : 0;
+    const base = Math.max(1, TACTICAL_BASE_PA - crownPenalty + team.nextTurnDeltaAp);
+    team.nextTurnDeltaAp = 0;
+    team.ap = base;
+    this.turnDeadline = Date.now() + TACTICAL_TURN_MS;
+    this.logEvent('turn_start', side, { ap: team.ap, hasCrown: this.crown.holder === side });
+  }
+
+  startDraftPhase() {
+    this.phase = 'draft';
+    this.draftDeadline = Date.now() + TACTICAL_DRAFT_MS;
+    for (const team of this.teams) {
+      team.draftOptions = randomCardChoices(3);
+      team.draftPicked = false;
+    }
+    this.logEvent('draft_start', null, { round: this.round });
+  }
+
+  pickDraftCard(side, cardUid) {
+    if (this.over || this.phase !== 'draft') return { ok: false, error: 'Não estamos na Fase de Draft.' };
+    const team = this.teams[side];
+    if (team.draftPicked) return { ok: false, error: 'Você já escolheu sua carta.' };
+    const chosen = team.draftOptions.find(c => c.uid === cardUid) || team.draftOptions[0];
+    if (chosen) {
+      team.hand.push({ ...chosen });
+      team.draftPicked = true;
+      this.logEvent('draft_pick', side, { cardId: chosen.id, cardName: chosen.name });
+    }
+    if (this.teams.every(t => t.draftPicked)) {
+      this.round += 1;
+      this.startTurnFor(0);
+      return { ok: true, draftCompleted: true };
+    }
+    return { ok: true, draftCompleted: false };
+  }
+
+  onPlayerDisconnect(uid) {
+    if (this.over || this.disconnects.has(uid)) return;
+    const now = Date.now();
+    const frozenRemainingMs = this.phase === 'turn'
+      ? Math.max(3000, this.turnDeadline - now)
+      : Math.max(2000, this.draftDeadline - now);
+    this.disconnects.set(uid, { at: now, frozenRemainingMs });
+  }
+
+  onPlayerReconnect(uid) {
+    const info = this.disconnects.get(uid);
+    if (!info) return;
+    const now = Date.now();
+    if (this.phase === 'turn') this.turnDeadline = now + info.frozenRemainingMs;
+    else this.draftDeadline = now + info.frozenRemainingMs;
+    this.disconnects.delete(uid);
+  }
+
+  tick(now) {
+    if (this.over) return null;
+    for (const [uid, info] of this.disconnects) {
+      if (now - info.at > TACTICAL_RECONNECT_MS) {
+        const winner = 1 - this.players.indexOf(uid);
+        this.finish(winner, 'O adversário não reconectou a tempo (30s).');
+        return 'ended';
+      }
+    }
+    if (this.disconnects.size > 0) return null;
+    if (this.phase === 'draft' && now >= this.draftDeadline) {
+      for (const team of this.teams) {
+        if (!team.draftPicked && team.draftOptions.length > 0) {
+          team.hand.push({ ...team.draftOptions[0] });
+          team.draftPicked = true;
+        }
+      }
+      this.round += 1;
+      this.startTurnFor(0);
+      return 'draft_ended';
+    }
+    if (this.phase === 'turn' && now >= this.turnDeadline) {
+      this.endTurn(this.activeSide);
+      return 'turn_timeout';
+    }
+    return null;
+  }
+
+  finish(winnerSide, reason) {
+    this.over = true;
+    this.winner = winnerSide;
+    this.reason = reason;
+    this.endedAt = Date.now();
+    this.logEvent('match_end', winnerSide, { reason });
+  }
+
+  serializeFor(side) {
+    const myUnit = this.units[side];
+    const enemySide = 1 - side;
+    const enemyUnit = this.units[enemySide];
+    const enemyHasCrown = this.crown.holder === enemySide;
+    const enemyVisible = enemyHasCrown ||
+      this.manhattan(myUnit.x, myUnit.y, enemyUnit.x, enemyUnit.y) <= TACTICAL_VISION_RADIUS;
+    const opponentId = this.players[enemySide];
+    const opp = db.users.find(u => u.id === opponentId);
+
+    return {
+      gameId: this.id,
+      mode: this.mode,
+      side,
+      over: this.over,
+      winner: this.winner,
+      reason: this.reason,
+      phase: this.phase,
+      round: this.round,
+      activeSide: this.activeSide,
+      turnRemainingMs: Math.max(0, this.turnDeadline - Date.now()),
+      draftRemainingMs: Math.max(0, this.draftDeadline - Date.now()),
+      boardSize: this.boardSize,
+      frozen: this.disconnects.size > 0,
+      opponent: opp ? safeUser(opp) : { username: 'Oponente', displayName: 'Oponente', avatar: '♟' },
+      myUnit,
+      enemyUnit: enemyVisible ? { ...enemyUnit, revealedByCrown: enemyHasCrown } : null,
+      crown: { ...this.crown },
+      walls: this.walls.map(w => ({ x: w.x, y: w.y, expiresAtRound: w.expiresAtRound })),
+      myTeam: {
+        vp: this.teams[side].vp,
+        ap: this.teams[side].ap,
+        hand: this.teams[side].hand,
+        draftOptions: this.phase === 'draft' && !this.teams[side].draftPicked ? this.teams[side].draftOptions : []
+      },
+      enemyTeam: {
+        vp: this.teams[enemySide].vp,
+        ap: this.teams[enemySide].ap,
+        handCount: this.teams[enemySide].hand.length
+      },
+      replayLog: this.over ? this.replayLog : undefined
+    };
+  }
+}
+
+function publishTactical(game, type = 'tactical:state', extra = {}) {
+  for (let side = 0; side < 2; side++) {
+    sendUser(game.players[side], type, { state: game.serializeFor(side), ...extra });
+  }
+  if (game.over) {
+    for (const uid of game.players) notifyPresence(uid);
+  }
+}
+
 function beginRoom(room) {
   if (room.players.length !== 2 || room.gameId) return;
-  const game = makeGame(room);
+  const game = room.options?.mode === 'tactical_draft'
+    ? new TacticalDraftMatch(room)
+    : makeGame(room);
   room.gameId = game.id;
   activeGames.set(game.id, game);
   for (let side = 0; side < 2; side++) {
+    const state = game.mode === 'tactical_draft' ? game.serializeFor(side) : serializeGame(game, side);
     sendUser(room.players[side], 'game:started', {
-      state: serializeGame(game, side),
+      state,
       roomCode: room.code || null
     });
     notifyPresence(room.players[side]);
   }
 }
 
-function randomRoomCode() {
+function randomRoomCode(len = 6) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
-  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < len; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
   return code;
 }
 
@@ -1026,11 +1415,13 @@ function createRoom(players, kind = 'private', options = {}) {
     const queued = queue.indexOf(player);
     if (queued >= 0) queue.splice(queued, 1);
   }
+  const cleanOpts = sanitizeMatchOptions(options);
+  const codeLen = cleanOpts.mode === 'tactical_draft' ? 4 : 6;
   const room = {
     id: id(),
-    code: kind === 'private' ? randomRoomCode() : null,
+    code: kind === 'private' ? randomRoomCode(codeLen) : null,
     kind,
-    options: sanitizeMatchOptions(options),
+    options: cleanOpts,
     players: [...players],
     createdAt: Date.now(),
     gameId: null
@@ -1166,8 +1557,13 @@ async function handleSocketMessage(ws, msg) {
     const active = findGameFor(ws.userId);
     if (active) {
       const side = active.players.indexOf(ws.userId);
-      active.disconnects.delete(ws.userId);
-      send(ws, 'game:started', { state: serializeGame(active, side), reconnected: true });
+      if (active.mode === 'tactical_draft') {
+        active.onPlayerReconnect(ws.userId);
+        send(ws, 'game:started', { state: active.serializeFor(side), reconnected: true });
+      } else {
+        active.disconnects.delete(ws.userId);
+        send(ws, 'game:started', { state: serializeGame(active, side), reconnected: true });
+      }
       for (const peer of active.players) {
         if (peer !== ws.userId) sendUser(peer, 'game:connection', { userId: ws.userId, connected: true });
       }
@@ -1406,8 +1802,54 @@ async function handleSocketMessage(ws, msg) {
     case 'game:resign': {
       const game = gameForSocket(ws);
       if (!game) return sendError(ws, 'Você não está em uma partida.');
-      finishGame(game, 1 - game.players.indexOf(ws.userId), 'O jogador abandonou a partida.');
-      publishGame(game, 'game:ended');
+      if (game.mode === 'tactical_draft') {
+        game.finish(1 - game.players.indexOf(ws.userId), 'O jogador abandonou a partida.');
+        publishTactical(game, 'game:ended');
+      } else {
+        finishGame(game, 1 - game.players.indexOf(ws.userId), 'O jogador abandonou a partida.');
+        publishGame(game, 'game:ended');
+      }
+      break;
+    }
+    case 'tactical:move': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'tactical_draft') return sendError(ws, 'Partida tática não encontrada.');
+      const side = game.players.indexOf(ws.userId);
+      const res = game.moveUnit(side, Number(msg.x), Number(msg.y));
+      if (!res.ok) return sendError(ws, res.error);
+      publishTactical(game, 'tactical:state');
+      break;
+    }
+    case 'tactical:playCard': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'tactical_draft') return sendError(ws, 'Partida tática não encontrada.');
+      const side = game.players.indexOf(ws.userId);
+      const res = game.playCard(side, msg.cardUid, msg.target);
+      if (!res.ok) return sendError(ws, res.error);
+      publishTactical(game, res.hitEnemy !== null ? 'tactical:cardEffect' : 'tactical:state', {
+        effect: res.card.id,
+        hitSide: res.hitEnemy
+      });
+      break;
+    }
+    case 'tactical:endTurn': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'tactical_draft') return sendError(ws, 'Partida tática não encontrada.');
+      const side = game.players.indexOf(ws.userId);
+      const res = game.endTurn(side);
+      if (!res.ok) return;
+      if (res.ended) publishTactical(game, 'game:ended');
+      else if (res.phase === 'draft') publishTactical(game, 'tactical:startDraft');
+      else publishTactical(game, 'tactical:state');
+      break;
+    }
+    case 'tactical:pickDraft': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'tactical_draft') return sendError(ws, 'Partida tática não encontrada.');
+      const side = game.players.indexOf(ws.userId);
+      const res = game.pickDraftCard(side, msg.cardUid);
+      if (!res.ok) return sendError(ws, res.error);
+      publishTactical(game, 'tactical:state');
       break;
     }
     case 'game:rematch':
@@ -1423,6 +1865,12 @@ function tickGames() {
   for (const [gameId, game] of activeGames) {
     if (game.over) {
       if (now - (game.endedAt || now) > 30 * 60 * 1000) activeGames.delete(gameId);
+      continue;
+    }
+    if (game.mode === 'tactical_draft') {
+      const evt = game.tick(now);
+      if (evt === 'ended') publishTactical(game, 'game:ended');
+      else if (evt === 'draft_ended' || evt === 'turn_timeout') publishTactical(game, 'tactical:state');
       continue;
     }
     const dt = Math.min(0.25, Math.max(0, (now - game.lastTick) / 1000));
@@ -1573,14 +2021,27 @@ wss.on('connection', ws => {
       if (i >= 0) queue.splice(i, 1);
       const game = findGameFor(uid);
       if (game) {
-        game.disconnects.set(uid, Date.now());
-        for (const peer of game.players) {
-          if (peer !== uid) {
-            sendUser(peer, 'game:connection', {
-              userId: uid,
-              connected: false,
-              graceSeconds: Math.floor(RECONNECT_GRACE_MS / 1000)
-            });
+        if (game.mode === 'tactical_draft') {
+          game.onPlayerDisconnect(uid);
+          for (const peer of game.players) {
+            if (peer !== uid) {
+              sendUser(peer, 'game:connection', {
+                userId: uid,
+                connected: false,
+                graceSeconds: Math.floor(TACTICAL_RECONNECT_MS / 1000)
+              });
+            }
+          }
+        } else {
+          game.disconnects.set(uid, Date.now());
+          for (const peer of game.players) {
+            if (peer !== uid) {
+              sendUser(peer, 'game:connection', {
+                userId: uid,
+                connected: false,
+                graceSeconds: Math.floor(RECONNECT_GRACE_MS / 1000)
+              });
+            }
           }
         }
       }

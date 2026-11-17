@@ -1158,6 +1158,103 @@ label.field-label {
   .play-layout { flex-direction: row; align-items: flex-start; }
   #hud { width: 210px; flex-basis: 210px; grid-template-columns: 1fr; }
 }
+  /* Cerco Tático com Cartas — UI/UX com Toque Humano */
+  .cf-turn-pill {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    padding: 10px 22px; border-radius: 999px;
+    background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f8fafc; font-weight: 600; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 12px; z-index: 90;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  .cf-turn-pill.my-turn {
+    border-color: rgba(56, 189, 248, 0.7);
+    box-shadow: 0 10px 32px rgba(56, 189, 248, 0.28);
+  }
+  .cf-hand-dock {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 14px; padding: 12px 18px; z-index: 90;
+  }
+  .cf-card {
+    width: 152px; padding: 14px; border-radius: 16px; cursor: pointer;
+    background: linear-gradient(155deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    color: #e2e8f0; user-select: none; position: relative;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.25s ease, opacity 0.25s ease;
+  }
+  .cf-card:hover:not(.disabled) {
+    transform: translateY(-16px) scale(1.04) rotate(-1deg);
+    border-color: #38bdf8;
+    box-shadow: 0 18px 34px rgba(56, 189, 248, 0.28);
+  }
+  .cf-card.selected {
+    transform: translateY(-22px) scale(1.06);
+    border-color: #facc15;
+    box-shadow: 0 20px 38px rgba(250, 204, 21, 0.34);
+  }
+  .cf-card.playing {
+    transform: translateY(-70px) scale(0.82);
+    opacity: 0; pointer-events: none;
+  }
+  .cf-card.disabled { opacity: 0.45; cursor: not-allowed; }
+  .cf-card-cost {
+    position: absolute; top: -9px; right: -9px; width: 28px; height: 28px;
+    border-radius: 50%; background: #0284c7; color: #fff; font-weight: 800;
+    display: grid; place-items: center; font-size: 13px;
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.5);
+  }
+  .cf-ap-bar { display: flex; gap: 8px; align-items: center; }
+  .cf-ap-orb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(148, 163, 184, 0.25);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease;
+  }
+  .cf-ap-orb.active {
+    background: #38bdf8; transform: scale(1.18);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+  }
+  .cf-tactical-wrap {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    background: rgba(9, 12, 20, 0.88); backdrop-filter: blur(8px); z-index: 80;
+  }
+  .cf-tactical-grid {
+    display: grid; grid-template-columns: repeat(12, 38px); gap: 3px;
+    padding: 12px; border-radius: 18px; background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .cf-cell {
+    width: 38px; height: 38px; border-radius: 8px;
+    background: rgba(30, 41, 59, 0.72); display: grid; place-items: center;
+    transition: background 0.2s ease, transform 0.2s ease; font-size: 18px;
+  }
+  .cf-cell.valid-move {
+    background: rgba(16, 185, 129, 0.24);
+    box-shadow: inset 0 0 0 1.5px rgba(52, 211, 153, 0.65); cursor: pointer;
+  }
+  .cf-cell.valid-move:hover { background: rgba(16, 185, 129, 0.42); transform: scale(1.06); }
+  .cf-cell.valid-card {
+    background: rgba(250, 204, 21, 0.22);
+    box-shadow: inset 0 0 0 1.5px rgba(250, 204, 21, 0.75); cursor: crosshair;
+  }
+  .cf-cell.wall { background: rgba(139, 92, 246, 0.42); border: 1px solid #a78bfa; }
+  .cf-tactical-modal {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(15, 23, 42, 0.96); border: 1px solid rgba(250, 204, 21, 0.4);
+    border-radius: 20px; padding: 24px; z-index: 100; color: #f8fafc;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65); max-width: 92vw;
+  }
+  @keyframes cf-shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-6px, 3px); }
+    40% { transform: translate(5px, -4px); }
+    60% { transform: translate(-4px, -2px); }
+    80% { transform: translate(4px, 3px); }
+  }
+  .cf-shake { animation: cf-shake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 </style>
 </head>
 <body data-board-theme="classic">
@@ -1311,7 +1408,8 @@ label.field-label {
                   <h3>Sala Privada com Código</h3>
                   <div class="field-row">
                     <button class="secondary" id="createRoomBtn" type="button">CRIAR SALA PRIVADA</button>
-                    <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código de 6 letras" style="flex:1;min-width:130px">
+                    <button class="secondary" id="createTacticalRoomBtn" type="button">CERCO TÁTICO (CARTAS)</button>
+                    <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código (4 ou 6 letras)" style="flex:1;min-width:130px">
                     <button class="secondary" id="joinRoomBtn" type="button">ENTRAR</button>
                   </div>
                   <div id="roomCreated" class="hidden" style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#191815;padding:8px 11px;border-radius:6px;border:1px dashed var(--gold)">
@@ -4291,7 +4389,20 @@ function handleSocketEvent(msg) {
     case 'game:ended':
       matchmaking = false;
       $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
-      applyOnlineState(msg.state);
+      if (msg.state?.mode === 'tactical_draft') {
+        renderTacticalState(msg.state);
+        if (msg.type === 'game:ended') renderReplaySummary(msg.state.replayLog || []);
+      } else {
+        applyOnlineState(msg.state);
+      }
+      break;
+    case 'tactical:state':
+    case 'tactical:startDraft':
+      renderTacticalState(msg.state);
+      break;
+    case 'tactical:cardEffect':
+      renderTacticalState(msg.state);
+      if (msg.hitSide === msg.state?.side) triggerScreenShake();
       break;
     case 'game:connection':
       showToast(msg.connected ? 'Seu adversário reconectou à partida.' : 'Seu adversário perdeu a conexão. Aguardando reconexão...');
@@ -4549,10 +4660,11 @@ $('queueBtn').addEventListener('click', () => {
   }
 });
 $('createRoomBtn').addEventListener('click', () => sendSocket('room:create'));
+$('createTacticalRoomBtn').addEventListener('click', () => sendSocket('room:create', { options: { mode: 'tactical_draft' } }));
 $('joinRoomBtn').addEventListener('click', () => {
   const code = $('joinRoomCode').value.trim().toUpperCase();
-  if (code.length !== 6) {
-    showToast('O código da sala precisa ter 6 caracteres.');
+  if (code.length !== 4 && code.length !== 6) {
+    showToast('O código da sala precisa ter 4 ou 6 caracteres.');
     return;
   }
   sendSocket('room:join', { code });
@@ -4613,6 +4725,219 @@ window.__crownflux = {
   setCpuDifficulty(lv) { cpuDifficulty = lv; },
   reset, start, launchSelectedGame, startInteractiveTutorial, handleClick, doMove, moves, botThink, activateBoost, switchNav
 };
+</script>
+<div id="tacticalTurnPill" class="cf-turn-pill" hidden>
+  <span id="turnStatusText">Sua Vez</span>
+  <div id="apOrbs" class="cf-ap-bar"></div>
+  <span id="turnCrownScore">👑 0/10</span>
+  <button class="mini-btn" id="btnEndTurn" type="button">Encerrar Turno</button>
+</div>
+
+<div id="tacticalBoardWrap" class="cf-tactical-wrap" hidden>
+  <div id="tacticalGrid" class="cf-tactical-grid"></div>
+</div>
+
+<div id="tacticalHand" class="cf-hand-dock" hidden></div>
+
+<div id="draftModal" class="cf-tactical-modal" hidden>
+  <h3 style="margin-bottom:12px;">Fase de Draft — Escolha 1 Carta (<span id="draftCountdown">8</span>s)</h3>
+  <div id="draftChoices" style="display:flex;gap:14px;flex-wrap:wrap;"></div>
+</div>
+
+<div id="replaySummaryModal" class="cf-tactical-modal" hidden>
+  <h3 style="margin-bottom:10px;">Resumo Tático da Partida</h3>
+  <ul id="replayTimeline" style="max-height:240px;overflow:auto;padding-left:18px;margin-bottom:14px;"></ul>
+  <button class="primary" id="btnCloseReplay" type="button">Fechar</button>
+</div>
+
+<script>
+(() => {
+  let tacticalState = null;
+  let selectedCard = null;
+  let prevActiveSide = null;
+
+  function playTacticalSfx(kind) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+      const presets = {
+        cardHover: { freq: 520, endFreq: 620, dur: 0.06, type: 'sine', vol: 0.04 },
+        cardPlay:  { freq: 340, endFreq: 680, dur: 0.16, type: 'triangle', vol: 0.11 },
+        turnStart: { freq: 440, endFreq: 554, dur: 0.22, type: 'sine', vol: 0.09 },
+        damage:    { freq: 140, endFreq: 75,  dur: 0.24, type: 'sawtooth', vol: 0.12 },
+        crown:     { freq: 587, endFreq: 880, dur: 0.30, type: 'triangle', vol: 0.12 }
+      };
+      const p = presets[kind] || presets.cardHover;
+      osc.type = p.type;
+      osc.frequency.setValueAtTime(p.freq, now);
+      osc.frequency.exponentialRampToValueAtTime(p.endFreq, now + p.dur);
+      gain.gain.setValueAtTime(p.vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + p.dur);
+      osc.start(now);
+      osc.stop(now + p.dur);
+    } catch (_) {}
+  }
+
+  document.getElementById('btnEndTurn').addEventListener('click', () => {
+    selectedCard = null;
+    sendSocket('tactical:endTurn');
+  });
+
+  document.getElementById('btnCloseReplay').addEventListener('click', () => {
+    document.getElementById('replaySummaryModal').hidden = true;
+    document.getElementById('tacticalTurnPill').hidden = true;
+    document.getElementById('tacticalBoardWrap').hidden = true;
+    document.getElementById('tacticalHand').hidden = true;
+  });
+
+  window.renderTacticalState = function(state) {
+    tacticalState = state;
+    const isMyTurn = state.phase === 'turn' && state.activeSide === state.side;
+    if (prevActiveSide !== state.activeSide && isMyTurn) playTacticalSfx('turnStart');
+    prevActiveSide = state.activeSide;
+
+    const pill = document.getElementById('tacticalTurnPill');
+    pill.hidden = false;
+    pill.classList.toggle('my-turn', isMyTurn);
+
+    document.getElementById('turnStatusText').textContent = state.frozen
+      ? '⏸ Oponente reconectando (30s)...'
+      : state.phase === 'draft'
+        ? '✨ Fase de Draft'
+        : isMyTurn ? `Sua Vez · Rodada ${state.round}` : `Aguardando Oponente · Rodada ${state.round}`;
+
+    document.getElementById('turnCrownScore').textContent = `👑 ${state.myTeam.vp}/10`;
+    document.getElementById('btnEndTurn').disabled = !isMyTurn;
+
+    const apWrap = document.getElementById('apOrbs');
+    apWrap.innerHTML = '';
+    const maxOrbs = Math.max(3, state.myTeam.ap);
+    for (let i = 0; i < maxOrbs; i++) {
+      const orb = document.createElement('span');
+      orb.className = 'cf-ap-orb' + (i < state.myTeam.ap ? ' active' : '');
+      apWrap.appendChild(orb);
+    }
+
+    renderTacticalGrid(state, isMyTurn);
+    renderTacticalHand(state, isMyTurn);
+    renderDraftModal(state);
+  };
+
+  function renderTacticalGrid(state, isMyTurn) {
+    document.getElementById('tacticalBoardWrap').hidden = false;
+    const grid = document.getElementById('tacticalGrid');
+    grid.innerHTML = '';
+    const my = state.myUnit;
+    const walls = new Set(state.walls.map(w => `${w.x},${w.y}`));
+
+    for (let y = 0; y < state.boardSize; y++) {
+      for (let x = 0; x < state.boardSize; x++) {
+        const cell = document.createElement('div');
+        cell.className = 'cf-cell';
+        const dist = Math.abs(my.x - x) + Math.abs(my.y - y);
+        const isWall = walls.has(`${x},${y}`);
+        if (isWall) cell.classList.add('wall');
+
+        if (isMyTurn && selectedCard && selectedCard.targetType === 'cell') {
+          if (!isWall && dist >= 1 && dist <= selectedCard.range) {
+            cell.classList.add('valid-card');
+            cell.onclick = () => {
+              playTacticalSfx('cardPlay');
+              sendSocket('tactical:playCard', { cardUid: selectedCard.uid, target: { x, y } });
+              selectedCard = null;
+            };
+          }
+        } else if (isMyTurn && !selectedCard && state.myTeam.ap >= 1 && dist === 1 && !isWall) {
+          cell.classList.add('valid-move');
+          cell.onclick = () => sendSocket('tactical:move', { x, y });
+        }
+
+        if (my.x === x && my.y === y) cell.textContent = state.crown.holder === state.side ? '👑' : '🔷';
+        else if (state.enemyUnit && state.enemyUnit.x === x && state.enemyUnit.y === y) {
+          cell.textContent = state.enemyUnit.revealedByCrown ? '👑' : '🔺';
+        } else if (state.crown.holder === null && state.crown.x === x && state.crown.y === y) {
+          cell.textContent = '👑';
+        }
+        grid.appendChild(cell);
+      }
+    }
+  }
+
+  function renderTacticalHand(state, isMyTurn) {
+    const dock = document.getElementById('tacticalHand');
+    dock.hidden = false;
+    dock.innerHTML = '';
+    for (const card of state.myTeam.hand) {
+      const el = document.createElement('div');
+      const canAfford = isMyTurn && state.myTeam.ap >= card.cost;
+      el.className = 'cf-card' + (!canAfford ? ' disabled' : '') + (selectedCard?.uid === card.uid ? ' selected' : '');
+      el.innerHTML = `<span class="cf-card-cost">${card.cost}</span><strong>${card.name}</strong><p style="font-size:12px;opacity:.8;margin-top:6px;">${card.desc}</p>`;
+      if (canAfford) {
+        el.onmouseenter = () => playTacticalSfx('cardHover');
+        el.onclick = () => {
+          if (card.targetType === 'none') {
+            el.classList.add('playing');
+            playTacticalSfx('cardPlay');
+            setTimeout(() => sendSocket('tactical:playCard', { cardUid: card.uid }), 180);
+          } else {
+            selectedCard = selectedCard?.uid === card.uid ? null : card;
+            window.renderTacticalState(state);
+          }
+        };
+      }
+      dock.appendChild(el);
+    }
+  }
+
+  function renderDraftModal(state) {
+    const modal = document.getElementById('draftModal');
+    if (state.phase !== 'draft' || state.myTeam.draftOptions.length === 0) {
+      modal.hidden = true;
+      return;
+    }
+    modal.hidden = false;
+    document.getElementById('draftCountdown').textContent = Math.ceil(state.draftRemainingMs / 1000);
+    const box = document.getElementById('draftChoices');
+    box.innerHTML = '';
+    for (const opt of state.myTeam.draftOptions) {
+      const el = document.createElement('div');
+      el.className = 'cf-card';
+      el.innerHTML = `<span class="cf-card-cost">${opt.cost}</span><strong>${opt.name}</strong><p style="font-size:12px;margin-top:6px;">${opt.desc}</p>`;
+      el.onclick = () => {
+        playTacticalSfx('cardPlay');
+        sendSocket('tactical:pickDraft', { cardUid: opt.uid });
+        modal.hidden = true;
+      };
+      box.appendChild(el);
+    }
+  }
+
+  window.triggerScreenShake = function() {
+    playTacticalSfx('damage');
+    const wrap = document.getElementById('tacticalBoardWrap');
+    wrap.classList.remove('cf-shake');
+    void wrap.offsetWidth;
+    wrap.classList.add('cf-shake');
+  };
+
+  window.renderReplaySummary = function(replayLog = []) {
+    const modal = document.getElementById('replaySummaryModal');
+    const list = document.getElementById('replayTimeline');
+    list.innerHTML = '';
+    const highlights = replayLog.filter(e => ['crown_captured', 'card_played', 'match_end'].includes(e.type));
+    for (const ev of highlights) {
+      const li = document.createElement('li');
+      li.textContent = `[Rodada ${ev.round}] Jogador ${ev.side ?? '-'} · ${ev.type} ${ev.data?.cardName || ''}`;
+      list.appendChild(li);
+    }
+    modal.hidden = false;
+  };
+})();
 </script>
 </body>
 </html>
