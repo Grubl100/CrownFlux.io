@@ -314,6 +314,130 @@ button {
   border: 1px solid var(--border-strong);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
 }
+.classic-player-bar {
+  box-sizing: border-box;
+  min-height: 54px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elev);
+}
+.classic-player-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.classic-player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.classic-player-info > strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.classic-player-rating {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.classic-player-rating strong {
+  color: var(--gold);
+  font-size: 11px;
+}
+.classic-player-clock {
+  min-width: 68px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: #262824;
+  color: var(--text);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.classic-player-bar.own .classic-player-clock { background: #32372f; }
+.classic-layout #hud {
+  width: 300px;
+  flex-basis: 300px;
+}
+.classic-game-panel .section-head #classicGameBadge {
+  color: var(--gold);
+  font-size: 9px;
+}
+.classic-game-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 3px 0 10px;
+}
+.classic-game-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.classic-game-facts small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.classic-game-facts strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.classic-turn-status {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #22241f;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.classic-moves-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 6px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.classic-moves-heading strong { color: var(--text); }
+.classic-move-list {
+  max-height: min(36vh, 340px);
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.classic-move-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr;
+  gap: 5px;
+  padding: 6px 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text);
+  font-size: 11px;
+}
+.classic-move-number, .classic-move-empty { color: var(--muted); }
+.classic-move-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.classic-move-empty { padding: 10px 2px; font-size: 11px; }
 canvas#cv {
   display: block;
   border-radius: 3px;
@@ -598,9 +722,57 @@ canvas#cv {
   text-overflow: ellipsis;
   font-weight: 700;
 }
+.player-row .rating-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 6px;
+  border: 1px solid rgba(207, 175, 114, 0.32);
+  border-radius: 6px;
+  background: rgba(207, 175, 114, 0.08);
+  color: var(--gold);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.player-row .rating-badge small {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+.player-row .rating-badge strong { font-size: 11px; }
 .player-row .count { font-size: 10px; color: var(--muted); }
 .player-row .score { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 24px; text-align: right; }
 .player-row .dead { font-size: 10px; color: var(--red); }
+
+.classic-rating-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid rgba(207, 175, 114, 0.34);
+  border-radius: 7px;
+  background: rgba(207, 175, 114, 0.07);
+}
+.classic-rating-preview span,
+.classic-rating-preview small { display: block; }
+.classic-rating-preview span {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 750;
+}
+.classic-rating-preview small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.classic-rating-preview > strong {
+  color: var(--gold);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
 
 .stat-line {
   display: flex;
@@ -1105,6 +1277,7 @@ label.field-label {
 @media (max-width: 960px) {
   .play-layout { gap: 12px; }
   #hud { width: 235px; flex-basis: 235px; }
+  .classic-layout #hud { width: 260px; flex-basis: 260px; }
   .two-col, .piece-lab { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
@@ -1156,6 +1329,9 @@ label.field-label {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
+  .classic-layout #hud { width: 100%; max-width: 560px; flex-basis: auto; }
+  .classic-layout #classicGamePanel,
+  .classic-layout #matchControlsCard { grid-column: 1 / -1; }
   #scoreCard { grid-row: span 2; }
   .footer-hint { display: none; }
   #welcomePrompt {
@@ -1174,6 +1350,12 @@ label.field-label {
 @media (orientation: landscape) and (max-height: 540px) and (max-width: 920px) {
   .play-layout { flex-direction: row; align-items: flex-start; }
   #hud { width: 210px; flex-basis: 210px; grid-template-columns: 1fr; }
+}
+@media (min-width: 761px) {
+  .classic-layout #hud {
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+  }
 }
   /* ================================================================
      CERCO TÁTICO — HUD de partida dedicada

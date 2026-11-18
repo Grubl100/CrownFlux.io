@@ -30,7 +30,11 @@ for (const fragment of fragments) {
 const playMarkup = await readFile(new URL('../public/screens/play.html', import.meta.url), 'utf8');
 for (const requiredId of [
   'wrap', 'cv', 'start', 'go', 'classicTimeControl', 'classicBotBtn',
-  'classicMateBanner', 'classicMateText', 'classicMateAgain', 'classicMateRematch', 'classicMateMenu'
+  'classicRatingPreview', 'classicRatingCategory', 'classicLobbyRating', 'classicRatingNote',
+  'classicMateBanner', 'classicMateText', 'classicMateAgain', 'classicMateRematch', 'classicMateMenu',
+  'classicOpponentBar', 'classicOpponentName', 'classicOpponentRating', 'classicOpponentClock',
+  'classicPlayerBar', 'classicPlayerName', 'classicPlayerRating', 'classicPlayerClock',
+  'classicGamePanel', 'classicGameStatus', 'classicMoveList'
 ]) {
   if (!playMarkup.includes(`id="${requiredId}"`)) {
     throw new Error(`A tela de jogo não contém ${requiredId}.`);

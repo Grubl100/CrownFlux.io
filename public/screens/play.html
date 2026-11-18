@@ -1,6 +1,6 @@
 <!-- VIEW 1: JOGAR -->
   <main id="view-play" class="view-page active">
-    <div class="play-layout">
+    <div class="play-layout" id="playLayout">
       <section class="arena-panel">
         <div class="board-top">
           <span id="modeTag">ARENA · 4 FACÇÕES</span>
@@ -23,6 +23,18 @@
           <h2 class="tut-title" id="tutTitle">Conhecendo o tabuleiro</h2>
           <p class="tut-text" id="tutText">Bem-vindo ao Crownflux.io!</p>
           <div class="tut-hint hidden" id="tutHint"></div>
+        </div>
+
+        <div id="classicOpponentBar" class="classic-player-bar hidden">
+          <span class="classic-player-dot" id="classicOpponentDot"></span>
+          <div class="classic-player-info">
+            <strong id="classicOpponentName"></strong>
+            <span class="classic-player-rating hidden" id="classicOpponentRating">
+              <small id="classicOpponentRatingCategory"></small>
+              <strong id="classicOpponentRatingValue"></strong>
+            </span>
+          </div>
+          <strong class="classic-player-clock" id="classicOpponentClock"></strong>
         </div>
 
         <div id="wrap">
@@ -129,6 +141,13 @@
                   <option value="classic30">Clássico · 30+0</option>
                   <option value="classic60">Clássico · 60+0</option>
                 </select>
+                <div id="classicRatingPreview" class="classic-rating-preview" aria-live="polite">
+                  <div>
+                    <span id="classicRatingCategory">Rating Blitz</span>
+                    <small id="classicRatingNote">Seu rating muda em partidas públicas ranqueadas.</small>
+                  </div>
+                  <strong id="classicLobbyRating">1200</strong>
+                </div>
                 <p class="muted" style="margin:0">A fila pública é ranqueada por categoria. Salas privadas não alteram o rating.</p>
                 <button class="secondary" id="classicBotBtn" type="button">JOGAR CONTRA BOT</button>
               </div>
@@ -190,6 +209,18 @@
           </div>
         </div>
 
+        <div id="classicPlayerBar" class="classic-player-bar own hidden">
+          <span class="classic-player-dot" id="classicPlayerDot"></span>
+          <div class="classic-player-info">
+            <strong id="classicPlayerName"></strong>
+            <span class="classic-player-rating" id="classicPlayerRating">
+              <small id="classicPlayerRatingCategory"></small>
+              <strong id="classicPlayerRatingValue"></strong>
+            </span>
+          </div>
+          <strong class="classic-player-clock" id="classicPlayerClock"></strong>
+        </div>
+
         <div id="classicMateBanner" class="classic-mate-banner hidden" role="status" aria-live="polite">
           <strong id="classicMateText"></strong>
           <div class="classic-mate-actions">
@@ -206,6 +237,17 @@
 
       <!-- HUD Lateral Permanente -->
       <aside id="hud" aria-label="Painel lateral da partida">
+        <section class="hud-section classic-game-panel hidden" id="classicGamePanel">
+          <div class="section-head"><span>Partida</span><span id="classicGameBadge"></span></div>
+          <div class="classic-game-facts">
+            <div><small>Formato</small><strong id="classicGameFormat">Contra o bot</strong></div>
+            <div><small>Relógio</small><strong id="classicGameTimeControl">Blitz · 3+0</strong></div>
+          </div>
+          <div class="classic-turn-status" id="classicGameStatus">Sua vez</div>
+          <div class="classic-moves-heading"><strong>Lances</strong><span id="classicMoveCount">0</span></div>
+          <div class="classic-move-list" id="classicMoveList" aria-label="Lances da partida"></div>
+        </section>
+
         <section class="hud-section" id="scoreCard">
           <div class="section-head"><span>Informações da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
           <div class="turn-banner-box my-turn" id="turnBannerBox">
@@ -245,7 +287,7 @@
           <button id="boost" class="ability-btn" type="button" disabled>SURTO · 0%</button>
         </section>
 
-        <section class="hud-section">
+        <section class="hud-section" id="battleLogCard">
           <div class="section-head"><span>Registro da Batalha</span><span>AO VIVO</span></div>
           <div id="feed"></div>
         </section>

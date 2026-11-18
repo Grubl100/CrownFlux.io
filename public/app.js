@@ -176,15 +176,20 @@ let selectedMode = 'arena';
 let cpuDifficulty = 1;
 let classicTimeControl = 'blitz3';
 const CLASSIC_CONTROLS = {
-  bullet1: { seconds: 60, increment: 0, label: 'Bullet · 1+0' },
-  bullet2: { seconds: 120, increment: 1, label: 'Bullet · 2+1' },
-  blitz3: { seconds: 180, increment: 0, label: 'Blitz · 3+0' },
-  blitz5: { seconds: 300, increment: 0, label: 'Blitz · 5+0' },
-  rapid10: { seconds: 600, increment: 0, label: 'Rapid · 10+0' },
-  rapid15: { seconds: 900, increment: 10, label: 'Rapid · 15+10' },
-  classic30: { seconds: 1800, increment: 0, label: 'Clássico · 30+0' },
-  classic60: { seconds: 3600, increment: 0, label: 'Clássico · 60+0' }
+  bullet1: { seconds: 60, increment: 0, label: 'Bullet · 1+0', category: 'bullet' },
+  bullet2: { seconds: 120, increment: 1, label: 'Bullet · 2+1', category: 'bullet' },
+  blitz3: { seconds: 180, increment: 0, label: 'Blitz · 3+0', category: 'blitz' },
+  blitz5: { seconds: 300, increment: 0, label: 'Blitz · 5+0', category: 'blitz' },
+  rapid10: { seconds: 600, increment: 0, label: 'Rapid · 10+0', category: 'rapid' },
+  rapid15: { seconds: 900, increment: 10, label: 'Rapid · 15+10', category: 'rapid' },
+  classic30: { seconds: 1800, increment: 0, label: 'Clássico · 30+0', category: 'classic' },
+  classic60: { seconds: 3600, increment: 0, label: 'Clássico · 60+0', category: 'classic' }
 };
+const CLASSIC_RATING_LABELS = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', classic: 'Clássico' };
+
+function classicRatingFor(category) {
+  return onlineUser?.stats?.classicRatings?.[category] || 1200;
+}
 let S = null;
 let best = 0;
 let cell = 40;
@@ -559,6 +564,7 @@ function reset(mode = selectedMode) {
     fx: [],
     events: [],
     lastMove: null,
+    classicMoveHistory: [],
     winner: null,
     turn: 0,
     castle: classic ? [{ king: true, queen: true }, { king: true, queen: true }] : null,
@@ -1105,11 +1111,18 @@ function classicCanMate(side) {
   return material.length >= 2 && S.pieces.some(p => p.o !== side && p.t !== 'K');
 }
 
+function classicMoveText(type, x0, y0, x1, y1, captured, promotion = false) {
+  const piece = type === 'P' ? '' : type;
+  const separator = captured ? 'x' : '→';
+  return `${piece}${'abcdefgh'[x0]}${8 - y0}${separator}${'abcdefgh'[x1]}${8 - y1}${promotion ? '=Q' : ''}`;
+}
+
 function doClassicMove(p, x, y) {
   const side = S.turnOwner, fromX = p.x, fromY = p.y, target = S.grid[y][x];
   const pawnMove = p.t === 'P';
   const enPassantCapture = pawnMove && x !== fromX && !target;
   const captured = target || (enPassantCapture ? S.grid[y + (side === 0 ? 1 : -1)][x] : null);
+  const moveText = classicMoveText(p.t, fromX, fromY, x, y, captured, pawnMove && (y === 0 || y === 7));
   if (captured) {
     rm(captured);
     S.f[side].score += VAL[captured.t] || 1;
@@ -1150,6 +1163,7 @@ function doClassicMove(p, x, y) {
   const replyExists = S.pieces.some(piece => piece.o === S.turnOwner && moves(piece).length > 0);
   const king = S.pieces.find(piece => piece.o === S.turnOwner && piece.t === 'K');
   const checked = king && classicIsAttacked(king.x, king.y, side);
+  S.classicMoveHistory.push({ side, text: moveText + (!replyExists && checked ? '#' : checked ? '+' : '') });
   if (!replyExists) gameOver(checked ? side : null, checked ? 'Xeque-mate.' : 'Afogamento: empate.');
   else if (classicInsufficientMaterial()) gameOver(null, 'Material insuficiente: empate.');
   else if (S.halfMoves >= 100) gameOver(null, 'Regra dos 50 lances: empate.');
@@ -1784,21 +1798,37 @@ function handleClick(a, b) {
 cv.addEventListener('pointerdown', e => {
   const r = cv.getBoundingClientRect();
   const x = e.clientX - r.left, y = e.clientY - r.top;
-  handleClick(Math.floor(x / cell), Math.floor(y / cell));
+  const viewX = Math.floor(x / cell), viewY = Math.floor(y / cell);
+  const point = boardViewCoordinates(viewX, viewY);
+  handleClick(point.x, point.y);
 });
+
+function isClassicBoardFlipped() {
+  return Boolean(S?.classic && S.mode === 'online' && onlineSide === 1);
+}
+
+function boardViewCoordinates(x, y) {
+  return isClassicBoardFlipped() ? { x: N - 1 - x, y: N - 1 - y } : { x, y };
+}
 
 function resize() {
   const wide = innerWidth > 860;
+  const classic = Boolean(S?.classic);
   const tutHeight = !$('tutorialBanner').classList.contains('hidden') ? ($('tutorialBanner').offsetHeight + 10) : 0;
-  let availableWidth = wide ? Math.min(720, innerWidth - 330) : innerWidth - 22;
-  let availableHeight = wide ? innerHeight - 130 - tutHeight : Math.min(innerHeight * 0.64, 540);
+  let availableWidth = wide ? Math.min(720, innerWidth - (classic ? 360 : 330)) : innerWidth - 22;
+  let availableHeight = wide
+    ? innerHeight - 130 - tutHeight - (classic ? 112 : 0)
+    : Math.min(innerHeight * 0.64, 540);
   let size = Math.max(224, Math.min(688, availableWidth, availableHeight));
   dpr = Math.min(2, window.devicePixelRatio || 1);
   cell = Math.max(14, Math.floor(size / N));
   const px = cell * N;
   cv.style.width = cv.style.height = px + 'px';
   cv.width = cv.height = Math.floor(px * dpr);
-  $('wrap').style.width = (px + 12) + 'px';
+  const boardWidth = (px + 12) + 'px';
+  $('wrap').style.width = boardWidth;
+  $('classicOpponentBar').style.width = boardWidth;
+  $('classicPlayerBar').style.width = boardWidth;
   draw();
 }
 
@@ -1815,16 +1845,24 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, W);
 
-  for (let y = 0; y < N; y++) {
-    for (let x = 0; x < N; x++) {
-      ctx.fillStyle = (x + y) % 2 ? theme.dark : theme.light;
-      ctx.fillRect(x * cell, y * cell, cell, cell);
-      if (prefs.showCoords !== false && x === 0) {
+  for (let viewY = 0; viewY < N; viewY++) {
+    for (let viewX = 0; viewX < N; viewX++) {
+      const { x, y } = boardViewCoordinates(viewX, viewY);
+      ctx.fillStyle = (viewX + viewY) % 2 ? theme.dark : theme.light;
+      ctx.fillRect(viewX * cell, viewY * cell, cell, cell);
+      if (prefs.showCoords !== false && viewX === 0) {
         ctx.fillStyle = 'rgba(24, 30, 26, 0.45)';
         ctx.font = Math.max(8, Math.floor(cell * 0.21)) + 'px system-ui';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(String(N - y), x * cell + 2, y * cell + 2);
+        ctx.fillText(String(N - y), viewX * cell + 2, viewY * cell + 2);
+      }
+      if (prefs.showCoords !== false && S.classic && viewY === N - 1) {
+        ctx.fillStyle = 'rgba(24, 30, 26, 0.55)';
+        ctx.font = Math.max(8, Math.floor(cell * 0.21)) + 'px system-ui';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('abcdefgh'[x], (viewX + 1) * cell - 2, (viewY + 1) * cell - 2);
       }
     }
   }
@@ -1835,7 +1873,8 @@ function draw() {
 
   // Flux Orbs
   for (const o of S.orbs) {
-    const x = o.x * cell + cell / 2, y = o.y * cell + cell / 2;
+    const point = boardViewCoordinates(o.x, o.y);
+    const x = point.x * cell + cell / 2, y = point.y * cell + cell / 2;
     const pulse = 0.85 + Math.sin(S.T * 4 + o.x) * 0.15;
     ctx.save();
     ctx.fillStyle = '#b9935a';
@@ -1866,8 +1905,9 @@ function draw() {
     ctx.strokeStyle = '#e07a7c';
     ctx.lineWidth = 2;
     for (const [bx, by] of [[S.lastBotMove.x0, S.lastBotMove.y0], [S.lastBotMove.x1, S.lastBotMove.y1]]) {
-      ctx.fillRect(bx * cell, by * cell, cell, cell);
-      ctx.strokeRect(bx * cell + 1.5, by * cell + 1.5, cell - 3, cell - 3);
+      const point = boardViewCoordinates(bx, by);
+      ctx.fillRect(point.x * cell, point.y * cell, cell, cell);
+      ctx.strokeRect(point.x * cell + 1.5, point.y * cell + 1.5, cell - 3, cell - 3);
     }
     ctx.restore();
   }
@@ -1880,10 +1920,11 @@ function draw() {
       // Highlight both Kings (Player & Mentor Bot)
       for (const p of S.pieces) {
         if (p.t === 'K') {
+          const point = boardViewCoordinates(p.x, p.y);
           ctx.strokeStyle = p.o === 0 ? '#f0c869' : '#e07a7c';
           ctx.lineWidth = 2.6;
           ctx.beginPath();
-          ctx.arc(p.x * cell + cell / 2, p.y * cell + cell / 2, cell * (pulse + 0.05), 0, Math.PI * 2);
+          ctx.arc(point.x * cell + cell / 2, point.y * cell + cell / 2, cell * (pulse + 0.05), 0, Math.PI * 2);
           ctx.stroke();
         }
       }
@@ -1892,26 +1933,29 @@ function draw() {
       ctx.lineWidth = 2.2;
       for (const p of S.pieces) {
         if (p.o === 0) {
+          const point = boardViewCoordinates(p.x, p.y);
           ctx.beginPath();
-          ctx.arc(p.x * cell + cell / 2, p.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
+          ctx.arc(point.x * cell + cell / 2, point.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
     } else if (tut.step === 5) {
       const targetP = S.pieces.find(p => p.id === tut.targetPieceId);
       if (targetP) {
+        const point = boardViewCoordinates(targetP.x, targetP.y);
         ctx.strokeStyle = '#f0c869';
         ctx.lineWidth = 2.8;
         ctx.beginPath();
-        ctx.arc(targetP.x * cell + cell / 2, targetP.y * cell + cell / 2, cell * (pulse + 0.04), 0, Math.PI * 2);
+        ctx.arc(point.x * cell + cell / 2, point.y * cell + cell / 2, cell * (pulse + 0.04), 0, Math.PI * 2);
         ctx.stroke();
       }
       const attP = S.pieces.find(p => p.id === tut.attackerPieceId);
       if (attP && !S.sel) {
+        const point = boardViewCoordinates(attP.x, attP.y);
         ctx.strokeStyle = '#6f9daf';
         ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.arc(attP.x * cell + cell / 2, attP.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
+        ctx.arc(point.x * cell + cell / 2, point.y * cell + cell / 2, cell * pulse, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -1920,15 +1964,17 @@ function draw() {
 
   const sel = S.sel, ms = sel ? moves(sel) : [];
   if (sel) {
+    const point = boardViewCoordinates(sel.x, sel.y);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.fillRect(sel.x * cell, sel.y * cell, cell, cell);
+    ctx.fillRect(point.x * cell, point.y * cell, cell, cell);
     ctx.strokeStyle = '#eff8ff';
     ctx.lineWidth = 2;
-    ctx.strokeRect(sel.x * cell + 1, sel.y * cell + 1, cell - 2, cell - 2);
+    ctx.strokeRect(point.x * cell + 1, point.y * cell + 1, cell - 2, cell - 2);
   }
   if (prefs.highlightMoves !== false) {
     for (const [a, b] of ms) {
-      const q = S.grid[b][a], cx = a * cell + cell / 2, cy = b * cell + cell / 2;
+      const point = boardViewCoordinates(a, b);
+      const q = S.grid[b][a], cx = point.x * cell + cell / 2, cy = point.y * cell + cell / 2;
       ctx.beginPath();
       if (q) {
         ctx.strokeStyle = q.shield > 0 ? '#a4c1bf' : '#c96b6b';
@@ -1944,7 +1990,8 @@ function draw() {
     if (S.lastMove && S.T - S.lastMove.t < 0.9) {
       ctx.fillStyle = 'rgba(76, 94, 77, 0.22)';
       for (const [x, y] of [[S.lastMove.x0, S.lastMove.y0], [S.lastMove.x1, S.lastMove.y1]]) {
-        ctx.fillRect(x * cell, y * cell, cell, cell);
+        const point = boardViewCoordinates(x, y);
+        ctx.fillRect(point.x * cell, point.y * cell, cell, cell);
       }
     }
   }
@@ -1954,7 +2001,8 @@ function draw() {
   ctx.font = Math.floor(cell * 0.76) + 'px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif';
 
   for (const p of S.pieces) {
-    const col = p.o >= 0 ? FAC[p.o].col : '#9aa6b2', cx = p.x * cell + cell / 2, cy = p.y * cell + cell / 2;
+    const point = boardViewCoordinates(p.x, p.y);
+    const col = p.o >= 0 ? FAC[p.o].col : '#9aa6b2', cx = point.x * cell + cell / 2, cy = point.y * cell + cell / 2;
     ctx.fillStyle = p.o >= 0 ? col + '24' : '#3f474024';
     ctx.beginPath();
     ctx.arc(cx, cy, cell * 0.41, 0, Math.PI * 2);
@@ -1990,12 +2038,13 @@ function draw() {
     const rem = p.ready - S.T;
     if (rem > 0 && p.o >= 0) {
       ctx.fillStyle = 'rgba(28, 34, 30, 0.56)';
-      ctx.fillRect(p.x * cell, p.y * cell, cell, cell * Math.min(1, rem / (p.cd0 || 1)));
+      ctx.fillRect(point.x * cell, point.y * cell, cell, cell * Math.min(1, rem / (p.cd0 || 1)));
     }
     if (p.q) {
+      const queued = boardViewCoordinates(p.q[0], p.q[1]);
       ctx.strokeStyle = '#cfaf72';
       ctx.lineWidth = 2;
-      ctx.strokeRect(p.q[0] * cell + 3, p.q[1] * cell + 3, cell - 6, cell - 6);
+      ctx.strokeRect(queued.x * cell + 3, queued.y * cell + 3, cell - 6, cell - 6);
     }
     if (p.o >= 0 && S.f[p.o].boostUntil > S.T) {
       ctx.strokeStyle = col + 'cc';
@@ -2009,8 +2058,9 @@ function draw() {
   if (Number.isInteger(S.checkmatedKingOwner)) {
     const king = S.pieces.find(p => p.o === S.checkmatedKingOwner && p.t === 'K');
     if (king) {
-      const markerX = (king.x + 0.79) * cell;
-      const markerY = (king.y + 0.21) * cell;
+      const point = boardViewCoordinates(king.x, king.y);
+      const markerX = (point.x + 0.79) * cell;
+      const markerY = (point.y + 0.21) * cell;
       ctx.save();
       ctx.fillStyle = '#c94250';
       ctx.beginPath();
@@ -2027,14 +2077,92 @@ function draw() {
 
   for (const e of S.fx) {
     const k = (S.T - e.t) / 0.65;
+    const point = boardViewCoordinates(e.x, e.y);
     ctx.strokeStyle = e.col;
     ctx.globalAlpha = Math.max(0, 1 - k);
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(e.x * cell + cell / 2, e.y * cell + cell / 2, cell * (0.25 + k * (e.big ? 1 : 0.7)), 0, Math.PI * 2);
+    ctx.arc(point.x * cell + cell / 2, point.y * cell + cell / 2, cell * (0.25 + k * (e.big ? 1 : 0.7)), 0, Math.PI * 2);
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
+}
+
+function renderClassicMoveList() {
+  const list = $('classicMoveList');
+  const history = S.classicMoveHistory || [];
+  $('classicMoveCount').textContent = String(history.length);
+  list.replaceChildren();
+  if (!history.length) {
+    const empty = document.createElement('div');
+    empty.className = 'classic-move-empty';
+    empty.textContent = 'Os lances aparecerão aqui.';
+    list.appendChild(empty);
+    return;
+  }
+
+  for (let i = 0; i < history.length; i += 2) {
+    const row = document.createElement('div');
+    row.className = 'classic-move-row';
+    const number = document.createElement('span');
+    number.className = 'classic-move-number';
+    number.textContent = `${Math.floor(i / 2) + 1}.`;
+    row.appendChild(number);
+    for (const side of [0, 1]) {
+      const move = history.slice(i, i + 2).find(item => item.side === side);
+      const value = document.createElement('span');
+      value.className = 'classic-move-value';
+      value.textContent = move?.text || '—';
+      row.appendChild(value);
+    }
+    list.appendChild(row);
+  }
+  list.scrollTop = list.scrollHeight;
+}
+
+function renderClassicPlayerBars(category, categoryLabel, playerSide, opponentSide) {
+  const playerName = S.mode === 'online'
+    ? onlineUser?.displayName || onlineUser?.username || 'Você'
+    : 'Você';
+  const botLevel = CPU_LEVELS.find(item => item.level === cpuDifficulty)?.name || 'Bot';
+  const opponentName = S.mode === 'online'
+    ? S.opponent?.displayName || S.opponent?.username || onlineOpponent || 'Adversário'
+    : `Bot · ${botLevel}`;
+  const opponentRating = S.mode === 'online'
+    ? (S.opponent?.stats?.classicRatings?.[category] || 1200)
+    : null;
+  const ownRating = classicRatingFor(category);
+
+  $('playLayout').classList.add('classic-layout');
+  $('classicOpponentBar').classList.remove('hidden');
+  $('classicPlayerBar').classList.remove('hidden');
+  $('classicOpponentName').textContent = opponentName;
+  $('classicPlayerName').textContent = playerName;
+  $('classicOpponentDot').style.background = FAC[opponentSide]?.col || '#bd7778';
+  $('classicPlayerDot').style.background = FAC[playerSide]?.col || '#6f9daf';
+  $('classicOpponentClock').textContent = fmtChessClock(S.chessClock?.[opponentSide] ?? 0);
+  $('classicPlayerClock').textContent = fmtChessClock(S.chessClock?.[playerSide] ?? 0);
+  $('classicPlayerRatingCategory').textContent = categoryLabel;
+  $('classicPlayerRatingValue').textContent = String(ownRating);
+  $('classicOpponentRating').classList.toggle('hidden', opponentRating === null);
+  if (opponentRating !== null) {
+    $('classicOpponentRatingCategory').textContent = categoryLabel;
+    $('classicOpponentRatingValue').textContent = String(opponentRating);
+  }
+
+  $('classicGamePanel').classList.remove('hidden');
+  $('classicGameBadge').textContent = S.mode === 'online'
+    ? (S.rated ? 'RANQUEADA' : 'ONLINE')
+    : `BOT · NÍVEL ${cpuDifficulty}`;
+  $('classicGameFormat').textContent = S.mode === 'online'
+    ? (S.rated ? 'Online ranqueada' : 'Online')
+    : `Contra bot · ${botLevel}`;
+  $('classicGameTimeControl').textContent = S.clockControlLabel || S.options?.label || 'Xadrez Clássico';
+  const activeSide = S.turnOwner ?? S.turn ?? 0;
+  $('classicGameStatus').textContent = S.over
+    ? (S.winner === null ? 'Empate' : S.winner === playerSide ? 'Você venceu' : 'Você perdeu')
+    : activeSide === playerSide ? 'Sua vez' : `Vez de ${opponentName}`;
+  renderClassicMoveList();
 }
 
 function hud() {
@@ -2043,12 +2171,23 @@ function hud() {
   const rows = teams.map(i => ({ f: S.f[i], n: S.pieces.filter(p => p.o === i).length })).sort((a, b) => a.f.id - b.f.id);
   if (S.classic) {
     $('progressCard').classList.add('hidden');
+    $('scoreCard').classList.add('hidden');
+    $('battleLogCard').classList.add('hidden');
+    renderClassicPlayerBars(
+      S.options?.category || CLASSIC_CONTROLS[classicTimeControl]?.category || 'blitz',
+      CLASSIC_RATING_LABELS[S.options?.category || CLASSIC_CONTROLS[classicTimeControl]?.category || 'blitz'] || 'Blitz',
+      S.mode === 'online' ? onlineSide : 0,
+      S.mode === 'online' ? 1 - onlineSide : 1
+    );
     const category = S.options?.category || CLASSIC_CONTROLS[classicTimeControl]?.category || 'blitz';
-    const ratings = onlineUser?.stats?.classicRatings || {};
+    const categoryLabel = CLASSIC_RATING_LABELS[category] || category;
     $('lb').innerHTML = rows.map(({ f }) => {
       const mine = S.mode === 'online' ? f.id === onlineSide : f.id === 0;
-      const rating = mine ? (ratings[category] || 1200) : (S.opponent?.stats?.classicRatings?.[category] || 1200);
-      return `<div class="player-row${mine ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)} · ${rating}</span><strong class="score">${fmtChessClock(S.chessClock[f.id])}</strong></div>`;
+      const rating = mine ? classicRatingFor(category) : (S.opponent?.stats?.classicRatings?.[category] || 1200);
+      const ratingBadge = mine || S.mode === 'online'
+        ? `<span class="rating-badge" title="Rating ${categoryLabel}"><small>${categoryLabel}</small><strong>${rating}</strong></span>`
+        : '';
+      return `<div class="player-row${mine ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)}</span>${ratingBadge}<strong class="score">${fmtChessClock(S.chessClock[f.id])}</strong></div>`;
     }).join('');
     const active = S.turnOwner ?? S.turn ?? 0;
     $('turnBannerBox').classList.toggle('my-turn', active === (S.mode === 'online' ? onlineSide : 0));
@@ -2063,6 +2202,12 @@ function hud() {
     $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : (S.mode === 'online' ? 'XADREZ · AO VIVO' : 'XADREZ · EM ANDAMENTO');
     return;
   }
+  $('playLayout').classList.remove('classic-layout');
+  $('classicOpponentBar').classList.add('hidden');
+  $('classicPlayerBar').classList.add('hidden');
+  $('classicGamePanel').classList.add('hidden');
+  $('scoreCard').classList.remove('hidden');
+  $('battleLogCard').classList.remove('hidden');
   $('progressCard').classList.remove('hidden');
   $('lastMoveTimeText').parentElement.firstElementChild.textContent = 'Jogada anterior:';
   $('lb').innerHTML = rows.map(({ f, n }) => {
@@ -2221,6 +2366,7 @@ function openOnlineLobby() {
     : 'Encontre um adversário na fila pública ou crie uma sala privada.';
   $('queueBtn').textContent = classic ? 'BUSCAR OPONENTE RANQUEADO' : 'BUSCAR ADVERSÁRIO';
   $('classicTimeControl').value = classicTimeControl;
+  renderClassicRatingPreview();
   $('onlineLobbyGuestNotice').classList.toggle('hidden', signed);
   $('onlineLobbyAuthContent').classList.toggle('hidden', !signed);
   if (signed && !wsReady) connectSocket();
@@ -2242,6 +2388,19 @@ $('classicBotBtn').addEventListener('click', () => {
   classicTimeControl = $('classicTimeControl').value;
   openCpuDiffSelector(true);
 });
+$('classicTimeControl').addEventListener('change', () => {
+  classicTimeControl = $('classicTimeControl').value;
+  renderClassicRatingPreview();
+});
+
+function renderClassicRatingPreview() {
+  const category = CLASSIC_CONTROLS[$('classicTimeControl').value]?.category || 'blitz';
+  $('classicRatingCategory').textContent = `Rating ${CLASSIC_RATING_LABELS[category]}`;
+  $('classicLobbyRating').textContent = String(classicRatingFor(category));
+  $('classicRatingNote').textContent = onlineUser
+    ? 'Seu rating muda em partidas públicas ranqueadas.'
+    : 'Entre para salvar seu rating nas partidas ranqueadas.';
+}
 
 function launchSelectedGame(mode) {
   tut.active = false;
@@ -2657,6 +2816,7 @@ function renderAccount() {
     $('headerAvatar').textContent = '♟';
     $('headerAccountLabel').textContent = 'Entrar / Conta';
   }
+  renderClassicRatingPreview();
   updateNavBadges();
 }
 
@@ -2967,6 +3127,11 @@ $('copyRecoveryKeyBtn').addEventListener('click', async () => {
 /* Online Game State Synchronization */
 function applyOnlineState(data) {
   if (!data) return;
+  const previousSize = N;
+  const previousFlip = isClassicBoardFlipped();
+  const sameOnlineGame = S?.mode === 'online' && S.classic && !S.over;
+  const moveHistory = sameOnlineGame ? [...(S.classicMoveHistory || [])] : [];
+  const previousMoveKey = sameOnlineGame ? S.onlineMoveKey : null;
   tut.active = false;
   $('tutorialBanner').classList.add('hidden');
   clearHudHighlights();
@@ -2987,11 +3152,28 @@ function applyOnlineState(data) {
     alive: t.alive !== false, respawn: 0, kings: t.kings || 0,
     energy: t.energy || 0, boostUntil: t.boostUntil || 0, captures: t.captures || 0
   }));
+  const lastMove = data.lastMove || null;
+  const onlineMoveKey = lastMove
+    ? [lastMove.x0, lastMove.y0, lastMove.x1, lastMove.y1, lastMove.t].join(':')
+    : null;
+  if (classic && lastMove && onlineMoveKey !== previousMoveKey) {
+    const piece = pieces.find(item => item.x === lastMove.x1 && item.y === lastMove.y1);
+    const side = Number.isInteger(lastMove.owner) ? lastMove.owner : 1 - (data.turn ?? 0);
+    const notation = classicMoveText(piece?.t || 'P', lastMove.x0, lastMove.y0, lastMove.x1, lastMove.y1, false);
+    moveHistory.push({
+      side,
+      text: notation + (data.over && data.reason === 'Xeque-mate.' ? '#' : '')
+    });
+  } else if (classic && data.over && data.reason === 'Xeque-mate.' && moveHistory.length) {
+    const last = moveHistory[moveHistory.length - 1];
+    if (!last.text.endsWith('#')) last.text += '#';
+  }
 
   S = {
     mode: 'online', classic, T: data.T || 0, grid, pieces, orbs: data.orbs || [], f: teams,
     opponent: data.opponent || null,
     options: data.options || {},
+    rated: Boolean(data.rated),
     turn: data.turn ?? 0,
     turnOwner: data.turn ?? 0,
     chessClock: classic ? (data.clocks || [0, 0]) : null,
@@ -3002,7 +3184,9 @@ function applyOnlineState(data) {
     ratingChanges: data.ratingChanges || null,
     sel: selectedId ? pieces.find(p => p.id === selectedId) || null : null,
     over: Boolean(data.over), started: true, nid: 0, foodT: 0, orbT: 0, attT: 0, att: null,
-    fx: [], events: data.events || [], lastMove: data.lastMove || null,
+    fx: [], events: data.events || [], lastMove,
+    classicMoveHistory: classic ? moveHistory : [],
+    onlineMoveKey,
     winner: data.winner ?? null, reason: data.reason || '',
     checkmatedKingOwner: classic && data.over && Number.isInteger(data.winner) && data.reason === 'Xeque-mate.'
       ? 1 - data.winner
@@ -3036,6 +3220,7 @@ function applyOnlineState(data) {
     $('classicMateBanner').classList.add('hidden');
   }
   hud();
+  if (previousSize !== N || previousFlip !== isClassicBoardFlipped()) resize();
 }
 
 function showOnlineResult() {
