@@ -1158,129 +1158,400 @@ label.field-label {
   .play-layout { flex-direction: row; align-items: flex-start; }
   #hud { width: 210px; flex-basis: 210px; grid-template-columns: 1fr; }
 }
-  /* Cerco Tático com Cartas — UI/UX com Toque Humano */
-  .cf-turn-pill[hidden],
-  .cf-hand-dock[hidden],
-  .cf-tactical-wrap[hidden],
-  .cf-tactical-modal[hidden] {
-    display: none !important;
-  }
-  .cf-turn-pill {
-    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
-    padding: 10px 22px; border-radius: 999px;
-    background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #f8fafc; font-weight: 600; letter-spacing: 0.3px;
-    display: flex; align-items: center; gap: 12px; z-index: 90;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  }
-  .cf-turn-pill.my-turn {
-    border-color: rgba(56, 189, 248, 0.7);
-    box-shadow: 0 10px 32px rgba(56, 189, 248, 0.28);
-  }
-  .cf-hand-dock {
-    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 14px; padding: 12px 18px; z-index: 90;
-  }
-  .cf-card {
-    width: 152px; padding: 14px; border-radius: 16px; cursor: pointer;
-    background: linear-gradient(155deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    color: #e2e8f0; user-select: none; position: relative;
-    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-                border-color 0.25s ease, opacity 0.25s ease;
-  }
-  .cf-card:hover:not(.disabled) {
-    transform: translateY(-16px) scale(1.04) rotate(-1deg);
-    border-color: #38bdf8;
-    box-shadow: 0 18px 34px rgba(56, 189, 248, 0.28);
-  }
-  .cf-card.selected {
-    transform: translateY(-22px) scale(1.06);
-    border-color: #facc15;
-    box-shadow: 0 20px 38px rgba(250, 204, 21, 0.34);
-  }
-  .cf-card.playing {
-    transform: translateY(-70px) scale(0.82);
-    opacity: 0; pointer-events: none;
-  }
-  .cf-card.disabled { opacity: 0.45; cursor: not-allowed; }
-  .cf-card-cost {
-    position: absolute; top: -9px; right: -9px; width: 28px; height: 28px;
-    border-radius: 50%; background: #0284c7; color: #fff; font-weight: 800;
-    display: grid; place-items: center; font-size: 13px;
-    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.5);
-  }
-  .cf-ap-bar { display: flex; gap: 8px; align-items: center; }
-  .cf-ap-orb {
-    width: 14px; height: 14px; border-radius: 50%;
-    background: rgba(148, 163, 184, 0.25);
-    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease;
-  }
-  .cf-ap-orb.active {
-    background: #38bdf8; transform: scale(1.18);
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
-  }
-  .cf-tactical-wrap {
-    position: fixed; inset: 0; display: grid; place-items: center;
-    background: rgba(9, 12, 20, 0.88); backdrop-filter: blur(8px); z-index: 80;
-  }
-  .cf-tactical-grid {
-    display: grid; grid-template-columns: repeat(12, 38px); gap: 3px;
-    padding: 12px; border-radius: 18px; background: rgba(15, 23, 42, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-  .cf-cell {
-    width: 38px; height: 38px; border-radius: 8px;
-    background: rgba(30, 41, 59, 0.72); display: grid; place-items: center;
-    transition: background 0.2s ease, transform 0.2s ease; font-size: 18px;
-  }
-  .cf-cell.valid-move {
-    background: rgba(16, 185, 129, 0.24);
-    box-shadow: inset 0 0 0 1.5px rgba(52, 211, 153, 0.65); cursor: pointer;
-  }
-  .cf-cell.valid-move:hover { background: rgba(16, 185, 129, 0.42); transform: scale(1.06); }
-  .cf-cell.valid-card {
-    background: rgba(250, 204, 21, 0.22);
-    box-shadow: inset 0 0 0 1.5px rgba(250, 204, 21, 0.75); cursor: crosshair;
-  }
-  .cf-cell.wall { background: rgba(139, 92, 246, 0.42); border: 1px solid #a78bfa; }
-  .cf-tactical-modal {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: rgba(15, 23, 42, 0.96); border: 1px solid rgba(250, 204, 21, 0.4);
-    border-radius: 20px; padding: 24px; z-index: 100; color: #f8fafc;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65); max-width: 92vw;
-  }
-  @keyframes cf-shake {
-    0%, 100% { transform: translate(0, 0); }
-    20% { transform: translate(-6px, 3px); }
-    40% { transform: translate(5px, -4px); }
-    60% { transform: translate(-4px, -2px); }
-    80% { transform: translate(4px, 3px); }
-  }
-  .cf-shake { animation: cf-shake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+  /* ================================================================
+     CERCO TÁTICO — HUD de partida dedicada
+     ================================================================ */
+  #noticeStack { z-index: 260; }
+  #confirmExitModal, #tutorialReviewModal { z-index: 240; }
+  .ts-scene[hidden], .ts-overlay[hidden], .ts-tut-layer[hidden] { display: none !important; }
 
-  /* Sistema de Tooltips em Overlay (Foco em UI) */
-  .cf-tut-layer[hidden] { display: none !important; }
-  .cf-tut-layer {
-    position: fixed; inset: 0; z-index: 120; pointer-events: auto;
+  .ts-scene {
+    position: fixed; inset: 0; z-index: 90;
+    background: var(--bg); color: var(--text);
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
   }
-  .cf-spotlight-ring {
-    position: fixed; border-radius: 14px; pointer-events: none;
-    border: 2px solid #facc15;
-    box-shadow: 0 0 0 9999px rgba(6, 9, 18, 0.78), 0 0 28px rgba(250, 204, 21, 0.45);
-    transition: top 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* --- Área superior --- */
+  .ts-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border); background: var(--bg-elev);
   }
-  .cf-tooltip-card {
-    position: fixed; width: 310px; padding: 18px; border-radius: 16px;
-    background: rgba(15, 23, 42, 0.97); border: 1px solid rgba(250, 204, 21, 0.5);
-    color: #f8fafc; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  .ts-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ts-brand-mark { width: 30px; height: 30px; color: var(--gold); flex: 0 0 auto; }
+  .ts-brand strong { display: block; font-size: 15px; letter-spacing: 0.3px; }
+  .ts-brand small { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-turn {
+    display: flex; align-items: center; gap: 10px; padding: 6px 12px; min-width: 0;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--panel);
+    transition: border-color 0.25s ease;
+  }
+  .ts-turn[data-owner="me"] { border-color: rgba(111, 157, 175, 0.75); }
+  .ts-turn[data-owner="enemy"] { border-color: rgba(189, 119, 120, 0.75); }
+  .ts-turn-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+  .ts-turn[data-owner="me"] .ts-turn-dot { background: #6f9daf; }
+  .ts-turn[data-owner="enemy"] .ts-turn-dot { background: #bd7778; }
+  .ts-turn-label { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-clock-box { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+  .ts-clock { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 16px; }
+  .ts-limit { font-size: 10.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ts-limit.warn { color: var(--gold); }
+  .ts-controls { display: flex; gap: 6px; flex: 0 0 auto; }
+
+  .ts-btn {
+    border: 1px solid var(--border-strong); background: var(--panel); color: var(--text);
+    border-radius: 6px; padding: 7px 11px; font-size: 12px; font-weight: 650;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .ts-btn:hover:not(:disabled) { border-color: var(--muted); background: var(--panel-alt); }
+  .ts-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .ts-btn.danger { border-color: #6b4242; color: #e3a8a8; }
+  .ts-btn.danger:hover:not(:disabled) { border-color: var(--red); }
+  .ts-btn.primary { background: var(--accent); border-color: var(--accent); color: #10171b; }
+  .ts-btn.primary:hover:not(:disabled) { background: var(--accent-strong, #94b8c9); }
+  .ts-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
+
+  /* --- Área central --- */
+  .ts-main {
+    display: grid; gap: 14px; padding: 14px 16px 10px; min-height: 0;
+    grid-template-columns: 236px minmax(0, 1fr) 236px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "me arena enemy" "times arena log";
+  }
+  .ts-col { display: contents; }
+  .ts-player[data-side="me"] { grid-area: me; }
+  .ts-player[data-side="enemy"] { grid-area: enemy; }
+  .ts-times-box { grid-area: times; }
+  .ts-log { grid-area: log; }
+  .ts-arena { grid-area: arena; }
+
+  .ts-player {
+    --side-col: #6f9daf;
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 12px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .ts-player[data-side="enemy"] { --side-col: #bd7778; }
+  .ts-player.active { border-color: var(--side-col); box-shadow: inset 0 0 0 1px var(--side-col); }
+  .ts-player-head { display: flex; gap: 10px; align-items: center; min-width: 0; }
+  .ts-portrait {
+    width: 62px; height: 74px; flex: 0 0 auto; border-radius: 8px; overflow: hidden;
+    background: #1c1b18; border: 1px solid var(--border); position: relative;
+  }
+  .ts-portrait .ts-fig { position: absolute; left: 4%; right: 4%; bottom: 0; height: 100%; }
+  .ts-player-id { min-width: 0; }
+  .ts-player-tag { font-size: 10px; color: var(--side-col); text-transform: uppercase; letter-spacing: 0.7px; font-weight: 750; }
+  .ts-player-name { font-weight: 750; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-player-sub { font-size: 11px; color: var(--muted); }
+  .ts-stat { display: flex; flex-direction: column; gap: 4px; }
+  .ts-stat-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--muted); }
+  .ts-stat-row strong { color: var(--text); font-variant-numeric: tabular-nums; }
+  .ts-pips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ts-pip { width: 18px; height: 7px; border-radius: 2px; background: #34312b; transition: background 0.25s ease; }
+  .ts-pip.on { background: var(--side-col); }
+  .ts-vp-track { height: 7px; border-radius: 99px; background: #141311; overflow: hidden; }
+  .ts-vp-fill { height: 100%; width: 0; background: var(--gold); transition: width 0.45s ease; }
+  .ts-badge {
+    font-size: 11px; line-height: 1.35; padding: 5px 7px; border-radius: 6px;
+    background: #2b271e; border: 1px solid #4d432e; color: #e8d6ad; display: flex; gap: 6px; align-items: flex-start;
+  }
+  .ts-badge.plain { background: transparent; border-color: var(--border); color: var(--muted); }
+  .ts-badge.fog { background: #1f2225; border-color: #3c4248; color: #b7c0c7; }
+  .ts-badge svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; }
+
+  .ts-box {
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; font-size: 11.5px; display: flex; flex-direction: column; gap: 7px; min-height: 0; min-width: 0;
+  }
+  .ts-box h4 { margin: 0; font-size: 10px; letter-spacing: 0.7px; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .ts-times { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
+  .ts-time-row { display: flex; justify-content: space-between; gap: 6px; font-variant-numeric: tabular-nums; padding: 2px 4px; border-radius: 4px; }
+  .ts-time-row:nth-child(odd) { background: rgba(255, 255, 255, 0.025); }
+  .ts-time-row .who { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-time-row i { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+  .ts-time-row em { font-style: normal; font-size: 10px; color: var(--gold); }
+  .ts-events { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; color: #d4d0c7; }
+  .ts-event { line-height: 1.35; padding-left: 9px; border-left: 2px solid var(--border-strong); }
+  .ts-event.me { border-left-color: #6f9daf; }
+  .ts-event.enemy { border-left-color: #bd7778; }
+  .ts-empty { color: var(--muted); }
+
+  /* --- Tabuleiro --- */
+  .ts-arena { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 0; min-width: 0; }
+  .ts-board-frame {
+    width: min(100%, calc(100dvh - 330px)); max-width: 640px; min-width: 240px; aspect-ratio: 1;
+    padding: 7px; background: #2b2823; border: 1px solid var(--border-strong); border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); position: relative;
+  }
+  .ts-board {
+    --n: 12; position: relative; width: 100%; height: 100%; border-radius: 4px; overflow: hidden;
+    display: grid; grid-template-columns: repeat(var(--n), 1fr); grid-template-rows: repeat(var(--n), 1fr);
+  }
+  .ts-cell { position: relative; border: 0; padding: 0; margin: 0; cursor: default; min-width: 0; min-height: 0; }
+  .ts-cell.l { background: #bfb8a4; }
+  .ts-cell.d { background: #98a190; }
+  .ts-cell.fog::after { content: ''; position: absolute; inset: 0; background: rgba(28, 27, 24, 0.36); pointer-events: none; }
+  .ts-cell.move, .ts-cell.target { cursor: pointer; }
+  .ts-cell.move::before { content: ''; position: absolute; inset: 34%; border-radius: 50%; background: rgba(34, 50, 42, 0.5); transition: inset 0.15s; }
+  .ts-cell.move:hover::before { inset: 28%; background: rgba(34, 50, 42, 0.72); }
+  .ts-cell.target::before {
+    content: ''; position: absolute; inset: 8%; border-radius: 4px;
+    border: 2px solid rgba(207, 175, 114, 0.95); background: rgba(207, 175, 114, 0.16);
+  }
+  .ts-cell.target:hover::before { background: rgba(207, 175, 114, 0.36); }
+  .ts-cell:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .ts-coord { position: absolute; font-size: 9px; line-height: 1; color: rgba(30, 34, 30, 0.55); pointer-events: none; font-weight: 700; }
+  .ts-coord.row { left: 2px; top: 2px; }
+  .ts-coord.col { right: 2px; bottom: 2px; }
+  .ts-wall { position: absolute; inset: 5%; pointer-events: none; }
+  .ts-wall.new { animation: ts-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
+  .ts-wall-left { position: absolute; right: 3px; top: 2px; font-size: 9px; font-weight: 800; color: #efeaff; pointer-events: none; text-shadow: 0 1px 1px rgba(0,0,0,.6); }
+
+  .ts-layer { position: absolute; inset: 0; pointer-events: none; }
+  .ts-token {
+    position: absolute; left: 0; top: 0; width: calc(100% / var(--n)); height: calc(100% / var(--n));
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease; will-change: transform;
+  }
+  .ts-token.me { --side-col: #6f9daf; }
+  .ts-token.enemy { --side-col: #bd7778; }
+  .ts-token.fogged { opacity: 0; }
+  .ts-token .ts-ring { position: absolute; left: 10%; right: 10%; bottom: 3%; height: 24%; border-radius: 50%; background: rgba(0, 0, 0, 0.25); border: 2px solid var(--side-col); }
+  .ts-token .ts-fig { position: absolute; left: 2%; right: 2%; bottom: 9%; height: 118%; }
+  .ts-token.active .ts-ring { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
+  .ts-crown-on { position: absolute; left: 30%; width: 40%; top: -26%; color: #d9b45f; filter: drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
+  .ts-crown-free { position: absolute; left: 0; top: 0; width: calc(100% / var(--n)); height: calc(100% / var(--n)); display: grid; place-items: center; }
+  .ts-crown-free svg { width: 64%; height: 64%; color: #d9b45f; filter: drop-shadow(0 2px 2px rgba(0,0,0,.4)); animation: ts-float 3s ease-in-out infinite; }
+
+  .ts-fig .ts-bob { width: 100%; height: 100%; transform-origin: 50% 100%; }
+  .ts-fig svg { width: 100%; height: 100%; display: block; overflow: visible; transform-origin: 50% 100%; }
+  .ts-fig.idle .ts-bob { animation: ts-idle 3.6s ease-in-out infinite; }
+  .ts-fig.enemy-fig.idle .ts-bob { animation-delay: -1.7s; }
+  .ts-fig.step svg { animation: ts-step 0.42s ease-out; }
+  .ts-fig.cast svg { animation: ts-cast 0.55s ease-out; }
+  .ts-fig.attack svg { animation: ts-attack 0.5s ease-out; }
+  .ts-fig.hit svg { animation: ts-hit 0.55s ease-out; }
+  .ts-fig.blink svg { animation: ts-blink 0.5s ease-in-out; }
+  .ts-fig.won svg { animation: ts-hop 1s ease-in-out 2; }
+  .ts-fig.lost svg { filter: grayscale(0.85) brightness(0.72); transform: rotate(-9deg) translateY(4%); transition: filter 0.8s ease, transform 0.8s ease; }
+  .ts-fig.enemy-fig.attack svg { --lunge: -9%; }
+  .ts-board-frame.shake { animation: ts-shake 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+  @keyframes ts-idle { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-1.6%) scaleY(1.012); } }
+  @keyframes ts-step { 0% { transform: none; } 45% { transform: translateY(-7%) rotate(-2deg); } 100% { transform: none; } }
+  @keyframes ts-cast { 0% { transform: none; } 35% { transform: translateY(-8%) scale(1.05); filter: brightness(1.18); } 100% { transform: none; } }
+  @keyframes ts-attack { 0% { transform: none; } 30% { transform: translateX(var(--lunge, 9%)) rotate(4deg); } 100% { transform: none; } }
+  @keyframes ts-hit {
+    0% { transform: none; filter: none; }
+    20% { transform: translateX(-6%); filter: sepia(1) saturate(3.5) hue-rotate(-28deg) brightness(0.9); }
+    45% { transform: translateX(5%); }
+    70% { transform: translateX(-3%); filter: none; }
+    100% { transform: none; }
+  }
+  @keyframes ts-blink { 0%, 100% { opacity: 1; transform: none; } 45% { opacity: 0.1; transform: scale(0.82); } }
+  @keyframes ts-hop { 0%, 100% { transform: none; } 25% { transform: translateY(-12%); } 50% { transform: none; } 75% { transform: translateY(-6%); } }
+  @keyframes ts-rise { from { transform: translateY(30%) scaleY(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes ts-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6%); } }
+  @keyframes ts-shake {
+    0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-5px, 2px); }
+    40% { transform: translate(4px, -3px); } 60% { transform: translate(-3px, -1px); } 80% { transform: translate(3px, 2px); }
+  }
+
+  .ts-feedback {
+    min-height: 20px; max-width: 640px; width: 100%; text-align: center; font-size: 12.5px; color: #d9d4c8;
+    transition: opacity 0.2s ease;
+  }
+  .ts-feedback.err { color: #e3a8a8; }
+
+  /* --- Área inferior: cartas e ações --- */
+  .ts-bottom {
+    border-top: 1px solid var(--border); background: var(--bg-elev);
+    padding: 8px 16px 12px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: stretch;
+  }
+  .ts-hand-wrap { min-width: 0; }
+  .ts-hand-head { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; letter-spacing: 0.7px; text-transform: uppercase; color: var(--muted); }
+  .ts-hand { display: flex; gap: 10px; overflow-x: auto; overflow-y: visible; padding: 12px 2px 4px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+  .ts-hand .ts-empty { padding: 20px 4px; font-size: 12px; }
+
+  .ts-card {
+    --card-accent: var(--gold);
+    position: relative; flex: 0 0 150px; height: 198px; border-radius: 10px; text-align: left;
+    background: #2a2722; border: 1px solid var(--border-strong); border-top: 3px solid var(--card-accent);
+    padding: 8px 8px 7px; display: flex; flex-direction: column; gap: 6px; color: var(--text);
+    cursor: pointer; scroll-snap-align: start; font: inherit;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
+  }
+  .ts-card[data-card="short_teleport"] { --card-accent: #7fa7b9; }
+  .ts-card[data-card="crown_dash"] { --card-accent: #cfaf72; }
+  .ts-card[data-card="flux_wall"] { --card-accent: #8d86a0; }
+  .ts-card[data-card="flux_siphon"] { --card-accent: #bd7778; }
+  .ts-card:hover:not(.locked):not(.static) { transform: translateY(-6px); border-color: var(--muted); border-top-color: var(--card-accent); }
+  .ts-card.selected { transform: translateY(-10px); border-color: var(--gold); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--gold); }
+  .ts-card.locked { opacity: 0.56; cursor: help; }
+  .ts-card.static { cursor: default; }
+  .ts-card.denied { animation: ts-deny 0.32s ease; }
+  .ts-card.playing { animation: ts-play 0.34s ease-in forwards; pointer-events: none; }
+  @keyframes ts-deny { 0%, 100% { transform: none; } 30% { transform: translateX(-4px); } 60% { transform: translateX(4px); } }
+  @keyframes ts-play { to { transform: translateY(-46px) scale(0.9); opacity: 0; } }
+  .ts-card-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .ts-cost {
+    width: 27px; height: 27px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center;
+    background: #1d2a30; border: 1.5px solid #6f9daf; color: #d8ecf4; font-weight: 800; font-size: 13px; line-height: 1;
+  }
+  .ts-cost small { display: none; }
+  .ts-card-name { font-size: 12.5px; font-weight: 750; line-height: 1.15; }
+  .ts-card-type { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .ts-card-art { height: 54px; border-radius: 6px; background: #1e1c19; border: 1px solid var(--border); display: grid; place-items: center; color: var(--card-accent); flex: 0 0 auto; }
+  .ts-card-art svg { width: 42px; height: 42px; }
+  .ts-card-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ts-chip { font-size: 9.5px; padding: 2px 5px; border-radius: 4px; background: #34312b; color: #d8d2c4; white-space: nowrap; }
+  .ts-card-desc { font-size: 10.6px; line-height: 1.33; color: #cfc9bd; flex: 1; overflow: hidden; }
+  .ts-card-lock { font-size: 10px; color: var(--gold); line-height: 1.25; }
+
+  .ts-detail {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  }
+  .ts-detail-title { font-size: 13px; font-weight: 750; }
+  .ts-detail-text { font-size: 11.8px; line-height: 1.45; color: #d4d0c7; flex: 1; }
+  .ts-detail-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ts-detail-actions .ts-btn { flex: 1 1 auto; }
+
+  /* --- Sobreposições internas (Draft, Resultado, Regras) --- */
+  .ts-overlay {
+    position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(16, 15, 13, 0.74); overflow-y: auto;
+  }
+  .ts-panel {
+    width: min(100%, 680px); max-height: 100%; overflow-y: auto; margin: auto;
+    background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 12px;
+    padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  }
+  .ts-panel h2 { margin: 0; font-size: 19px; }
+  .ts-panel p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #d4d0c7; }
+  .ts-eyebrow { font-size: 10.5px; letter-spacing: 1px; font-weight: 750; text-transform: uppercase; color: var(--accent); }
+  .ts-draft-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding-top: 8px; }
+  .ts-draft-cards .ts-card { flex-basis: 158px; }
+  .ts-countbar { height: 5px; border-radius: 99px; background: #141311; overflow: hidden; }
+  .ts-countbar > i { display: block; height: 100%; background: var(--gold); width: 100%; transition: width 0.25s linear; }
+
+  .ts-result-figs { display: flex; justify-content: center; align-items: flex-end; gap: 28px; padding: 6px 0; }
+  .ts-result-fig { width: 92px; height: 110px; position: relative; }
+  .ts-result-fig .ts-fig { position: absolute; inset: 0; }
+  .ts-result-fig span { position: absolute; bottom: -18px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-result-title { text-align: center; }
+  .ts-result-title h2 { font-size: 26px; letter-spacing: 0.5px; }
+  .ts-result-title.win h2 { color: var(--green); }
+  .ts-result-title.loss h2 { color: var(--red); }
+  .ts-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .ts-stats-grid div { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px; text-align: center; }
+  .ts-stats-grid span { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .ts-stats-grid strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .ts-timeline { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; max-height: 170px; overflow-y: auto; font-size: 11.8px; }
+  .ts-timeline li { display: flex; gap: 8px; padding: 4px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.025); }
+  .ts-timeline b { color: var(--muted); font-weight: 650; min-width: 52px; font-variant-numeric: tabular-nums; }
+  .ts-panel-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .ts-note { font-size: 11px; color: var(--muted); text-align: center; }
+  .ts-rules-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 12.3px; line-height: 1.45; color: #d4d0c7; }
+
+  /* --- Tutorial do Cerco: foco em elemento --- */
+  .ts-tut-layer { position: fixed; inset: 0; z-index: 230; }
+  .ts-spot {
+    position: fixed; border-radius: 10px; pointer-events: none; border: 2px solid var(--gold);
+    box-shadow: 0 0 0 9999px rgba(10, 10, 9, 0.72);
+    transition: top 0.4s cubic-bezier(0.22, 1, 0.36, 1), left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                width 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .ts-tip {
+    position: fixed; width: min(330px, calc(100vw - 24px)); padding: 15px; border-radius: 12px;
+    background: var(--bg-elev); border: 1px solid #5c5036; color: var(--text);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; gap: 8px;
+  }
+  .ts-tip strong { color: var(--gold); font-size: 13.5px; }
+  .ts-tip p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #d9d4c8; }
+  .ts-tip .ts-eyebrow { color: var(--muted); }
+
+  /* --- Guia "Como jogar" do Cerco Tático --- */
+  .tg-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; }
+  .tg-char { width: 96px; height: 116px; position: relative; background: #1c1b18; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .tg-char .ts-fig { position: absolute; left: 6%; right: 6%; bottom: 0; height: 100%; }
+  .tg-char-label { font-size: 11px; text-align: center; margin-top: 5px; color: var(--muted); }
+  .tg-char-label b { display: block; color: var(--text); font-size: 12px; }
+  .tg-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .tg-step { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .tg-step h4 { margin: 0; font-size: 13px; display: flex; gap: 8px; align-items: center; }
+  .tg-step h4 span { width: 22px; height: 22px; border-radius: 50%; background: #332e22; border: 1px solid #5c5036; color: var(--gold); display: grid; place-items: center; font-size: 11px; flex: 0 0 auto; }
+  .tg-step p, .tg-step li { margin: 0; font-size: 12.3px; line-height: 1.5; color: #d4d0c7; }
+  .tg-step ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
+  .tg-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+  .tg-demo { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+  .tg-demo-board { width: min(100%, 300px); aspect-ratio: 1; padding: 6px; background: #2b2823; border: 1px solid var(--border-strong); border-radius: 9px; }
+  .tg-demo-board .ts-board { --n: 7; }
+  .tg-demo-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tg-demo-actions .ts-btn.on { border-color: var(--gold); color: var(--gold); }
+
+  /* --- Responsividade --- */
+  @media (prefers-reduced-motion: reduce) {
+    .ts-fig.idle .ts-bob, .ts-crown-free svg { animation: none !important; }
+    .ts-token { transition-duration: 0.01s; }
+  }
+  @media (max-width: 1100px) {
+    .ts-main { grid-template-columns: 206px minmax(0, 1fr) 206px; }
+    .ts-bottom { grid-template-columns: minmax(0, 1fr) 260px; }
+  }
+  @media (max-width: 860px) {
+    .ts-scene { grid-template-rows: auto auto auto; overflow-y: auto; overflow-x: hidden; }
+    .ts-top { flex-wrap: wrap; padding: 8px 10px; gap: 8px; }
+    .ts-brand small { max-width: 52vw; }
+    .ts-turn { order: 3; flex: 1 1 100%; justify-content: space-between; }
+    .ts-controls .ts-btn { padding: 7px 9px; }
+    .ts-main {
+      padding: 8px 10px; gap: 8px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto;
+      grid-template-areas: "me enemy" "arena arena" "times times" "log log";
+    }
+    .ts-player { padding: 8px; gap: 6px; }
+    .ts-portrait { width: 40px; height: 48px; }
+    .ts-player-name { font-size: 12.5px; }
+    .ts-player-sub, .ts-player .ts-badge-text-long { display: none; }
+    .ts-player .ts-badge { font-size: 10.5px; padding: 4px 6px; }
+    .ts-pip { width: 13px; }
+    .ts-board-frame { width: 100%; max-width: 560px; min-width: 0; padding: 5px; }
+    .ts-box { max-height: 170px; }
+    .ts-bottom { grid-template-columns: 1fr; padding: 6px 10px 10px; gap: 8px; position: sticky; bottom: 0; z-index: 5; }
+    .ts-card { flex-basis: 128px; height: 176px; }
+    .ts-card-art { height: 40px; }
+    .ts-card-art svg { width: 32px; height: 32px; }
+    .ts-detail { padding: 8px 10px; }
+    .ts-detail-text { font-size: 11.3px; }
+    .ts-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tg-hero { grid-template-columns: 1fr 1fr; }
+    .tg-hero > div:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
+    .tg-demo { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 420px) {
+    .ts-controls .ts-btn .lbl-long { display: none; }
+    .ts-card { flex-basis: 118px; height: 170px; }
+    .ts-card-desc { font-size: 10px; }
+  }
+  @media (orientation: landscape) and (max-height: 540px) and (max-width: 1000px) {
+    .ts-main {
+      grid-template-columns: minmax(0, 1fr) 210px;
+      grid-template-rows: auto auto auto auto;
+      grid-template-areas: "arena me" "arena enemy" "arena times" "arena log";
+    }
+    .ts-board-frame { width: min(100%, calc(100dvh - 40px)); }
+    .ts-turn { order: 0; flex: 0 1 auto; }
+  }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(12, 12, 10, 0.78);
+    z-index: 240; display: flex; align-items: center; justify-content: center; padding: 14px;
+  }
+  .modal-backdrop .dialog {
+    background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 9px;
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;
   }
 
   /* Painel Lateral, Cronômetro por Jogada e Responsividade Aprimorada */
@@ -1626,6 +1897,7 @@ label.field-label {
         <button class="guide-tab" data-gtab="captures" type="button">3. Capturas & Evolução</button>
         <button class="guide-tab" data-gtab="flux" type="button">4. Fragmentos Flux & Surto</button>
         <button class="guide-tab" data-gtab="modes" type="button">5. Modos & Partidas Online</button>
+        <button class="guide-tab" data-gtab="tactical" type="button">6. Cerco Tático (Cartas)</button>
       </div>
 
       <!-- Tab 1: Overview -->
@@ -1750,6 +2022,97 @@ label.field-label {
           </div>
         </div>
       </div>
+
+      <!-- Tab 6: Cerco Tático (modo por turnos com cartas) -->
+      <div class="guide-section" id="gtab-tactical">
+        <div class="guide-block">
+          <div class="tg-hero">
+            <div><div class="tg-char" id="tgCharMe"></div><div class="tg-char-label"><b>Guardião Azul</b>Você</div></div>
+            <div>
+              <h3 style="margin:0 0 6px">🃏 O que é o Cerco Tático?</h3>
+              <p>Um duelo 1v1 <b>por turnos</b> num tabuleiro de <span data-rule="boardSize"></span>×<span data-rule="boardSize"></span>. Cada jogador controla <b>um único personagem</b> e gasta <b>Pontos de Ação (PA)</b> para andar e jogar cartas. O objetivo é capturar a <b>Coroa</b> e mantê-la até somar <b><span data-rule="targetVp"></span> Pontos de Vitória (PV)</b>.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <button class="primary" id="tgStartTutorial" type="button">Tutorial do Cerco Tático (3 etapas)</button>
+                <button class="secondary" id="tgStartCpu" type="button">Treinar contra a CPU</button>
+              </div>
+              <p class="muted" style="margin-top:8px">Requer conta: as partidas são processadas no servidor. Para jogar com um amigo, abra o lobby online, clique em <b>Cerco Tático (Cartas)</b> e compartilhe o código de 4 letras.</p>
+            </div>
+            <div><div class="tg-char" id="tgCharEnemy"></div><div class="tg-char-label"><b>Sitiante Rubi</b>Adversário</div></div>
+          </div>
+        </div>
+
+        <div class="tg-steps">
+          <div class="tg-step">
+            <h4><span>1</span>Objetivo e vitória</h4>
+            <p>Pise na casa da Coroa para capturá-la. Cada vez que você <b>encerra seu turno com a Coroa</b>, ganha <b>+2 PV</b>. Quem chegar a <b><span data-rule="targetVp"></span> PV</b> vence.</p>
+            <p>A partida também termina por <b>desistência</b>, <b>abandono</b> ou se um jogador ficar desconectado por mais de <span data-rule="reconnectMs"></span>s.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>2</span>Turnos e Pontos de Ação</h4>
+            <p>Os jogadores alternam turnos. No início do seu turno você recebe <b><span data-rule="basePa"></span> PA</b>. Andar custa 1 PA; cada carta mostra seu custo no círculo azul.</p>
+            <p>Clique em <b>Encerrar turno</b> para passar a vez. <b>PA que sobra é perdido</b>. Uma rodada termina quando os dois jogadores jogaram.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>3</span>Movimento</h4>
+            <p>No seu turno, as casas vizinhas válidas aparecem com um ponto escuro. Clique numa delas para andar <b>1 casa para cima, baixo, esquerda ou direita</b>.</p>
+            <p>Não é possível entrar em casas com <b>Parede de Fluxo</b> ou ocupadas pelo outro personagem.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>4</span>Selecionar e usar cartas</h4>
+            <ul>
+              <li>Clique numa carta da sua mão para selecioná-la.</li>
+              <li>Cartas com alvo destacam em <b>dourado</b> as casas válidas: clique numa delas.</li>
+              <li>O <b>Sifão de Fluxo</b> não tem alvo: confirme em <b>Usar carta</b>.</li>
+              <li>Cartas esmaecidas mostram o motivo (falta de PA, não é sua vez, sem alvo no alcance).</li>
+              <li>Você começa com <b>Teleporte Curto</b> e <b>Parede de Fluxo</b>; a carta usada sai da mão.</li>
+            </ul>
+          </div>
+          <div class="tg-step">
+            <h4><span>5</span>Fase de Draft</h4>
+            <p>A cada <b><span data-rule="draftEveryRounds"></span> rodadas completas</b> o jogo pausa por <b><span data-rule="draftMs"></span>s</b>. Cada jogador escolhe <b>1 de 3 cartas</b> sorteadas para adicionar à mão.</p>
+            <p>Se o tempo acabar sem escolha, a primeira opção é adicionada automaticamente.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>6</span>Coroa e névoa de guerra</h4>
+            <p>Você só enxerga o adversário a até <b><span data-rule="visionRadius"></span> casas</b> (distância em passos). Fora disso, ele fica oculto pela névoa.</p>
+            <p>Quem está com a Coroa paga o preço: <b>PA base cai para <span data-rule="basePaCrown"></span></b> e sua <b>posição fica sempre visível</b>.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>7</span>Cronômetro</h4>
+            <p>O relógio no topo da partida mostra há quanto tempo o jogador da vez está decidindo. Ao fim de cada turno, o tempo é registrado em <b>Tempo por jogada</b>.</p>
+            <p>Cada turno tem limite de <b><span data-rule="turnLimitMs"></span>s</b>: ao estourar, o turno é encerrado automaticamente. O relógio pausa durante reconexões e nas explicações do tutorial.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>8</span>Desistir ou sair</h4>
+            <ul>
+              <li><b>Desistir</b>: pede confirmação e registra <b>derrota</b> no histórico.</li>
+              <li><b>Menu principal</b> contra uma pessoa: conta como <b>abandono</b> (vitória do adversário, registrada).</li>
+              <li><b>Menu principal</b> contra a CPU: a partida é <b>descartada</b>, sem registro.</li>
+              <li>O tutorial é treino e nunca entra no histórico.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="guide-block">
+          <h3>As cartas do Cerco Tático</h3>
+          <p class="muted" style="margin-top:0">Estas são todas as cartas existentes no modo, com os mesmos custos e efeitos usados nas partidas.</p>
+          <div class="tg-cards" id="tgCards"></div>
+        </div>
+
+        <div class="guide-block">
+          <h3>Demonstração interativa</h3>
+          <div class="tg-demo">
+            <div class="tg-demo-board"><div class="ts-board" id="tgDemoBoard" aria-label="Tabuleiro de demonstração"></div></div>
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+              <p class="muted" style="margin:0">Escolha uma ação e clique nas casas destacadas. O alcance segue exatamente as regras da partida real. Leve o Guardião até a Coroa!</p>
+              <div class="tg-demo-actions" id="tgDemoActions"></div>
+              <strong id="tgDemoInfo" style="font-size:12px"></strong>
+              <p id="tgDemoText" style="font-size:12.5px;line-height:1.5;margin:0">Comece andando: clique numa casa com ponto ao lado do Guardião.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -4698,7 +5061,7 @@ function renderGameHistory(games) {
     const row = document.createElement('div');
     row.className = 'friend-item';
     const badgeColor = g.result === 'Vitória' ? 'var(--green)' : g.result === 'Derrota' ? 'var(--red)' : 'var(--gold)';
-    const modeLabel = g.mode === 'cpu' ? 'vs CPU' : g.mode === 'tutorial' ? 'Tutorial' : g.mode === 'duel' ? 'Duelo Local' : g.mode === 'arena' ? 'Arena' : 'Online 1v1';
+    const modeLabel = g.mode === 'cpu' ? 'vs CPU' : g.mode === 'tutorial' ? 'Tutorial' : g.mode === 'duel' ? 'Duelo Local' : g.mode === 'arena' ? 'Arena' : g.mode === 'tactical_cpu' ? 'Cerco Tático vs CPU' : g.mode === 'tactical' ? 'Cerco Tático' : 'Online 1v1';
     const scoresText = Array.isArray(g.scores) ? `Placar: ${g.scores[0]} × ${g.scores[1]}` : '';
     const dateStr = g.createdAt ? new Date(g.createdAt).toLocaleDateString('pt-BR') : '';
     row.innerHTML = `
@@ -4876,6 +5239,7 @@ function handleSocketEvent(msg) {
       showToast(msg.message || 'Atualização recebida.');
       break;
     case 'error':
+      if (window.TacticalUI?.isOpen()) window.TacticalUI.onError(msg.message || 'Ocorreu um erro.');
       showOnlineMessage(msg.message || 'Ocorreu um erro.', 'error');
       showToast(msg.message || 'Ocorreu um erro.');
       if (msg.code === 'AUTH_EXPIRED') {
@@ -4935,21 +5299,21 @@ function handleSocketEvent(msg) {
       matchmaking = false;
       $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
       if (msg.state?.mode === 'tactical_draft') {
-        renderTacticalState(msg.state);
-        if (msg.type === 'game:ended') renderReplaySummary(msg.state.replayLog || []);
+        window.TacticalUI?.onState(msg.state);
       } else {
         applyOnlineState(msg.state);
       }
       break;
     case 'tactical:state':
     case 'tactical:startDraft':
-      renderTacticalState(msg.state);
-      break;
     case 'tactical:cardEffect':
-      renderTacticalState(msg.state);
-      if (msg.hitSide === msg.state?.side) triggerScreenShake();
+      window.TacticalUI?.onState(msg.state);
+      break;
+    case 'tactical:left':
+      window.TacticalUI?.onLeft(msg.outcome);
       break;
     case 'game:connection':
+      if (window.TacticalUI?.isOpen()) window.TacticalUI.onConnection(msg);
       showToast(msg.connected ? 'Seu adversário reconectou à partida.' : 'Seu adversário perdeu a conexão. Aguardando reconexão...');
       break;
     case 'game:rematch-request':
@@ -5273,275 +5637,1224 @@ window.__crownflux = {
   reset, start, launchSelectedGame, startInteractiveTutorial, handleClick, doMove, moves, botThink, activateBoost, switchNav
 };
 </script>
-<div id="tacticalTurnPill" class="cf-turn-pill" hidden>
-  <span id="turnStatusText">Sua Vez</span>
-  <div id="apOrbs" class="cf-ap-bar"></div>
-  <span id="turnCrownScore">👑 0/10</span>
-  <button class="mini-btn" id="btnEndTurn" type="button">Encerrar Turno</button>
+<!-- ================================================================
+     CERCO TÁTICO — Cena de partida (HUD própria)
+     ================================================================ -->
+<div id="tacticalScene" class="ts-scene" hidden role="region" aria-label="Partida do Cerco Tático">
+  <header class="ts-top">
+    <div class="ts-brand">
+      <svg class="ts-brand-mark" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 28V12h14v16"/><path d="M7 12h18V6h-3v3h-3V6h-6v3h-3V6H7z"/><path d="M14 28v-6a2 2 0 0 1 4 0v6"/><path d="M4 28h24"/>
+      </svg>
+      <div style="min-width:0">
+        <strong>Cerco Tático</strong>
+        <small id="tsMeta">Preparando partida…</small>
+      </div>
+    </div>
+    <div class="ts-turn" id="tsTurnBox" data-owner="none" aria-live="polite">
+      <span class="ts-turn-dot"></span>
+      <span class="ts-turn-label" id="tsTurnLabel">Aguardando</span>
+      <div class="ts-clock-box">
+        <span class="ts-clock" id="tsClock" title="Tempo de decisão do turno atual">0:00</span>
+        <span class="ts-limit" id="tsLimit">—</span>
+      </div>
+    </div>
+    <div class="ts-controls">
+      <button class="ts-btn" id="tsRulesBtn" type="button" title="Regras do Cerco Tático">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3h4a2 2 0 0 1 1.5.7A2 2 0 0 1 9.5 3h4v10h-4a1.5 1.5 0 0 0-1.5 1.2A1.5 1.5 0 0 0 6.5 13h-4z"/><path d="M8 3.7V14"/></svg>
+        <span>Regras</span>
+      </button>
+      <button class="ts-btn" id="tsMenuBtn" type="button" title="Sair da partida e voltar ao menu principal">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 7.5 8 3l5.5 4.5V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5z"/></svg>
+        <span>Menu<span class="lbl-long"> principal</span></span>
+      </button>
+      <button class="ts-btn danger" id="tsResignBtn" type="button" title="Desistir da partida (conta como derrota)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3.5 14.5V2"/><path d="M3.5 2.5h8l-1.8 2.8 1.8 2.8h-8"/></svg>
+        <span>Desistir</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="ts-main">
+    <div class="ts-col">
+      <section class="ts-player" data-side="me" id="tsMe" aria-label="Seu personagem"></section>
+      <section class="ts-box ts-times-box" aria-label="Tempo por jogada">
+        <h4><span>Tempo por jogada</span><span id="tsPrevTurn"></span></h4>
+        <div class="ts-times" id="tsTimes"></div>
+      </section>
+    </div>
+
+    <section class="ts-arena" aria-label="Área de combate">
+      <div class="ts-board-frame" id="tsFrame">
+        <div class="ts-board" id="tsBoard" role="grid" aria-label="Tabuleiro 12 por 12"></div>
+      </div>
+      <div class="ts-feedback" id="tsFeedback" aria-live="polite"></div>
+    </section>
+
+    <div class="ts-col">
+      <section class="ts-player" data-side="enemy" id="tsEnemy" aria-label="Personagem adversário"></section>
+      <section class="ts-box ts-log" aria-label="Registro da partida">
+        <h4><span>Registro da partida</span></h4>
+        <div class="ts-events" id="tsEvents"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="ts-bottom">
+    <div class="ts-hand-wrap">
+      <div class="ts-hand-head"><span>Sua mão</span><span id="tsHandInfo"></span></div>
+      <div class="ts-hand" id="tsHand" role="list" aria-label="Cartas na mão"></div>
+    </div>
+    <aside class="ts-detail" id="tsDetail" aria-live="polite">
+      <div class="ts-detail-title" id="tsDetailTitle">—</div>
+      <div class="ts-detail-text" id="tsDetailText"></div>
+      <div class="ts-detail-actions">
+        <button class="ts-btn" id="tsCancelSel" type="button" hidden>Cancelar seleção</button>
+        <button class="ts-btn primary" id="tsUseCard" type="button" hidden>Usar carta</button>
+        <button class="ts-btn" id="tsShowResult" type="button" hidden>Ver resumo</button>
+        <button class="ts-btn primary" id="tsEndTurn" type="button">Encerrar turno</button>
+      </div>
+    </aside>
+  </footer>
+
+  <!-- Fase de Draft -->
+  <div class="ts-overlay" id="tsDraft" hidden>
+    <div class="ts-panel" role="dialog" aria-modal="true" aria-labelledby="tsDraftTitle">
+      <div class="ts-eyebrow">Fase de Draft</div>
+      <h2 id="tsDraftTitle">Escolha 1 carta para sua mão</h2>
+      <p id="tsDraftText"></p>
+      <div class="ts-countbar"><i id="tsDraftBar"></i></div>
+      <div class="ts-draft-cards" id="tsDraftChoices"></div>
+    </div>
+  </div>
+
+  <!-- Resultado -->
+  <div class="ts-overlay" id="tsResult" hidden>
+    <div class="ts-panel" role="dialog" aria-modal="true" aria-labelledby="tsResTitle">
+      <div class="ts-result-figs">
+        <div class="ts-result-fig" id="tsResFigMe"></div>
+        <div class="ts-result-fig" id="tsResFigEnemy"></div>
+      </div>
+      <div class="ts-result-title" id="tsResTitleBox">
+        <div class="ts-eyebrow" id="tsResEyebrow">Fim de partida</div>
+        <h2 id="tsResTitle">—</h2>
+        <p id="tsResReason"></p>
+      </div>
+      <div class="ts-stats-grid" id="tsResStats"></div>
+      <div>
+        <div class="ts-eyebrow" style="margin-bottom:6px;color:var(--muted)">Resumo tático</div>
+        <ul class="ts-timeline" id="tsResTimeline"></ul>
+      </div>
+      <div class="ts-note" id="tsResNote"></div>
+      <div class="ts-panel-actions">
+        <button class="ts-btn primary" id="tsAgainBtn" type="button">Nova partida</button>
+        <button class="ts-btn" id="tsCloseResult" type="button">Ver tabuleiro final</button>
+        <button class="ts-btn" id="tsResMenuBtn" type="button">Menu principal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regras rápidas -->
+  <div class="ts-overlay" id="tsRules" hidden>
+    <div class="ts-panel" role="dialog" aria-modal="true" aria-labelledby="tsRulesTitle">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><div class="ts-eyebrow">Consulta rápida</div><h2 id="tsRulesTitle">Regras do Cerco Tático</h2></div>
+        <button class="close-btn" id="tsRulesClose" type="button" aria-label="Fechar">×</button>
+      </div>
+      <ul class="ts-rules-list" id="tsRulesList"></ul>
+      <div class="tg-cards" id="tsRulesCards"></div>
+      <div class="ts-panel-actions"><button class="ts-btn primary" id="tsRulesOk" type="button">Voltar à partida</button></div>
+    </div>
+  </div>
 </div>
 
-<div id="tacticalBoardWrap" class="cf-tactical-wrap" hidden>
-  <div id="tacticalGrid" class="cf-tactical-grid"></div>
-</div>
-
-<div id="tacticalHand" class="cf-hand-dock" hidden></div>
-
-<div id="draftModal" class="cf-tactical-modal" hidden>
-  <h3 style="margin-bottom:12px;">Fase de Draft — Escolha 1 Carta (<span id="draftCountdown">8</span>s)</h3>
-  <div id="draftChoices" style="display:flex;gap:14px;flex-wrap:wrap;"></div>
-</div>
-
-<div id="replaySummaryModal" class="cf-tactical-modal" hidden>
-  <h3 style="margin-bottom:10px;">Resumo Tático da Partida</h3>
-  <ul id="replayTimeline" style="max-height:240px;overflow:auto;padding-left:18px;margin-bottom:14px;"></ul>
-  <button class="primary" id="btnCloseReplay" type="button">Fechar</button>
-</div>
-
-<div id="tacticalTutorialOverlay" class="cf-tut-layer" hidden>
-  <div id="tacticalSpotlight" class="cf-spotlight-ring"></div>
-  <div id="tacticalTooltipCard" class="cf-tooltip-card">
-    <strong id="tutStepTitle" style="color:#facc15;display:block;margin-bottom:6px;"></strong>
-    <p id="tutStepDesc" style="font-size:13px;line-height:1.45;margin-bottom:14px;"></p>
-    <button class="primary" id="btnTutNext" type="button">Entendi, continuar →</button>
+<!-- Tutorial do Cerco Tático: foco no elemento explicado -->
+<div class="ts-tut-layer" id="tsTut" hidden>
+  <div class="ts-spot" id="tsSpot"></div>
+  <div class="ts-tip" id="tsTip" role="dialog" aria-live="polite">
+    <span class="ts-eyebrow" id="tsTipStep">Tutorial · Etapa 1 de 3</span>
+    <strong id="tsTipTitle"></strong>
+    <p id="tsTipText"></p>
+    <button class="ts-btn primary" id="tsTipNext" type="button">Entendi, continuar</button>
   </div>
 </div>
 
 <script>
+/* ======================================================================
+   CERCO TÁTICO — Cliente
+   O servidor é a autoridade das regras. Este módulo apenas apresenta o
+   estado recebido e envia intenções (mover, jogar carta, encerrar turno).
+   ====================================================================== */
 (() => {
-  let tacticalState = null;
-  let selectedCard = null;
-  let prevActiveSide = null;
+  'use strict';
+  const el = (id) => document.getElementById(id);
+  const COLS = 'ABCDEFGHIJKLMNOP';
+  const cellName = (x, y) => `${COLS[x] || x}${y + 1}`;
+  const fmtClock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  const fmtSecs = (ms) => `${(Math.max(0, ms) / 1000).toFixed(1)}s`;
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const manhattan = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by);
 
-  function playTacticalSfx(kind) {
+  // Espelho do CARD_CATALOG do servidor (substituído pelos dados de /api/tactical/rules quando disponível)
+  const FALLBACK = {
+    cards: [
+      { id: 'short_teleport', name: 'Teleporte Curto', cost: 2, targetType: 'cell', range: 2, desc: 'Pula até 2 casas no grid, ignorando paredes no caminho.' },
+      { id: 'flux_siphon', name: 'Sifão de Fluxo', cost: 1, targetType: 'none', range: 0, desc: 'Rouba 1 PA do inimigo: ele começa o próximo turno com −1 PA e você recupera o PA gasto nesta carta.' },
+      { id: 'flux_wall', name: 'Parede de Fluxo', cost: 1, targetType: 'cell', range: 4, durationRounds: 2, desc: 'Bloqueia uma casa vazia no grid por 2 rodadas.' },
+      { id: 'crown_dash', name: 'Impulso Real', cost: 3, targetType: 'cell', range: 3, desc: 'Avança até 3 casas em linha reta e ganha +1 VP se estiver com a Coroa.' }
+    ],
+    rules: { boardSize: 12, targetVp: 10, basePa: 3, crownPaPenalty: 1, turnLimitMs: 25000, draftMs: 8000, draftEveryRounds: 3, visionRadius: 4, reconnectMs: 30000 }
+  };
+  let catalog = FALLBACK;
+  const R = () => (st && st.rules) || catalog.rules;
+
+  /* ---------------- Arte dos personagens (SVG original) ---------------- */
+  function wardenSVG() {
+    return `<svg viewBox="0 0 64 80" aria-hidden="true">
+      <path d="M19 29C15 44 13 60 11 76h42c-2-16-4-32-8-47z" fill="#2d4855"/>
+      <path d="M19 29c-3 15-4.5 31-5.5 47H20c.5-16 1.5-31 3.5-45z" fill="#223a45"/>
+      <path d="M45 29c3 15 5 31 6 47h-5c-.5-16-2-31-4.5-45z" fill="#26404c"/>
+      <path d="M24.5 57h6.5v17h-6.5z" fill="#858e89"/><path d="M33 57h6.5v17H33z" fill="#747d78"/>
+      <path d="M24.5 63h6.5v2h-6.5zM33 63h6.5v2H33z" fill="#5f6763"/>
+      <path d="M23 73.5h9V77H22zM32.5 73.5h9l1 3.5h-10z" fill="#3b3631"/>
+      <path d="M22 29h20l2.5 13-2 16h-21l-2-16z" fill="#a3aca7"/>
+      <path d="M25 30h14v27l-7 5-7-5z" fill="#4c7d94"/>
+      <path d="M25 30h2v27l-2-1.5z" fill="#3f6a7e"/>
+      <path d="M25.5 39l6.5 4.5 6.5-4.5v3.4L32 46.9l-6.5-4.5z" fill="#e7e1d1"/>
+      <rect x="21.5" y="45" width="21" height="3" rx=".6" fill="#5b4631"/>
+      <rect x="30.4" y="44.6" width="3.2" height="3.8" rx=".6" fill="#cfaf72"/>
+      <path d="M42 31l5 2-.5 12-4.5.5z" fill="#8e9792"/>
+      <rect x="47.3" y="9" width="2.6" height="31" rx="1" fill="#e1e5e2"/>
+      <path d="M47.3 9l1.3-4 1.3 4z" fill="#e1e5e2"/>
+      <rect x="48.3" y="11" width=".6" height="27" fill="#b9bfbb"/>
+      <rect x="44.2" y="39.6" width="8.8" height="2.4" rx="1" fill="#cfaf72"/>
+      <rect x="47.6" y="42" width="2" height="5" fill="#5b4631"/>
+      <circle cx="48.6" cy="47.6" r="1.4" fill="#cfaf72"/>
+      <ellipse cx="46.2" cy="44.6" rx="2.6" ry="2.2" fill="#9aa39e"/>
+      <path d="M15.5 31q5.5-6 11-1l-1 4.5q-5-2-10 .5z" fill="#bcc4bf"/>
+      <path d="M48.5 31q-5.5-6-11-1l1 4.5q5-2 10 .5z" fill="#bcc4bf"/>
+      <path d="M7.5 34h17v11c0 8-4 12.5-8.5 15-4.5-2.5-8.5-7-8.5-15z" fill="#3b6679" stroke="#cfaf72" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M16 34.6v24.6c4-2.6 7.9-6.7 7.9-14.2V34.6z" fill="#335a6b"/>
+      <path d="M12.6 40h1.5v1.6h1.3V40h1.3v1.6H18V40h1.5v3h-.8v6.5h-5.3V43h-.8z" fill="#e7e1d1"/>
+      <rect x="15.1" y="46.5" width="1.8" height="3" fill="#3b6679"/>
+      <path d="M23.5 15c0-8 17-8 17 0v12c-5 3-12 3-17 0z" fill="#c6cdc9"/>
+      <path d="M23.5 15c0-5 4-7.5 8.5-7.9v22c-3.2 0-6.2-.8-8.5-2.1z" fill="#d6dcd8"/>
+      <rect x="25.2" y="18.2" width="13.6" height="2.4" rx="1" fill="#262a28"/>
+      <path d="M31.3 21.5h1.4v5h-1.4z" fill="#262a28" opacity=".5"/>
+      <path d="M23.5 26.6c5 2.6 12 2.6 17 0v1.6c-5 2.6-12 2.6-17 0z" fill="#cfaf72"/>
+      <path d="M32 8c2-5 7-6.5 11-4.5-3.5.6-6 2.8-7.5 6.6z" fill="#4c7d94"/>
+      <path d="M33.5 8.6c2-3 4.6-4.2 7.4-4" stroke="#7fa7b9" stroke-width=".9" fill="none"/>
+    </svg>`;
+  }
+  function besiegerSVG() {
+    return `<svg viewBox="0 0 64 80" aria-hidden="true">
+      <rect x="12.6" y="4" width="1.8" height="34" fill="#4a3a2f"/>
+      <path d="M14.4 5h11l-3 4.5 3 4.5h-11z" fill="#a4585a" stroke="#b79560" stroke-width=".7"/>
+      <path d="M18 28c-5 16-6.5 32-8 48h44c-1.5-16-3-32-8-48z" fill="#5a3032"/>
+      <path d="M18 28c-4 16-5.2 32-6 48h7c.6-16 1.6-31 3.5-46z" fill="#4a2729"/>
+      <path d="M24 57h7v17h-7z" fill="#4c3d34"/><path d="M33 57h7v17h-7z" fill="#433529"/>
+      <path d="M24 62h7v6h-7zM33 62h7v6h-7z" fill="#8a837c"/>
+      <path d="M22.5 73.5H32V77H21.5zM32.5 73.5H42l1 3.5H32.5z" fill="#2c2420"/>
+      <path d="M21 28h22l3 13-2.5 17H21l-2.5-17z" fill="#6b3b3d"/>
+      <g fill="#b79560"><circle cx="23.6" cy="33" r=".7"/><circle cx="40.4" cy="33" r=".7"/><circle cx="23.2" cy="38" r=".7"/><circle cx="40.8" cy="38" r=".7"/><circle cx="23.2" cy="43" r=".7"/><circle cx="40.8" cy="43" r=".7"/></g>
+      <path d="M26 30h12v26l-6 4.5-6-4.5z" fill="#a4585a"/>
+      <path d="M26 30h2v26l-2-1.4z" fill="#8c4a4c"/>
+      <circle cx="32" cy="40.5" r="3.4" fill="none" stroke="#2c2420" stroke-width="1.4"/>
+      <path d="M27.8 46.2l8.4-8.4" stroke="#2c2420" stroke-width="1.6" stroke-linecap="round"/>
+      <rect x="20.5" y="47" width="23" height="3" rx=".6" fill="#2c2420"/>
+      <rect x="30.3" y="46.6" width="3.4" height="3.8" rx=".6" fill="#b79560"/>
+      <path d="M20 31l-4 3 1 9h4z" fill="#6b3b3d"/>
+      <ellipse cx="17.6" cy="44" rx="2.8" ry="2.4" fill="#8a837c"/>
+      <rect x="48.4" y="3" width="2.2" height="72" rx="1" fill="#5c4632"/>
+      <path d="M48.4 3l1.1-3 1.1 3z" fill="#cfc9c1"/>
+      <path d="M50.6 8c7 1.5 9 5 9 9s-2 7.5-9 9z" fill="#cbc5bd"/>
+      <path d="M50.6 8c4 1.2 5.6 4 5.8 9h-5.8z" fill="#ddd8d1"/>
+      <path d="M48.4 13l-4 2.4 4 1.6z" fill="#cbc5bd"/>
+      <path d="M44 31l4.5 2-.8 6h-4.5z" fill="#6b3b3d"/>
+      <ellipse cx="48" cy="40" rx="3" ry="2.6" fill="#8a837c"/>
+      <path d="M18.5 27.5c8-6 19-6 27 0l2 6c-9 4-22 4-31 0z" fill="#7a4244"/>
+      <path d="M18.5 27.5c8-6 19-6 27 0l.6 1.8c-8.6-4.6-19.6-4.6-28.2 0z" fill="#8f5254"/>
+      <path d="M24.5 22.5h15v4.2c-5 1.8-10 1.8-15 0z" fill="#746d67"/>
+      <path d="M22.5 22.5c0-11 19-11 19 0l3.5 3.2c-8 2-18 2-26 0z" fill="#8f8882"/>
+      <path d="M22.5 22.5c0-7 4.5-10 9.5-10.4v15.2c-4 0-8-.5-12.5-1.6z" fill="#a39c95"/>
+      <rect x="24.5" y="19.4" width="15" height="2.2" rx="1" fill="#1f1a18"/>
+      <path d="M19 25.7c8 2 18 2 26 0" stroke="#b79560" stroke-width="1.2" fill="none"/>
+      <path d="M30.5 12.4c.5-4 2.5-6 3-6.5.5 1.5 1 4 .5 6.5z" fill="#a4585a"/>
+    </svg>`;
+  }
+  function figHTML(who, extra = '', figTag = who) {
+    return `<div class="ts-fig ${who === 'me' ? 'me-fig' : 'enemy-fig'} idle ${extra}" data-fig="${figTag}"><div class="ts-bob">${who === 'me' ? wardenSVG() : besiegerSVG()}</div></div>`;
+  }
+  const CROWN_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 17.5l1.6-9 4.6 4 2.8-7 2.8 7 4.6-4 1.6 9z"/><rect x="3" y="18.8" width="18" height="2.4" rx=".6"/></svg>';
+  const EYE_OFF_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8s2.3-4 6-4 6 4 6 4-2.3 4-6 4-6-4-6-4z"/><path d="M2.5 13.5l11-11"/></svg>';
+  const EYE_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8s2.3-4 6-4 6 4 6 4-2.3 4-6 4-6-4-6-4z"/><circle cx="8" cy="8" r="1.8"/></svg>';
+  const WALL_SVG = '<svg class="ts-wall" viewBox="0 0 20 20" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="2" width="18" height="17" rx="1.5" fill="#6e687e"/><path d="M1 7.5h18M1 13h18M7 2v5.5M13 2v5.5M4 7.5V13M10 7.5V13M16 7.5V13M7 13v6M13 13v6" stroke="#4a4659" stroke-width="1"/><rect x="1" y="2" width="18" height="1.6" fill="#8a84a0"/></svg>';
+
+  /* ---------------- Apresentação das cartas ---------------- */
+  const CARD_ICON = {
+    short_teleport: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="33" r="4.5"/><circle cx="37" cy="33" r="4.5" stroke-dasharray="3 3"/><path d="M14 26c4-11 16-11 20-1" stroke-dasharray="4 3.5"/><path d="M29.5 22.5l4.6 3.2 3.2-4.6"/></svg>',
+    flux_siphon: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="37" cy="13" r="5"/><circle cx="11" cy="35" r="4.5" fill="currentColor" fill-opacity=".25"/><path d="M33 17c-5 3-6 8-10 11s-6 3-8 4"/><path d="M15.5 27.5l-1 4.6 4.6.8"/></svg>',
+    flux_wall: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="8" y="12" width="32" height="26" rx="2"/><path d="M8 20.5h32M8 29h32M18 12v8.5M30 12v8.5M13 20.5V29M24 20.5V29M35 20.5V29M18 29v9M30 29v9"/></svg>',
+    crown_dash: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 28l2.6-12 6.4 5.5 4-8.5 4 8.5 6.4-5.5L37 28z"/><path d="M11 32.5h26"/><path d="M9 40h26m-4-4 4 4-4 4"/></svg>'
+  };
+  const CARD_TYPE = { short_teleport: 'Movimento', crown_dash: 'Movimento', flux_wall: 'Bloqueio', flux_siphon: 'Sabotagem' };
+  function cardChips(card) {
+    const chips = [`Custo ${card.cost} PA`];
+    if (card.id === 'short_teleport') chips.push(`Alcance 1–${card.range}`, 'Alvo: casa livre');
+    else if (card.id === 'crown_dash') chips.push(`Linha reta 1–${card.range}`, 'Alvo: casa livre');
+    else if (card.id === 'flux_wall') chips.push(`Alcance 0–${card.range}`, `${card.durationRounds || 2} rodadas`);
+    else if (card.id === 'flux_siphon') chips.push('Alvo automático', 'Custo líquido 0');
+    return chips;
+  }
+  function renderCardEl(card, opts = {}) {
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'ts-card' + (opts.static ? ' static' : '') + (opts.lock ? ' locked' : '') + (opts.selected ? ' selected' : '');
+    node.dataset.card = card.id;
+    if (card.uid) node.dataset.uid = card.uid;
+    node.setAttribute('role', opts.static ? 'img' : 'listitem');
+    node.setAttribute('aria-label', `${card.name}, custo ${card.cost} PA. ${card.desc}${opts.lock ? ' Indisponível: ' + opts.lock : ''}`);
+    node.innerHTML = `
+      <div class="ts-card-top"><span class="ts-cost" title="Custo em Pontos de Ação">${card.cost}</span>
+        <div style="min-width:0"><div class="ts-card-name">${esc(card.name)}</div><div class="ts-card-type">${CARD_TYPE[card.id] || 'Carta'}</div></div></div>
+      <div class="ts-card-art">${CARD_ICON[card.id] || ''}</div>
+      <div class="ts-card-meta">${cardChips(card).slice(1).map(c => `<span class="ts-chip">${esc(c)}</span>`).join('')}</div>
+      <div class="ts-card-desc">${esc(card.desc)}</div>
+      ${opts.lock ? `<div class="ts-card-lock">${esc(opts.lock)}</div>` : ''}`;
+    return node;
+  }
+
+  /* ---------------- Regras de alvo (espelham a validação do servidor) ---------------- */
+  // ctx: { n, me:{x,y}, others:[{x,y}], walls:Set("x,y"), crown:{x,y,holder} }
+  function targetsFor(action, ctx) {
+    const out = [];
+    const occupied = (x, y) => (ctx.me.x === x && ctx.me.y === y) || ctx.others.some(o => o.x === x && o.y === y);
+    const wall = (x, y) => ctx.walls.has(`${x},${y}`);
+    for (let y = 0; y < ctx.n; y++) {
+      for (let x = 0; x < ctx.n; x++) {
+        const d = manhattan(ctx.me.x, ctx.me.y, x, y);
+        let ok = false;
+        if (action === 'move') ok = d === 1 && !wall(x, y) && !occupied(x, y);
+        else if (action === 'short_teleport') ok = d >= 1 && d <= 2 && !wall(x, y) && !occupied(x, y);
+        else if (action === 'flux_wall') ok = d <= 4 && !wall(x, y) && !occupied(x, y) && !(ctx.crown.holder === null && ctx.crown.x === x && ctx.crown.y === y);
+        else if (action === 'crown_dash') {
+          const dx = Math.abs(x - ctx.me.x), dy = Math.abs(y - ctx.me.y);
+          ok = ((dx === 0 && dy > 0 && dy <= 3) || (dy === 0 && dx > 0 && dx <= 3)) && !wall(x, y) && !occupied(x, y);
+        }
+        if (ok) out.push([x, y]);
+      }
+    }
+    return out;
+  }
+  const RULE_HINT = {
+    move: 'Movimento: 1 casa para cima, baixo, esquerda ou direita (1 PA), sem parede nem jogador no destino.',
+    short_teleport: 'Teleporte Curto: escolha uma casa livre a 1 ou 2 passos de distância (paredes no caminho não bloqueiam).',
+    flux_wall: 'Parede de Fluxo: escolha uma casa vazia a até 4 passos, sem jogadores e que não seja a Coroa livre.',
+    crown_dash: 'Impulso Real: destino na mesma linha ou coluna, de 1 a 3 casas, sem parede nem jogador.'
+  };
+
+  /* ---------------- Estado da cena ---------------- */
+  let st = null, gameId = null, lastSeq = 0, selectedUid = null;
+  let clockRef = null, clockTimer = null, sceneOpen = false;
+  let pendingAction = false, pendingTimer = null, leaveFallback = null, pendingRestart = null;
+  let resultShownFor = null, prevWalls = new Set(), boardBuiltFor = null, feedbackTimer = null;
+
+  const isMyTurn = () => Boolean(st && !st.over && st.phase === 'turn' && st.activeSide === st.side);
+  const canAct = () => isMyTurn() && !st.frozen && !st.tutorialFrozen;
+  const myName = () => st?.self?.displayName || 'Você';
+  const enemyName = () => st?.opponent?.displayName || 'Adversário';
+  const nameOf = (side) => (side === st.side ? myName() : enemyName());
+  const sideKey = (side) => (side === st.side ? 'me' : 'enemy');
+  const selectedCard = () => (st && selectedUid ? st.myTeam.hand.find(c => c.uid === selectedUid) || null : null);
+  const ctxFromState = () => ({
+    n: st.boardSize,
+    me: st.myUnit,
+    others: st.enemyUnit ? [st.enemyUnit] : [],
+    walls: new Set(st.walls.map(w => `${w.x},${w.y}`)),
+    crown: st.crown
+  });
+
+  function sfx(kind) {
     try {
+      if (typeof prefs !== 'undefined' && prefs.soundEffects === false) return;
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      const now = audioCtx.currentTime;
-      const presets = {
-        cardHover: { freq: 520, endFreq: 620, dur: 0.06, type: 'sine', vol: 0.04 },
-        cardPlay:  { freq: 340, endFreq: 680, dur: 0.16, type: 'triangle', vol: 0.11 },
-        turnStart: { freq: 440, endFreq: 554, dur: 0.22, type: 'sine', vol: 0.09 },
-        damage:    { freq: 140, endFreq: 75,  dur: 0.24, type: 'sawtooth', vol: 0.12 },
-        crown:     { freq: 587, endFreq: 880, dur: 0.30, type: 'triangle', vol: 0.12 }
-      };
-      const p = presets[kind] || presets.cardHover;
-      osc.type = p.type;
-      osc.frequency.setValueAtTime(p.freq, now);
-      osc.frequency.exponentialRampToValueAtTime(p.endFreq, now + p.dur);
-      gain.gain.setValueAtTime(p.vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + p.dur);
-      osc.start(now);
-      osc.stop(now + p.dur);
+      const P = {
+        move: [300, 400, 0.07, 'sine', 0.05], card: [340, 640, 0.16, 'triangle', 0.08], turn: [440, 554, 0.2, 'sine', 0.07],
+        hit: [150, 80, 0.24, 'sawtooth', 0.08], crown: [587, 880, 0.3, 'triangle', 0.09], deny: [220, 180, 0.09, 'square', 0.03]
+      }[kind];
+      if (!P) return;
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain(), t = audioCtx.currentTime;
+      osc.type = P[3]; osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.setValueAtTime(P[0], t); osc.frequency.exponentialRampToValueAtTime(P[1], t + P[2]);
+      gain.gain.setValueAtTime(P[4], t); gain.gain.exponentialRampToValueAtTime(0.001, t + P[2]);
+      osc.start(t); osc.stop(t + P[2]);
     } catch (_) {}
   }
 
-  document.getElementById('btnEndTurn').addEventListener('click', () => {
-    selectedCard = null;
-    sendSocket('tactical:endTurn');
-  });
-
-  document.getElementById('btnCloseReplay').addEventListener('click', () => {
-    document.getElementById('replaySummaryModal').hidden = true;
-    document.getElementById('tacticalTurnPill').hidden = true;
-    document.getElementById('tacticalBoardWrap').hidden = true;
-    document.getElementById('tacticalHand').hidden = true;
-  });
-
-  window.renderTacticalState = function(state) {
-    tacticalState = state;
-    const isMyTurn = state.phase === 'turn' && state.activeSide === state.side;
-    if (prevActiveSide !== state.activeSide && isMyTurn) playTacticalSfx('turnStart');
-    prevActiveSide = state.activeSide;
-
-    const pill = document.getElementById('tacticalTurnPill');
-    pill.hidden = false;
-    pill.classList.toggle('my-turn', isMyTurn);
-
-    document.getElementById('turnStatusText').textContent = state.frozen
-      ? '⏸ Oponente reconectando (30s)...'
-      : state.phase === 'draft'
-        ? '✨ Fase de Draft'
-        : isMyTurn ? `Sua Vez · Rodada ${state.round}` : `Aguardando Oponente · Rodada ${state.round}`;
-
-    document.getElementById('turnCrownScore').textContent = `👑 ${state.myTeam.vp}/10`;
-    document.getElementById('btnEndTurn').disabled = !isMyTurn;
-
-    const apWrap = document.getElementById('apOrbs');
-    apWrap.innerHTML = '';
-    const maxOrbs = Math.max(3, state.myTeam.ap);
-    for (let i = 0; i < maxOrbs; i++) {
-      const orb = document.createElement('span');
-      orb.className = 'cf-ap-orb' + (i < state.myTeam.ap ? ' active' : '');
-      apWrap.appendChild(orb);
-    }
-
-    renderTacticalGrid(state, isMyTurn);
-    renderTacticalHand(state, isMyTurn);
-    renderDraftModal(state);
-    if (state.isTutorial && state.tutorialFrozen) {
-      requestAnimationFrame(() => showTutorialSpotlight(state.tutorialStep));
-    } else {
-      document.getElementById('tacticalTutorialOverlay').hidden = true;
-    }
-  };
-
-  const TUTORIAL_STEPS = {
-    1: {
-      selector: '#apOrbs',
-      title: 'Passo 1 · Pontos de Ação (PA)',
-      desc: 'Você tem 3 de Energia (PA) por turno. Clique em uma casa destacada no grid para andar (1 PA) ou use uma carta.'
-    },
-    2: {
-      selector: '#draftChoices',
-      title: 'Passo 2 · Fase de Draft',
-      desc: 'A cada 3 rodadas completas, escolha 1 entre 3 habilidades aleatórias para adicionar à sua mão.'
-    },
-    3: {
-      selector: '#turnCrownScore',
-      title: 'Passo 3 · Poder e Risco da Coroa',
-      desc: 'A Coroa dá +2 Pontos de Vitória no fim do seu turno, mas revela sua posição no mapa e reduz 1 PA base por turno!'
-    }
-  };
-
-  function showTutorialSpotlight(step) {
-    const cfg = TUTORIAL_STEPS[step];
-    const layer = document.getElementById('tacticalTutorialOverlay');
-    if (!cfg) { layer.hidden = true; return; }
-    const target = document.querySelector(cfg.selector);
-    if (!target) return;
-
-    layer.hidden = false;
-    const rect = target.getBoundingClientRect();
-    const pad = 10;
-    const ring = document.getElementById('tacticalSpotlight');
-    ring.style.top = `${rect.top - pad}px`;
-    ring.style.left = `${rect.left - pad}px`;
-    ring.style.width = `${rect.width + pad * 2}px`;
-    ring.style.height = `${rect.height + pad * 2}px`;
-
-    const card = document.getElementById('tacticalTooltipCard');
-    card.style.top = `${Math.min(window.innerHeight - 190, rect.bottom + 18)}px`;
-    card.style.left = `${Math.max(16, Math.min(window.innerWidth - 326, rect.left))}px`;
-    document.getElementById('tutStepTitle').textContent = cfg.title;
-    document.getElementById('tutStepDesc').textContent = cfg.desc;
-    document.getElementById('btnTutNext').onclick = () => {
-      layer.hidden = true;
-      sendSocket('tactical:tutorialStepComplete', { step });
-    };
+  function feedback(text, isError = false) {
+    const f = el('tsFeedback');
+    f.textContent = text || '';
+    f.classList.toggle('err', isError);
+    clearTimeout(feedbackTimer);
+    if (isError) feedbackTimer = setTimeout(() => { f.classList.remove('err'); }, 3500);
   }
 
-  function renderTacticalGrid(state, isMyTurn) {
-    document.getElementById('tacticalBoardWrap').hidden = false;
-    const grid = document.getElementById('tacticalGrid');
-    grid.innerHTML = '';
-    const my = state.myUnit;
-    const walls = new Set(state.walls.map(w => `${w.x},${w.y}`));
-
-    for (let y = 0; y < state.boardSize; y++) {
-      for (let x = 0; x < state.boardSize; x++) {
-        const cell = document.createElement('div');
-        cell.className = 'cf-cell';
-        const dist = Math.abs(my.x - x) + Math.abs(my.y - y);
-        const isWall = walls.has(`${x},${y}`);
-        if (isWall) cell.classList.add('wall');
-
-        if (isMyTurn && selectedCard && selectedCard.targetType === 'cell') {
-          if (!isWall && dist >= 1 && dist <= selectedCard.range) {
-            cell.classList.add('valid-card');
-            cell.onclick = () => {
-              playTacticalSfx('cardPlay');
-              sendSocket('tactical:playCard', { cardUid: selectedCard.uid, target: { x, y } });
-              selectedCard = null;
-            };
-          }
-        } else if (isMyTurn && !selectedCard && state.myTeam.ap >= 1 && dist === 1 && !isWall) {
-          cell.classList.add('valid-move');
-          cell.onclick = () => sendSocket('tactical:move', { x, y });
-        }
-
-        if (my.x === x && my.y === y) cell.textContent = state.crown.holder === state.side ? '👑' : '🔷';
-        else if (state.enemyUnit && state.enemyUnit.x === x && state.enemyUnit.y === y) {
-          cell.textContent = state.enemyUnit.revealedByCrown ? '👑' : '🔺';
-        } else if (state.crown.holder === null && state.crown.x === x && state.crown.y === y) {
-          cell.textContent = '👑';
-        }
-        grid.appendChild(cell);
-      }
-    }
+  function animFig(who, cls, delay = 0) {
+    setTimeout(() => {
+      document.querySelectorAll(`#tacticalScene [data-fig="${who}"]`).forEach(node => {
+        node.classList.remove(cls);
+        void node.offsetWidth;
+        node.classList.add(cls);
+        setTimeout(() => node.classList.remove(cls), 700);
+      });
+    }, delay);
   }
 
-  function renderTacticalHand(state, isMyTurn) {
-    const dock = document.getElementById('tacticalHand');
-    dock.hidden = false;
-    dock.innerHTML = '';
-    for (const card of state.myTeam.hand) {
-      const el = document.createElement('div');
-      const canAfford = isMyTurn && state.myTeam.ap >= card.cost;
-      el.className = 'cf-card' + (!canAfford ? ' disabled' : '') + (selectedCard?.uid === card.uid ? ' selected' : '');
-      el.innerHTML = `<span class="cf-card-cost">${card.cost}</span><strong>${card.name}</strong><p style="font-size:12px;opacity:.8;margin-top:6px;">${card.desc}</p>`;
-      if (canAfford) {
-        el.onmouseenter = () => playTacticalSfx('cardHover');
-        el.onclick = () => {
-          if (card.targetType === 'none') {
-            el.classList.add('playing');
-            playTacticalSfx('cardPlay');
-            setTimeout(() => sendSocket('tactical:playCard', { cardUid: card.uid }), 180);
-          } else {
-            selectedCard = selectedCard?.uid === card.uid ? null : card;
-            window.renderTacticalState(state);
-          }
-        };
-      }
-      dock.appendChild(el);
-    }
+  /* ---------------- Abertura / fechamento ---------------- */
+  function buildPlayerPanels() {
+    const panel = (p, who) => `
+      <div class="ts-player-head">
+        <div class="ts-portrait">${figHTML(who)}</div>
+        <div class="ts-player-id">
+          <div class="ts-player-tag" id="${p}Tag"></div>
+          <div class="ts-player-name" id="${p}Name"></div>
+          <div class="ts-player-sub" id="${p}Sub"></div>
+        </div>
+      </div>
+      <div class="ts-stat" id="${p}PaBlock">
+        <div class="ts-stat-row"><span id="${p}PaLabel">Pontos de Ação</span><strong id="${p}PaVal">0</strong></div>
+        <div class="ts-pips" id="${p}Pips"></div>
+      </div>
+      <div class="ts-stat">
+        <div class="ts-stat-row"><span>Pontos de Vitória</span><strong id="${p}VpVal">0 / 10</strong></div>
+        <div class="ts-vp-track"><div class="ts-vp-fill" id="${p}VpFill"></div></div>
+      </div>
+      <div class="ts-stat-row"><span>Cartas na mão</span><strong id="${p}Hand">0</strong></div>
+      <div class="ts-stat-row"><span>Última jogada</span><strong id="${p}Last">—</strong></div>
+      <div class="ts-badge plain" id="${p}Crown"></div>
+      ${who === 'enemy' ? `<div class="ts-badge fog" id="${p}Vis"></div>` : ''}`;
+    el('tsMe').innerHTML = panel('tsMe', 'me');
+    el('tsEnemy').innerHTML = panel('tsEn', 'enemy');
   }
 
-  function renderDraftModal(state) {
-    const modal = document.getElementById('draftModal');
-    if (state.phase !== 'draft' || state.myTeam.draftOptions.length === 0) {
-      modal.hidden = true;
+  function openScene() {
+    if (sceneOpen) return;
+    sceneOpen = true;
+    buildPlayerPanels();
+    el('tacticalScene').hidden = false;
+    document.body.style.overflow = 'hidden';
+    ['onlineLobbyOverlay', 'start', 'cpuDiffOverlay'].forEach(id => { const n = el(id); if (n) n.classList.add('hidden'); });
+    startClock();
+  }
+
+  function closeScene() {
+    sceneOpen = false;
+    stopClock();
+    el('tacticalScene').hidden = true;
+    el('tsTut').hidden = true;
+    ['tsDraft', 'tsResult', 'tsRules'].forEach(id => { el(id).hidden = true; });
+    document.body.style.overflow = '';
+    st = null; gameId = null; selectedUid = null; resultShownFor = null; boardBuiltFor = null;
+    pendingAction = false; clearTimeout(pendingTimer);
+  }
+
+  /* ---------------- Cronômetro (único, derivado do estado do servidor) ---------------- */
+  function startClock() {
+    if (clockTimer) return; // garante um único cronômetro ativo
+    clockTimer = setInterval(tickClock, 200);
+  }
+  function stopClock() {
+    if (clockTimer) clearInterval(clockTimer);
+    clockTimer = null;
+  }
+  function tickClock() {
+    if (!st || !clockRef) return;
+    const dt = performance.now() - clockRef.receivedAt; // relógio monotônico: correto mesmo com a aba em segundo plano
+    const clock = el('tsClock'), limit = el('tsLimit');
+    if (st.over) {
+      clock.textContent = fmtClock(st.durationMs);
+      limit.textContent = 'duração total';
+      limit.classList.remove('warn');
       return;
     }
-    modal.hidden = false;
-    document.getElementById('draftCountdown').textContent = Math.ceil(state.draftRemainingMs / 1000);
-    const box = document.getElementById('draftChoices');
-    box.innerHTML = '';
-    for (const opt of state.myTeam.draftOptions) {
-      const el = document.createElement('div');
-      el.className = 'cf-card';
-      el.innerHTML = `<span class="cf-card-cost">${opt.cost}</span><strong>${opt.name}</strong><p style="font-size:12px;margin-top:6px;">${opt.desc}</p>`;
-      el.onclick = () => {
-        playTacticalSfx('cardPlay');
-        sendSocket('tactical:pickDraft', { cardUid: opt.uid });
-        modal.hidden = true;
-      };
-      box.appendChild(el);
+    if (st.phase === 'draft') {
+      const frozen = st.frozen || st.tutorialFrozen;
+      const rem = Math.max(0, st.draftRemainingMs - (frozen ? 0 : dt));
+      clock.textContent = fmtClock(rem);
+      limit.textContent = frozen ? 'Draft pausado' : 'tempo do Draft';
+      limit.classList.toggle('warn', rem <= 3000 && !frozen);
+      const bar = el('tsDraftBar');
+      if (bar) bar.style.width = `${Math.min(100, (rem / R().draftMs) * 100)}%`;
+      return;
+    }
+    const elapsed = clockRef.paused ? clockRef.elapsedMs : clockRef.elapsedMs + dt;
+    const remaining = clockRef.paused ? clockRef.remainingMs : Math.max(0, clockRef.remainingMs - dt);
+    clock.textContent = fmtClock(elapsed);
+    const secs = Math.ceil(remaining / 1000);
+    limit.textContent = clockRef.paused ? `pausado · restam ${secs}s` : `limite ${Math.round(clockRef.limitMs / 1000)}s · restam ${secs}s`;
+    limit.classList.toggle('warn', !clockRef.paused && remaining <= 5000);
+  }
+
+  /* ---------------- Recepção do estado ---------------- */
+  function onState(state) {
+    if (!state || state.mode !== 'tactical_draft') return;
+    let initial = false;
+    if (state.gameId !== gameId) {
+      initial = true;
+      gameId = state.gameId;
+      selectedUid = null;
+      resultShownFor = null;
+      boardBuiltFor = null;
+      prevWalls = new Set((state.walls || []).map(w => `${w.x},${w.y}`));
+      lastSeq = Math.max(0, ...(state.recentEvents || []).map(e => e.seq || 0));
+      ['tsResult', 'tsRules'].forEach(id => { el(id).hidden = true; });
+    }
+    openScene();
+    st = state;
+    pendingAction = false;
+    clearTimeout(pendingTimer);
+    clockRef = { ...state.clock, receivedAt: performance.now() };
+    if (!canAct() || (selectedUid && !selectedCard())) selectedUid = null;
+
+    renderAll();
+
+    const fresh = (state.recentEvents || []).filter(e => (e.seq || 0) > lastSeq);
+    if (initial) {
+      const last = (state.recentEvents || []).slice(-1)[0];
+      feedback(state.over ? (state.reason || 'Partida encerrada.') : (last ? describe(last) : 'Partida iniciada.'));
+    } else {
+      fresh.forEach(processEvent);
+    }
+    lastSeq = Math.max(lastSeq, ...(state.recentEvents || []).map(e => e.seq || 0));
+
+    if (state.over) {
+      stopClock();
+      tickClock();
+      if (resultShownFor !== gameId) {
+        resultShownFor = gameId;
+        setTimeout(() => { if (st && st.gameId === resultShownFor) showResult(); }, initial ? 0 : 900);
+      }
+    } else {
+      startClock();
+    }
+    handleTutorial();
+  }
+
+  function renderAll() {
+    renderTop();
+    renderPlayers();
+    renderBoard();
+    renderHand();
+    renderDetail();
+    renderTimes();
+    renderEvents();
+    renderDraft();
+    tickClock();
+  }
+
+  function renderTop() {
+    const kindLabel = { cpu: 'Treino contra CPU', tutorial: 'Tutorial guiado', private: 'Sala privada', rematch: 'Revanche' }[st.kind] || 'Partida online';
+    el('tsMeta').textContent = `${kindLabel} · ${myName()} vs ${enemyName()} · Rodada ${st.round}`;
+    let owner = 'none', label;
+    if (st.over) label = 'Partida encerrada';
+    else if (st.phase === 'draft') label = 'Fase de Draft';
+    else {
+      owner = sideKey(st.activeSide);
+      label = owner === 'me' ? 'Sua vez' : `Vez de ${enemyName()}`;
+      if (st.frozen) label += ' · pausado';
+      else if (st.tutorialFrozen) label += ' · pausado';
+    }
+    el('tsTurnBox').dataset.owner = owner;
+    el('tsTurnLabel').textContent = label;
+    el('tsResignBtn').disabled = st.over;
+  }
+
+  function fillPlayer(p, side) {
+    const isMe = side === st.side;
+    const team = isMe ? st.myTeam : st.enemyTeam;
+    const rules = R();
+    const hasCrown = st.crown.holder === side;
+    const baseAp = rules.basePa - (hasCrown ? rules.crownPaPenalty : 0);
+    const active = !st.over && st.phase === 'turn' && st.activeSide === side;
+    const who = isMe ? st.self : st.opponent;
+    el(p === 'tsMe' ? 'tsMe' : 'tsEnemy').classList.toggle('active', active);
+    el(`${p}Tag`).textContent = isMe ? 'Você · Guardião Azul' : (st.opponentIsBot ? 'CPU · Sitiante Rubi' : 'Adversário · Sitiante Rubi');
+    el(`${p}Name`).textContent = who?.displayName || (isMe ? 'Você' : 'Adversário');
+    el(`${p}Sub`).textContent = (!isMe && st.opponentIsBot) ? 'Controlado pelo computador' : `@${who?.username || ''}`;
+    el(`${p}PaLabel`).textContent = `Pontos de Ação (base ${baseAp})`;
+    el(`${p}PaVal`).textContent = active ? `${team.ap} restante${team.ap === 1 ? '' : 's'}` : String(team.ap);
+    const pipCount = Math.max(baseAp, team.ap, 1);
+    el(`${p}Pips`).innerHTML = Array.from({ length: pipCount }, (_, i) => `<i class="ts-pip${i < team.ap ? ' on' : ''}"></i>`).join('');
+    el(`${p}VpVal`).textContent = `${team.vp} / ${rules.targetVp}`;
+    el(`${p}VpFill`).style.width = `${Math.min(100, (team.vp / rules.targetVp) * 100)}%`;
+    el(`${p}Hand`).textContent = String(isMe ? team.hand.length : team.handCount);
+    const lastT = [...(st.turnTimes || [])].reverse().find(t => t.side === side);
+    el(`${p}Last`).textContent = lastT ? fmtSecs(lastT.ms) : '—';
+    const crown = el(`${p}Crown`);
+    if (hasCrown) {
+      crown.className = 'ts-badge';
+      crown.innerHTML = `${CROWN_SVG}<span>Com a Coroa: +2 PV ao encerrar o turno<span class="ts-badge-text-long"> · PA base −${rules.crownPaPenalty} · posição sempre visível</span></span>`;
+    } else {
+      crown.className = 'ts-badge plain';
+      crown.innerHTML = `${CROWN_SVG}<span>Sem a Coroa</span>`;
+    }
+    if (!isMe) {
+      const vis = el('tsEnVis');
+      if (st.over || st.enemyUnit) {
+        const d = st.enemyUnit ? manhattan(st.myUnit.x, st.myUnit.y, st.enemyUnit.x, st.enemyUnit.y) : 0;
+        vis.innerHTML = `${EYE_SVG}<span>${st.enemyUnit?.revealedByCrown ? 'Posição revelada pela Coroa' : `Visível · a ${d} casa${d === 1 ? '' : 's'} de você`}</span>`;
+      } else {
+        vis.innerHTML = `${EYE_OFF_SVG}<span>Oculto pela névoa<span class="ts-badge-text-long"> · fora do seu alcance de visão (${rules.visionRadius} casas)</span></span>`;
+      }
+    }
+  }
+  function renderPlayers() {
+    fillPlayer('tsMe', st.side);
+    fillPlayer('tsEn', 1 - st.side);
+  }
+
+  /* ---------------- Tabuleiro ---------------- */
+  function buildBoard() {
+    const board = el('tsBoard');
+    const n = st.boardSize;
+    board.style.setProperty('--n', n);
+    const frag = document.createDocumentFragment();
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ts-cell ' + ((x + y) % 2 ? 'd' : 'l');
+        b.dataset.x = x;
+        b.dataset.y = y;
+        b.setAttribute('role', 'gridcell');
+        b.innerHTML = `${x === 0 ? `<span class="ts-coord row">${y + 1}</span>` : ''}${y === n - 1 ? `<span class="ts-coord col">${COLS[x]}</span>` : ''}<span class="ts-wall-slot"></span>`;
+        frag.appendChild(b);
+      }
+    }
+    const layer = document.createElement('div');
+    layer.className = 'ts-layer';
+    layer.innerHTML = `
+      <div class="ts-crown-free" id="tsCrownFree" hidden>${CROWN_SVG}</div>
+      <div class="ts-token me" id="tsTokMe"><div class="ts-ring"></div>${figHTML('me')}<span class="ts-crown-on" hidden>${CROWN_SVG}</span></div>
+      <div class="ts-token enemy" id="tsTokEn"><div class="ts-ring"></div>${figHTML('enemy')}<span class="ts-crown-on" hidden>${CROWN_SVG}</span></div>`;
+    board.replaceChildren(frag, layer);
+    boardBuiltFor = st.gameId;
+  }
+
+  function currentTargets() {
+    if (!canAct()) return [];
+    const card = selectedCard();
+    if (card) return card.targetType === 'cell' ? targetsFor(card.id, ctxFromState()) : [];
+    if (st.myTeam.ap >= 1) return targetsFor('move', ctxFromState());
+    return [];
+  }
+
+  function renderBoard() {
+    if (boardBuiltFor !== st.gameId) buildBoard();
+    const card = selectedCard();
+    const targets = new Set(currentTargets().map(([x, y]) => `${x},${y}`));
+    const wallMap = new Map(st.walls.map(w => [`${w.x},${w.y}`, w]));
+    const R0 = R().visionRadius;
+    for (const cell of el('tsBoard').querySelectorAll('.ts-cell')) {
+      const x = +cell.dataset.x, y = +cell.dataset.y, key = `${x},${y}`;
+      const isTarget = targets.has(key);
+      cell.classList.toggle('move', isTarget && !card);
+      cell.classList.toggle('target', isTarget && Boolean(card));
+      cell.classList.toggle('fog', !st.over && manhattan(st.myUnit.x, st.myUnit.y, x, y) > R0);
+      const w = wallMap.get(key);
+      const slot = cell.querySelector('.ts-wall-slot');
+      if (w && !slot.firstChild) {
+        slot.innerHTML = WALL_SVG;
+        if (!prevWalls.has(key)) slot.firstChild.classList.add('new');
+      } else if (!w && slot.firstChild) slot.innerHTML = '';
+      let label = cellName(x, y);
+      if (w) label += `, Parede de Fluxo (some ao fim da rodada ${w.expiresAtRound})`;
+      if (isTarget) label += card ? `, alvo válido para ${card.name}` : ', mover para cá (1 PA)';
+      cell.setAttribute('aria-label', label);
+      cell.title = w ? `Parede de Fluxo — some ao fim da rodada ${w.expiresAtRound}` : '';
+    }
+    prevWalls = new Set(wallMap.keys());
+
+    const place = (node, u) => { node.style.transform = `translate(${u.x * 100}%, ${u.y * 100}%)`; };
+    const tokMe = el('tsTokMe'), tokEn = el('tsTokEn');
+    place(tokMe, st.myUnit);
+    if (st.enemyUnit) place(tokEn, st.enemyUnit);
+    tokEn.classList.toggle('fogged', !st.enemyUnit);
+    const active = !st.over && st.phase === 'turn';
+    tokMe.classList.toggle('active', active && st.activeSide === st.side);
+    tokEn.classList.toggle('active', active && st.activeSide !== st.side);
+    tokMe.querySelector('.ts-crown-on').hidden = st.crown.holder !== st.side;
+    tokEn.querySelector('.ts-crown-on').hidden = st.crown.holder !== 1 - st.side;
+    const free = el('tsCrownFree');
+    free.hidden = st.crown.holder !== null;
+    if (st.crown.holder === null) place(free, st.crown);
+  }
+
+  function reasonCannotAct() {
+    if (st.over) return 'A partida terminou.';
+    if (st.phase === 'draft') return 'Fase de Draft: escolha uma carta primeiro.';
+    if (st.frozen) return 'Partida pausada aguardando a reconexão de um jogador.';
+    if (st.tutorialFrozen) return 'Leia a orientação do tutorial e clique em "Entendi, continuar".';
+    if (!isMyTurn()) return `Aguarde: é a vez de ${enemyName()}.`;
+    return '';
+  }
+
+  function onCellClick(x, y) {
+    if (!st || st.over) return;
+    if (!canAct()) { feedback(reasonCannotAct(), true); return; }
+    if (pendingAction) return;
+    const card = selectedCard();
+    const valid = currentTargets().some(([a, b]) => a === x && b === y);
+    if (!valid) {
+      if (!card && st.myTeam.ap < 1) feedback('Você não tem PA para se mover. Use "Encerrar turno".', true);
+      else feedback(RULE_HINT[card ? card.id : 'move'], true);
+      sfx('deny');
+      return;
+    }
+    if (card) {
+      const cardEl = el('tsHand').querySelector(`[data-uid="${card.uid}"]`);
+      if (cardEl) cardEl.classList.add('playing');
+      sfx('card');
+      sendAction('tactical:playCard', { cardUid: card.uid, target: { x, y } });
+      selectedUid = null;
+    } else {
+      sendAction('tactical:move', { x, y });
     }
   }
 
-  window.triggerScreenShake = function() {
-    playTacticalSfx('damage');
-    const wrap = document.getElementById('tacticalBoardWrap');
-    wrap.classList.remove('cf-shake');
-    void wrap.offsetWidth;
-    wrap.classList.add('cf-shake');
-  };
+  function sendAction(type, payload = {}) {
+    if (typeof sendSocket !== 'function' || !sendSocket(type, payload)) return false;
+    pendingAction = true;
+    clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(() => { pendingAction = false; if (st) renderDetail(); }, 4000);
+    renderDetail();
+    return true;
+  }
 
-  window.renderReplaySummary = function(replayLog = []) {
-    const modal = document.getElementById('replaySummaryModal');
-    const list = document.getElementById('replayTimeline');
-    list.innerHTML = '';
-    const highlights = replayLog.filter(e => ['crown_captured', 'card_played', 'match_end'].includes(e.type));
-    for (const ev of highlights) {
-      const li = document.createElement('li');
-      li.textContent = `[Rodada ${ev.round}] Jogador ${ev.side ?? '-'} · ${ev.type} ${ev.data?.cardName || ''}`;
-      list.appendChild(li);
+  /* ---------------- Mão de cartas ---------------- */
+  function lockReason(card) {
+    if (st.over) return 'Partida encerrada.';
+    if (st.phase === 'draft') return 'Indisponível durante o Draft.';
+    if (st.frozen) return 'Partida pausada (reconexão).';
+    if (st.tutorialFrozen) return 'Conclua a orientação do tutorial.';
+    if (!isMyTurn()) return 'Aguarde sua vez.';
+    if (st.myTeam.ap < card.cost) return `Requer ${card.cost} PA — você tem ${st.myTeam.ap}.`;
+    if (card.targetType === 'cell' && targetsFor(card.id, ctxFromState()).length === 0) return 'Nenhuma casa válida no alcance agora.';
+    return null;
+  }
+
+  function renderHand() {
+    const hand = el('tsHand');
+    hand.replaceChildren();
+    const cards = st.myTeam.hand;
+    el('tsHandInfo').textContent = `${cards.length} carta${cards.length === 1 ? '' : 's'} · ${st.myTeam.ap} PA disponíve${st.myTeam.ap === 1 ? 'l' : 'is'}`;
+    if (!cards.length) {
+      const empty = document.createElement('div');
+      empty.className = 'ts-empty';
+      empty.textContent = `Sem cartas na mão. Novas cartas chegam na Fase de Draft, a cada ${R().draftEveryRounds} rodadas completas.`;
+      hand.appendChild(empty);
+      return;
     }
-    modal.hidden = false;
+    for (const card of cards) {
+      const lock = lockReason(card);
+      const node = renderCardEl(card, { lock, selected: selectedUid === card.uid });
+      node.addEventListener('click', () => onCardClick(card, node));
+      hand.appendChild(node);
+    }
+  }
+
+  function onCardClick(card, node) {
+    const lock = lockReason(card);
+    if (lock) {
+      node.classList.remove('denied'); void node.offsetWidth; node.classList.add('denied');
+      feedback(`${card.name}: ${lock}`, true);
+      sfx('deny');
+      return;
+    }
+    selectedUid = selectedUid === card.uid ? null : card.uid;
+    if (selectedUid) feedback(card.targetType === 'cell' ? `${card.name} selecionada — escolha uma casa dourada no tabuleiro.` : `${card.name} selecionada — confirme em "Usar carta".`);
+    renderBoard(); renderHand(); renderDetail();
+  }
+
+  function renderDetail() {
+    const title = el('tsDetailTitle'), text = el('tsDetailText');
+    const cancel = el('tsCancelSel'), use = el('tsUseCard'), endBtn = el('tsEndTurn'), showRes = el('tsShowResult');
+    const card = selectedCard();
+    cancel.hidden = !card;
+    use.hidden = !(card && card.targetType === 'none');
+    showRes.hidden = !st.over;
+    endBtn.hidden = st.over;
+    endBtn.disabled = !canAct() || pendingAction;
+    use.disabled = pendingAction;
+    const hasCrown = st.crown.holder === st.side;
+    if (st.over) {
+      title.textContent = 'Partida encerrada';
+      text.textContent = 'Abra o resumo para ver o resultado, os tempos de cada jogada e os principais lances.';
+    } else if (card) {
+      title.textContent = `${card.name} · ${card.cost} PA`;
+      text.textContent = `${card.desc} ${card.targetType === 'cell' ? 'Clique em uma casa dourada no tabuleiro para usar.' : 'Não precisa de alvo: confirme em "Usar carta".'}`;
+    } else if (st.phase === 'draft') {
+      title.textContent = 'Fase de Draft';
+      text.textContent = 'Escolha 1 das 3 cartas oferecidas para adicionar à sua mão.';
+    } else if (st.frozen) {
+      title.textContent = 'Partida pausada';
+      text.textContent = `Um jogador perdeu a conexão. O turno fica congelado por até ${Math.round(R().reconnectMs / 1000)}s esperando a volta dele.`;
+    } else if (st.tutorialFrozen) {
+      title.textContent = 'Tutorial em pausa';
+      text.textContent = 'O cronômetro está parado enquanto você lê a explicação destacada.';
+    } else if (canAct()) {
+      title.textContent = pendingAction ? 'Enviando ação…' : 'Sua vez';
+      text.textContent = `Você tem ${st.myTeam.ap} PA. Clique numa casa marcada para andar 1 casa (1 PA) ou selecione uma carta. PA não usados são perdidos ao encerrar o turno.${hasCrown ? ' Você está com a Coroa: ao encerrar o turno ganha +2 PV.' : ''}`;
+    } else {
+      title.textContent = `Vez de ${enemyName()}`;
+      text.textContent = st.opponentIsBot ? 'O CrownBot está decidindo: ele leva cerca de 1 a 2 segundos entre cada ação.' : 'Aguarde o adversário concluir o turno. Você pode consultar suas cartas enquanto isso.';
+    }
+    endBtn.title = canAct() && st.myTeam.ap > 0 ? `${st.myTeam.ap} PA não usados serão perdidos` : '';
+  }
+
+  /* ---------------- Tempo por jogada e registro ---------------- */
+  function renderTimes() {
+    const box = el('tsTimes');
+    const list = [...(st.turnTimes || [])].reverse().slice(0, 8);
+    el('tsPrevTurn').textContent = list[0] ? `anterior: ${fmtSecs(list[0].ms)}` : '';
+    if (!list.length) { box.innerHTML = '<div class="ts-empty">Os tempos aparecem quando cada turno termina.</div>'; return; }
+    box.innerHTML = list.map(t => `
+      <div class="ts-time-row"><span class="who"><i style="background:${t.side === st.side ? '#6f9daf' : '#bd7778'}"></i>${esc(nameOf(t.side))} · R${t.round}${t.reason === 'timeout' ? ' <em>limite</em>' : ''}</span><strong>${fmtSecs(t.ms)}</strong></div>`).join('');
+  }
+
+  function describe(ev) {
+    const has = ev.side !== null && ev.side !== undefined;
+    const who = has ? esc(nameOf(ev.side)) : '';
+    const mine = has && ev.side === st.side;
+    const d = ev.data || {};
+    const rules = R();
+    switch (ev.type) {
+      case 'match_start': return 'Partida iniciada. A Coroa aguarda no tabuleiro.';
+      case 'turn_start': return mine ? `Sua vez: ${d.ap} PA disponíveis.` : `Vez de ${who} (${d.ap} PA).`;
+      case 'move': return d.to ? `${who} moveu para ${cellName(d.to.x, d.to.y)}.` : `${who} se moveu fora do seu campo de visão.`;
+      case 'card_played':
+        if (d.cardId === 'flux_siphon') return mine ? `Você usou ${esc(d.cardName)}: ${esc(enemyName())} começa o próximo turno com −1 PA.` : `${who} usou ${esc(d.cardName)}: você começa o próximo turno com −1 PA.`;
+        if (d.cardId === 'flux_wall' && d.target) return `${who} ergueu uma ${esc(d.cardName)} em ${cellName(d.target.x, d.target.y)}.`;
+        if (d.target && Number.isFinite(d.target.x)) return `${who} usou ${esc(d.cardName)} até ${cellName(d.target.x, d.target.y)}.`;
+        return `${who} usou ${esc(d.cardName)}.`;
+      case 'crown_captured': return mine ? `Você capturou a Coroa! Seu PA base cai para ${rules.basePa - rules.crownPaPenalty} e sua posição fica visível.` : `${who} capturou a Coroa — a posição dele agora fica sempre visível.`;
+      case 'crown_vp': return `${who} recebeu +2 PV pela Coroa (total ${d.vp}).`;
+      case 'turn_end': return d.reason === 'timeout' ? `${who} atingiu o limite de ${Math.round(rules.turnLimitMs / 1000)}s; turno encerrado automaticamente.` : `${who} encerrou o turno em ${fmtSecs(d.ms)}.`;
+      case 'draft_start': return `Fase de Draft: cada jogador escolhe 1 de 3 cartas.`;
+      case 'draft_pick': return mine ? `Você adicionou ${esc(d.cardName)} à mão.` : `${who} escolheu uma carta.`;
+      case 'match_end': return esc(d.reason || 'Partida encerrada.');
+      default: return '';
+    }
+  }
+
+  function renderEvents() {
+    const box = el('tsEvents');
+    const items = [...(st.recentEvents || [])].reverse().filter(e => e.type !== 'turn_start').slice(0, 10);
+    box.innerHTML = items.map(e => {
+      const cls = e.side === null || e.side === undefined ? '' : (e.side === st.side ? 'me' : 'enemy');
+      return `<div class="ts-event ${cls}">${describe(e)}</div>`;
+    }).join('') || '<div class="ts-empty">Nenhuma ação ainda.</div>';
+  }
+
+  function processEvent(ev) {
+    const text = describe(ev);
+    if (text && ev.type !== 'turn_end') feedback(text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+    if (ev.side === null || ev.side === undefined) return;
+    const who = sideKey(ev.side), other = who === 'me' ? 'enemy' : 'me';
+    switch (ev.type) {
+      case 'move': animFig(who, 'step'); sfx('move'); break;
+      case 'card_played':
+        if (ev.data.cardId === 'flux_siphon') {
+          animFig(who, 'attack');
+          animFig(other, 'hit', 160);
+          if (other === 'me') {
+            const frame = el('tsFrame');
+            frame.classList.remove('shake'); void frame.offsetWidth; frame.classList.add('shake');
+            sfx('hit');
+          } else sfx('card');
+        } else if (ev.data.cardId === 'short_teleport') { animFig(who, 'blink'); sfx('card'); }
+        else { animFig(who, 'cast'); sfx('card'); }
+        break;
+      case 'crown_captured': animFig(who, 'cast'); sfx('crown'); break;
+      case 'turn_start': if (who === 'me') sfx('turn'); break;
+      default: break;
+    }
+  }
+
+  /* ---------------- Draft ---------------- */
+  function renderDraft() {
+    const ov = el('tsDraft');
+    if (st.over || st.phase !== 'draft') { ov.hidden = true; return; }
+    ov.hidden = false;
+    const opts = st.myTeam.draftOptions || [];
+    const box = el('tsDraftChoices');
+    box.replaceChildren();
+    if (opts.length) {
+      el('tsDraftTitle').textContent = 'Escolha 1 carta para sua mão';
+      el('tsDraftText').textContent = `A cada ${R().draftEveryRounds} rodadas completas há um Draft de ${Math.round(R().draftMs / 1000)}s. Se o tempo acabar, a primeira opção é adicionada automaticamente.`;
+      for (const card of opts) {
+        const node = renderCardEl(card, {});
+        node.addEventListener('click', () => {
+          if (st.tutorialFrozen) { feedback('Leia a orientação do tutorial primeiro.', true); return; }
+          sfx('card');
+          sendAction('tactical:pickDraft', { cardUid: card.uid });
+          node.classList.add('selected');
+        });
+        box.appendChild(node);
+      }
+    } else {
+      el('tsDraftTitle').textContent = 'Carta escolhida';
+      el('tsDraftText').textContent = `Aguardando ${enemyName()} escolher. A partida continua assim que os dois jogadores escolherem ou o tempo acabar.`;
+    }
+  }
+
+  /* ---------------- Resultado ---------------- */
+  function showResult() {
+    if (!st || !st.over) return;
+    const won = st.winner === st.side, draw = st.winner === null || st.winner === undefined;
+    el('tsResFigMe').innerHTML = figHTML('me', won ? 'won' : (draw ? '' : 'lost'), 'res-me') + `<span>${esc(myName())}</span>`;
+    el('tsResFigEnemy').innerHTML = figHTML('enemy', !won && !draw ? 'won' : (draw ? '' : 'lost'), 'res-enemy') + `<span>${esc(enemyName())}</span>`;
+    const box = el('tsResTitleBox');
+    box.className = 'ts-result-title ' + (won ? 'win' : draw ? '' : 'loss');
+    el('tsResTitle').textContent = won ? 'Vitória' : draw ? 'Partida encerrada' : 'Derrota';
+    const reasons = {
+      vp: won ? `Você manteve a Coroa e chegou a ${R().targetVp} PV.` : `${enemyName()} manteve a Coroa e chegou a ${R().targetVp} PV.`,
+      resign: won ? `${enemyName()} desistiu da partida.` : 'Você desistiu da partida.',
+      abandon: won ? `${enemyName()} saiu da partida (abandono).` : 'Você saiu da partida (abandono).',
+      disconnect: won ? `${enemyName()} não reconectou a tempo.` : 'Você não reconectou a tempo.'
+    };
+    el('tsResReason').textContent = reasons[st.resultType] || st.reason || '';
+    el('tsResEyebrow').textContent = st.kind === 'tutorial' ? 'Tutorial do Cerco Tático' : 'Fim de partida';
+
+    const log = st.replayLog || st.recentEvents || [];
+    const myTurns = log.filter(e => e.type === 'turn_end' && e.side === st.side);
+    const avg = myTurns.length ? myTurns.reduce((s, e) => s + (e.data.ms || 0), 0) / myTurns.length : 0;
+    el('tsResStats').innerHTML = `
+      <div><span>Pontos de Vitória</span><strong>${st.myTeam.vp} × ${st.enemyTeam.vp}</strong></div>
+      <div><span>Rodadas</span><strong>${st.round}</strong></div>
+      <div><span>Duração</span><strong>${fmtClock(st.durationMs)}</strong></div>
+      <div><span>Sua média/jogada</span><strong>${myTurns.length ? fmtSecs(avg) : '—'}</strong></div>`;
+    const key = log.filter(e => ['crown_captured', 'card_played', 'crown_vp', 'draft_pick', 'match_end'].includes(e.type) || (e.type === 'turn_end' && e.data.reason === 'timeout'));
+    el('tsResTimeline').innerHTML = key.slice(-14).map(e => `<li><b>Rodada ${e.round}</b><span>${describe(e)}</span></li>`).join('') || '<li><span>Nenhum lance de destaque.</span></li>';
+    el('tsResNote').textContent = st.kind === 'tutorial'
+      ? 'Partidas do tutorial são treino guiado e não entram no histórico.'
+      : st.opponentIsBot
+        ? 'Resultado registrado no seu histórico como Cerco Tático vs CPU.'
+        : 'Resultado registrado no histórico e nas estatísticas dos dois jogadores.';
+    const again = el('tsAgainBtn');
+    again.disabled = false;
+    again.hidden = false;
+    if (st.kind === 'cpu') again.textContent = 'Nova partida vs CPU';
+    else if (st.kind === 'tutorial') again.textContent = 'Repetir tutorial';
+    else if (st.resultType === 'abandon' || st.resultType === 'disconnect') again.hidden = true;
+    else again.textContent = 'Pedir revanche';
+    el('tsResult').hidden = false;
+    if (won && typeof playTone === 'function') playTone('win');
+  }
+
+  /* ---------------- Saída, desistência e reinício ---------------- */
+  function requestMenu() {
+    if (!st || st.over) { leaveAndClose(); return; }
+    const msg = st.kind === 'tutorial'
+      ? 'Sair agora encerra o tutorial. Treinos guiados não entram no histórico.'
+      : st.opponentIsBot
+        ? 'A partida contra a CPU será encerrada e descartada: não conta como vitória nem derrota no histórico.'
+        : `Sair de uma partida em andamento conta como ABANDONO: a partida termina na hora e a vitória vai para ${enemyName()}. O resultado será registrado no histórico.`;
+    openConfirmExitModal('Voltar ao menu principal?', msg, 'Sair para o menu', leaveAndClose);
+  }
+  function requestResign() {
+    if (!st || st.over) return;
+    const msg = st.kind === 'tutorial'
+      ? 'Desistir encerra o tutorial imediatamente como derrota. Treinos guiados não entram no histórico.'
+      : `Desistir encerra a partida agora e conta como DERROTA para você (vitória de ${enemyName()}). O resultado será registrado no seu histórico.`;
+    openConfirmExitModal('Desistir da partida?', msg, 'Sim, desistir', () => { sendSocket('game:resign'); });
+  }
+  function leaveAndClose() {
+    pendingRestart = null;
+    clearTimeout(leaveFallback);
+    if (typeof sendSocket === 'function' && sendSocket('tactical:leave')) {
+      leaveFallback = setTimeout(() => finishLeave('timeout'), 2500);
+    } else {
+      finishLeave('offline');
+    }
+  }
+  function onLeft(outcome) {
+    clearTimeout(leaveFallback);
+    if (pendingRestart) {
+      const kind = pendingRestart;
+      pendingRestart = null;
+      sendSocket(kind === 'cpu' ? 'tactical:startCpu' : 'tactical:startTutorial');
+      return;
+    }
+    if (sceneOpen) finishLeave(outcome);
+  }
+  function finishLeave(outcome) {
+    clearTimeout(leaveFallback);
+    closeScene();
+    if (typeof forceOpenMenu === 'function') forceOpenMenu();
+    const msg = {
+      discarded: 'Partida encerrada sem registro no histórico.',
+      abandon: 'Você saiu da partida. O resultado foi registrado como abandono.'
+    }[outcome];
+    if (msg && typeof showToast === 'function') showToast(msg);
+  }
+  function playAgain() {
+    if (!st) return;
+    if (st.kind === 'cpu' || st.kind === 'tutorial') {
+      pendingRestart = st.kind;
+      el('tsAgainBtn').disabled = true;
+      if (!sendSocket('tactical:leave')) { pendingRestart = null; el('tsAgainBtn').disabled = false; }
+      return;
+    }
+    if (sendSocket('game:rematch')) {
+      el('tsAgainBtn').disabled = true;
+      el('tsAgainBtn').textContent = 'Aguardando resposta…';
+    }
+  }
+
+  /* ---------------- Regras rápidas ---------------- */
+  function rulesItems(rules) {
+    return [
+      `Tabuleiro ${rules.boardSize}×${rules.boardSize}. Cada jogador controla 1 personagem; a Coroa começa livre no tabuleiro.`,
+      `No seu turno você recebe ${rules.basePa} PA. Andar 1 casa (cima, baixo, esquerda, direita) custa 1 PA; cada carta mostra seu custo. PA que sobra é perdido.`,
+      `Quem pisa na Coroa a captura. Ao encerrar cada turno com ela, ganha +2 PV. Chegar a ${rules.targetVp} PV vence a partida.`,
+      `Custo da Coroa: PA base −${rules.crownPaPenalty} por turno e posição sempre visível para o adversário.`,
+      `Névoa de guerra: você só vê o adversário a até ${rules.visionRadius} casas (distância em passos), exceto se ele estiver com a Coroa.`,
+      `A cada ${rules.draftEveryRounds} rodadas completas há uma Fase de Draft de ${Math.round(rules.draftMs / 1000)}s: escolha 1 de 3 cartas para a mão.`,
+      `Cada turno tem limite de ${Math.round(rules.turnLimitMs / 1000)}s; ao estourar, o turno é encerrado automaticamente. O cronômetro mostra o tempo de decisão.`,
+      'Desistir encerra a partida como derrota. Sair para o menu contra uma pessoa conta como abandono (vitória do adversário); contra a CPU a partida é descartada.'
+    ];
+  }
+  function openRules() {
+    const rules = R();
+    el('tsRulesList').innerHTML = rulesItems(rules).map(t => `<li>${esc(t)}</li>`).join('');
+    const cards = el('tsRulesCards');
+    cards.replaceChildren(...catalog.cards.map(c => renderCardEl(c, { static: true })));
+    el('tsRules').hidden = false;
+  }
+
+  /* ---------------- Tutorial do Cerco: foco em elementos ---------------- */
+  function tutSteps() {
+    const r = R();
+    return {
+      1: { sel: '#tsMePaBlock', title: 'Pontos de Ação (PA)', text: `A cada turno você recebe ${r.basePa} PA. Andar 1 casa custa 1 PA e cada carta mostra o custo no círculo azul. PA que sobrar é perdido ao encerrar o turno. A Coroa está a 2 casas à sua direita: clique nas casas marcadas para andar até ela.` },
+      2: { sel: '#tsDraftChoices', title: 'Fase de Draft', text: `A cada ${r.draftEveryRounds} rodadas completas o jogo pausa para o Draft. Escolha 1 das 3 cartas para adicionar à sua mão. Fora do tutorial você tem ${Math.round(r.draftMs / 1000)}s; se o tempo acabar, a primeira carta é adicionada automaticamente.` },
+      3: { sel: '#tsMeCrown', title: 'O poder e o risco da Coroa', text: `Com a Coroa você ganha +2 PV toda vez que encerra o turno — ${r.targetVp} PV vencem a partida. Em troca, seu PA base cai para ${r.basePa - r.crownPaPenalty} e sua posição fica visível para o adversário mesmo fora do alcance de visão. Agora clique em "Encerrar turno" para pontuar.` }
+    };
+  }
+  function handleTutorial() {
+    const layer = el('tsTut');
+    if (!st || !st.isTutorial || !st.tutorialFrozen || st.over) { layer.hidden = true; return; }
+    const cfg = tutSteps()[st.tutorialStep];
+    if (!cfg) { layer.hidden = true; return; }
+    layer.hidden = false;
+    el('tsTipStep').textContent = `Tutorial do Cerco · Etapa ${st.tutorialStep} de 3`;
+    el('tsTipTitle').textContent = cfg.title;
+    el('tsTipText').textContent = cfg.text;
+    el('tsTipNext').onclick = () => {
+      layer.hidden = true;
+      sendSocket('tactical:tutorialStepComplete', { step: st.tutorialStep });
+    };
+    requestAnimationFrame(() => positionSpot(cfg.sel));
+  }
+  function positionSpot(sel) {
+    const target = document.querySelector(sel);
+    if (!target || el('tsTut').hidden) return;
+    const r0 = target.getBoundingClientRect();
+    if (r0.top < 0 || r0.bottom > innerHeight) target.scrollIntoView({ block: 'center' });
+    const r = target.getBoundingClientRect();
+    const pad = 8, spot = el('tsSpot'), tip = el('tsTip');
+    Object.assign(spot.style, { top: `${r.top - pad}px`, left: `${r.left - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+    const tw = Math.min(330, innerWidth - 24);
+    const th = tip.offsetHeight || 190;
+    if (innerWidth < 600) {
+      Object.assign(tip.style, { left: '12px', top: 'auto', bottom: '12px' });
+    } else {
+      const below = r.bottom + 14 + th < innerHeight;
+      Object.assign(tip.style, {
+        bottom: 'auto',
+        top: `${below ? r.bottom + 14 : Math.max(12, r.top - th - 14)}px`,
+        left: `${Math.max(12, Math.min(innerWidth - tw - 12, r.left))}px`
+      });
+    }
+  }
+
+  /* ---------------- Guia "Como jogar" + demonstração ---------------- */
+  const demo = { n: 7, me: { x: 1, y: 5 }, crown: { x: 4, y: 2, holder: null }, walls: new Set(), action: 'move', ap: 3, vp: 0 };
+  function renderGuide() {
+    const root = el('gtab-tactical');
+    if (!root) return;
+    const r = catalog.rules;
+    root.querySelectorAll('[data-rule]').forEach(n => {
+      const k = n.dataset.rule;
+      const v = r[k];
+      n.textContent = /Ms$/.test(k) ? String(Math.round(v / 1000)) : (k === 'basePaCrown' ? String(r.basePa - r.crownPaPenalty) : String(v ?? ''));
+    });
+    const me = el('tgCharMe'), en = el('tgCharEnemy');
+    if (me && !me.firstChild) me.innerHTML = figHTML('me', '', 'guide-me');
+    if (en && !en.firstChild) en.innerHTML = figHTML('enemy', '', 'guide-enemy');
+    const cards = el('tgCards');
+    if (cards) cards.replaceChildren(...catalog.cards.map(c => renderCardEl(c, { static: true })));
+    const actions = el('tgDemoActions');
+    if (actions) {
+      actions.replaceChildren();
+      const mk = (id, label) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ts-btn' + (demo.action === id ? ' on' : '');
+        b.textContent = label;
+        b.addEventListener('click', () => demoSelect(id));
+        actions.appendChild(b);
+      };
+      mk('move', 'Andar (1 PA)');
+      catalog.cards.forEach(c => mk(c.id, `${c.name} (${c.cost} PA)`));
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'ts-btn';
+      reset.textContent = `Novo turno (${r.basePa} PA)`;
+      reset.addEventListener('click', () => { demo.ap = r.basePa - (demo.crown.holder === 0 ? r.crownPaPenalty : 0); demoText(`Novo turno: ${demo.ap} PA disponíveis.${demo.crown.holder === 0 ? ` (−${r.crownPaPenalty} PA por estar com a Coroa)` : ''}`); renderDemo(); });
+      actions.appendChild(reset);
+    }
+    renderDemo();
+  }
+  function demoText(t) { const n = el('tgDemoText'); if (n) n.textContent = t; }
+  function demoCost(action) { return action === 'move' ? 1 : (catalog.cards.find(c => c.id === action)?.cost ?? 1); }
+  function demoSelect(action) {
+    demo.action = action;
+    const cost = demoCost(action);
+    if (action === 'flux_siphon') {
+      if (demo.ap < cost) demoText(`Sifão de Fluxo custa ${cost} PA — você tem ${demo.ap}.`);
+      else demoText('Sifão de Fluxo não precisa de alvo: você paga 1 PA e o recupera na hora; o adversário começa o próximo turno com −1 PA.');
+    } else if (demo.ap < cost) {
+      demoText(`Esta ação custa ${cost} PA e você tem ${demo.ap}. Clique em "Novo turno" para recomeçar.`);
+    } else {
+      demoText(RULE_HINT[action] || '');
+    }
+    renderGuide();
+  }
+  function renderDemo() {
+    const board = el('tgDemoBoard');
+    if (!board) return;
+    const ctx = { n: demo.n, me: demo.me, others: [], walls: demo.walls, crown: demo.crown };
+    const canPay = demo.ap >= demoCost(demo.action);
+    const targets = canPay && demo.action !== 'flux_siphon' ? new Set(targetsFor(demo.action, ctx).map(([x, y]) => `${x},${y}`)) : new Set();
+    board.style.setProperty('--n', demo.n);
+    const frag = document.createDocumentFragment();
+    for (let y = 0; y < demo.n; y++) {
+      for (let x = 0; x < demo.n; x++) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        const key = `${x},${y}`;
+        b.className = `ts-cell ${(x + y) % 2 ? 'd' : 'l'}${targets.has(key) ? (demo.action === 'move' ? ' move' : ' target') : ''}`;
+        b.setAttribute('aria-label', `Casa ${cellName(x, y)}`);
+        if (demo.walls.has(key)) b.innerHTML = WALL_SVG;
+        b.addEventListener('click', () => demoClick(x, y, targets.has(key)));
+        frag.appendChild(b);
+      }
+    }
+    const layer = document.createElement('div');
+    layer.className = 'ts-layer';
+    layer.innerHTML = `
+      ${demo.crown.holder === null ? `<div class="ts-crown-free" style="transform:translate(${demo.crown.x * 100}%,${demo.crown.y * 100}%)">${CROWN_SVG}</div>` : ''}
+      <div class="ts-token me" style="transform:translate(${demo.me.x * 100}%,${demo.me.y * 100}%)"><div class="ts-ring"></div>${figHTML('me', '', 'demo-me')}<span class="ts-crown-on" ${demo.crown.holder === 0 ? '' : 'hidden'}>${CROWN_SVG}</span></div>`;
+    board.replaceChildren(frag, layer);
+    const info = el('tgDemoInfo');
+    if (info) info.textContent = `PA: ${demo.ap} · PV: ${demo.vp}${demo.crown.holder === 0 ? ' · com a Coroa' : ''}`;
+  }
+  function demoClick(x, y, valid) {
+    if (!valid) { demoText(demo.ap < demoCost(demo.action) ? 'PA insuficiente para esta ação.' : (RULE_HINT[demo.action] || 'Casa inválida.')); return; }
+    demo.ap -= demoCost(demo.action);
+    if (demo.action === 'flux_wall') {
+      demo.walls.add(`${x},${y}`);
+      if (demo.walls.size > 3) demo.walls.delete(demo.walls.values().next().value);
+      demoText(`Parede erguida em ${cellName(x, y)}: ninguém pode entrar nessa casa enquanto ela durar.`);
+    } else {
+      demo.me = { x, y };
+      let msg = `Personagem em ${cellName(x, y)}.`;
+      if (demo.crown.holder === null && demo.crown.x === x && demo.crown.y === y) {
+        demo.crown.holder = 0;
+        msg = 'Coroa capturada! A partir de agora você ganha +2 PV ao encerrar cada turno, mas perde 1 PA base e fica visível.';
+      }
+      if (demo.action === 'crown_dash' && demo.crown.holder === 0) { demo.vp += 1; msg += ' Impulso Real com a Coroa: +1 PV.'; }
+      demoText(msg);
+    }
+    renderDemo();
+  }
+  function startFromGuide(kind) {
+    if (typeof onlineUser === 'undefined' || !onlineUser) {
+      showToast('Entre na sua conta para jogar o Cerco Tático: as partidas são processadas no servidor.');
+      switchNav('profile');
+      return;
+    }
+    if (!wsReady) connectSocket();
+    sendSocket(kind === 'cpu' ? 'tactical:startCpu' : 'tactical:startTutorial');
+  }
+
+  /* ---------------- Eventos de interface ---------------- */
+  el('tsBoard').addEventListener('click', (e) => {
+    const c = e.target.closest('.ts-cell');
+    if (c) onCellClick(+c.dataset.x, +c.dataset.y);
+  });
+  el('tsEndTurn').addEventListener('click', () => {
+    if (!canAct()) { feedback(reasonCannotAct(), true); return; }
+    selectedUid = null;
+    sendAction('tactical:endTurn');
+  });
+  el('tsCancelSel').addEventListener('click', () => { selectedUid = null; feedback('Seleção cancelada.'); renderBoard(); renderHand(); renderDetail(); });
+  el('tsUseCard').addEventListener('click', () => {
+    const card = selectedCard();
+    if (!card || card.targetType !== 'none') return;
+    const lock = lockReason(card);
+    if (lock) { feedback(lock, true); return; }
+    const cardEl = el('tsHand').querySelector(`[data-uid="${card.uid}"]`);
+    if (cardEl) cardEl.classList.add('playing');
+    sfx('card');
+    sendAction('tactical:playCard', { cardUid: card.uid });
+    selectedUid = null;
+  });
+  el('tsShowResult').addEventListener('click', showResult);
+  el('tsMenuBtn').addEventListener('click', requestMenu);
+  el('tsResMenuBtn').addEventListener('click', leaveAndClose);
+  el('tsResignBtn').addEventListener('click', requestResign);
+  el('tsAgainBtn').addEventListener('click', playAgain);
+  el('tsCloseResult').addEventListener('click', () => { el('tsResult').hidden = true; });
+  el('tsRulesBtn').addEventListener('click', openRules);
+  el('tsRulesClose').addEventListener('click', () => { el('tsRules').hidden = true; });
+  el('tsRulesOk').addEventListener('click', () => { el('tsRules').hidden = true; });
+  document.addEventListener('keydown', (e) => {
+    if (!sceneOpen || e.key !== 'Escape') return;
+    if (!el('tsRules').hidden) { el('tsRules').hidden = true; return; }
+    if (selectedUid) { selectedUid = null; renderBoard(); renderHand(); renderDetail(); feedback('Seleção cancelada.'); }
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tickClock(); });
+  window.addEventListener('resize', () => { if (st && st.isTutorial && st.tutorialFrozen) handleTutorial(); });
+
+  const tgTut = el('tgStartTutorial'), tgCpu = el('tgStartCpu');
+  if (tgTut) tgTut.addEventListener('click', () => startFromGuide('tutorial'));
+  if (tgCpu) tgCpu.addEventListener('click', () => startFromGuide('cpu'));
+
+  fetch('/api/tactical/rules').then(r => (r.ok ? r.json() : null)).then(data => {
+    if (data && Array.isArray(data.cards) && data.rules) { catalog = data; renderGuide(); }
+  }).catch(() => {});
+  renderGuide();
+
+  window.TacticalUI = {
+    onState,
+    onLeft,
+    onError(message) {
+      if (!sceneOpen) return;
+      pendingAction = false;
+      clearTimeout(pendingTimer);
+      if (st) { renderHand(); renderDetail(); }
+      feedback(message, true);
+    },
+    onConnection(msg) {
+      if (!sceneOpen) return;
+      feedback(msg.connected ? `${enemyName()} reconectou. A partida continua.` : `${enemyName()} perdeu a conexão. Turno pausado por até ${msg.graceSeconds || 30}s.`, !msg.connected);
+    },
+    isOpen: () => sceneOpen,
+    _debug: () => ({ st, selectedUid, clockTimer: Boolean(clockTimer), targets: st ? currentTargets() : [] })
   };
 })();
 </script>

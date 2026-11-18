@@ -694,6 +694,23 @@ async function handleApi(req, res, url) {
     return json(res, 200, { ok: true, user: safeUser(user, true, true) });
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/tactical/rules') {
+    return json(res, 200, {
+      cards: Object.values(CARD_CATALOG),
+      rules: {
+        boardSize: TACTICAL_BOARD,
+        targetVp: TACTICAL_TARGET_VP,
+        basePa: TACTICAL_BASE_PA,
+        crownPaPenalty: TACTICAL_CROWN_PA_PENALTY,
+        turnLimitMs: TACTICAL_TURN_MS,
+        draftMs: TACTICAL_DRAFT_MS,
+        draftEveryRounds: 3,
+        visionRadius: TACTICAL_VISION_RADIUS,
+        reconnectMs: TACTICAL_RECONNECT_MS
+      }
+    });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/matches/record') {
     const user = sessionUser(req);
     if (!user) return json(res, 401, { error: 'Sessão expirada.' });
@@ -1027,7 +1044,7 @@ const CARD_CATALOG = {
     cost: 1,
     targetType: 'none',
     range: 0,
-    desc: 'Rouba 1 PA do inimigo mais próximo (+1 PA imediato, -1 PA no próximo turno dele).'
+    desc: 'Rouba 1 PA do inimigo: ele começa o próximo turno com −1 PA e você recupera o PA gasto nesta carta.'
   },
   flux_wall: {
     id: 'flux_wall',
@@ -1094,12 +1111,50 @@ class TacticalDraftMatch {
       draftPicked: false
     }));
     this.disconnects = new Map();
+    this.kind = room.kind || 'private';
+    this.createdAt = Date.now();
+    this.eventSeq = 0;
+    this.leftPlayers = new Set();
+    this.resultType = null; // 'vp' | 'resign' | 'abandon' | 'disconnect'
+    this.recorded = false;
+    this.discarded = false;
+    // Cronômetro de decisão do turno (pausa durante reconexão / explicações do tutorial)
+    this.turnStartedAt = Date.now();
+    this.turnPausedMs = 0;
+    this.pauseStartedAt = null;
+    this.turnTimes = [];
     this.replayLog = [];
     this.logEvent('match_start', null, { boardSize: this.boardSize });
   }
 
   logEvent(type, side, data = {}) {
-    this.replayLog.push({ t: Date.now(), round: this.round, type, side, data });
+    this.eventSeq += 1;
+    this.replayLog.push({ seq: this.eventSeq, t: Date.now(), round: this.round, type, side, data });
+  }
+
+  isClockPaused() {
+    return this.disconnects.size > 0 || Boolean(this.tutorialFrozen);
+  }
+
+  syncClockPause(now = Date.now()) {
+    const shouldPause = this.isClockPaused() && !this.over;
+    if (shouldPause && this.pauseStartedAt === null) this.pauseStartedAt = now;
+    else if (!shouldPause && this.pauseStartedAt !== null) {
+      this.turnPausedMs += now - this.pauseStartedAt;
+      this.pauseStartedAt = null;
+    }
+  }
+
+  currentTurnElapsed(now = Date.now()) {
+    const ref = this.pauseStartedAt ?? now;
+    return Math.max(0, ref - this.turnStartedAt - this.turnPausedMs);
+  }
+
+  recordTurnTime(side, reason) {
+    const ms = this.currentTurnElapsed();
+    this.turnTimes.push({ side, round: this.round, ms, reason });
+    if (this.turnTimes.length > 40) this.turnTimes.shift();
+    return ms;
   }
 
   isInside(x, y) {
@@ -1208,9 +1263,11 @@ class TacticalDraftMatch {
     return { ok: true, card, hitEnemy: card.id === 'flux_siphon' ? enemySide : null };
   }
 
-  endTurn(side) {
+  endTurn(side, reason = 'manual') {
     if (this.over || this.phase !== 'turn' || side !== this.activeSide) return { ok: false };
     const team = this.teams[side];
+    const ms = this.recordTurnTime(side, reason);
+    this.logEvent('turn_end', side, { ms, reason });
     team.ap = 0;
 
     if (this.crown.holder === side) {
@@ -1246,7 +1303,12 @@ class TacticalDraftMatch {
     const base = Math.max(1, TACTICAL_BASE_PA - crownPenalty + team.nextTurnDeltaAp);
     team.nextTurnDeltaAp = 0;
     team.ap = base;
-    this.turnDeadline = Date.now() + TACTICAL_TURN_MS;
+    const now = Date.now();
+    this.turnDeadline = now + TACTICAL_TURN_MS;
+    this.turnStartedAt = now;
+    this.turnPausedMs = 0;
+    this.pauseStartedAt = null;
+    this.syncClockPause(now);
     this.logEvent('turn_start', side, { ap: team.ap, hasCrown: this.crown.holder === side });
   }
 
@@ -1285,6 +1347,7 @@ class TacticalDraftMatch {
       ? Math.max(3000, this.turnDeadline - now)
       : Math.max(2000, this.draftDeadline - now);
     this.disconnects.set(uid, { at: now, frozenRemainingMs });
+    this.syncClockPause(now);
   }
 
   onPlayerReconnect(uid) {
@@ -1294,6 +1357,7 @@ class TacticalDraftMatch {
     if (this.phase === 'turn') this.turnDeadline = now + info.frozenRemainingMs;
     else this.draftDeadline = now + info.frozenRemainingMs;
     this.disconnects.delete(uid);
+    this.syncClockPause(now);
   }
 
   tick(now) {
@@ -1301,7 +1365,7 @@ class TacticalDraftMatch {
     for (const [uid, info] of this.disconnects) {
       if (now - info.at > TACTICAL_RECONNECT_MS) {
         const winner = 1 - this.players.indexOf(uid);
-        this.finish(winner, 'O adversário não reconectou a tempo (30s).');
+        this.finish(winner, 'Desconexão: um jogador não reconectou em 30s.', 'disconnect');
         return 'ended';
       }
     }
@@ -1318,18 +1382,55 @@ class TacticalDraftMatch {
       return 'draft_ended';
     }
     if (this.phase === 'turn' && now >= this.turnDeadline) {
-      this.endTurn(this.activeSide);
+      this.endTurn(this.activeSide, 'timeout');
+      if (this.over) return 'ended';
       return 'turn_timeout';
     }
     return null;
   }
 
-  finish(winnerSide, reason) {
+  finish(winnerSide, reason, resultType = 'vp') {
+    if (this.over) return;
+    this.syncClockPause();
     this.over = true;
     this.winner = winnerSide;
     this.reason = reason;
+    this.resultType = resultType;
     this.endedAt = Date.now();
-    this.logEvent('match_end', winnerSide, { reason });
+    this.logEvent('match_end', winnerSide, { reason, resultType });
+    botController.clear(this.id);
+    recordTacticalResult(this);
+  }
+
+  // Descarta a partida sem registrar resultado (saída de partida contra bot / tutorial)
+  discard(reason) {
+    if (this.over) return;
+    this.over = true;
+    this.discarded = true;
+    this.winner = null;
+    this.reason = reason;
+    this.resultType = 'discarded';
+    this.endedAt = Date.now();
+    botController.clear(this.id);
+  }
+
+  playerLabel(side) {
+    const uid = this.players[side];
+    if (isBotUid(uid)) return this.isTutorial ? 'Mentor Rubi (Tutorial)' : 'CrownBot (CPU)';
+    const u = db.users.find(x => x.id === uid);
+    return u ? (u.displayName || u.username) : 'Jogador';
+  }
+
+  // Remove coordenadas de ações inimigas que a névoa de guerra deveria esconder
+  sanitizeEventFor(ev, viewerSide, enemyVisible) {
+    const out = { seq: ev.seq, t: ev.t, round: ev.round, type: ev.type, side: ev.side, data: { ...ev.data } };
+    if (ev.side !== null && ev.side !== viewerSide && !enemyVisible) {
+      if (ev.type === 'move') { delete out.data.from; delete out.data.to; }
+      if (ev.type === 'card_played' && (ev.data.cardId === 'short_teleport' || ev.data.cardId === 'crown_dash')) {
+        delete out.data.target;
+      }
+    }
+    return out;
   }
 
   serializeFor(side) {
@@ -1337,29 +1438,60 @@ class TacticalDraftMatch {
     const enemySide = 1 - side;
     const enemyUnit = this.units[enemySide];
     const enemyHasCrown = this.crown.holder === enemySide;
-    const enemyVisible = true;
+    const enemyVisible = enemyHasCrown ||
+      this.manhattan(myUnit.x, myUnit.y, enemyUnit.x, enemyUnit.y) <= TACTICAL_VISION_RADIUS;
     const opponentId = this.players[enemySide];
-    const opp = isBotUid(opponentId)
-      ? { username: 'crownbot', displayName: 'CrownBot (CPU)', avatar: '🤖' }
-      : db.users.find(u => u.id === opponentId);
+    const opponentIsBot = isBotUid(opponentId);
+    const opp = opponentIsBot ? null : db.users.find(u => u.id === opponentId);
+    const me = db.users.find(u => u.id === this.players[side]);
+    const now = Date.now();
 
     return {
       gameId: this.id,
       mode: this.mode,
+      kind: this.isTutorial ? 'tutorial' : this.kind,
       side,
       over: this.over,
       winner: this.winner,
       reason: this.reason,
+      resultType: this.resultType,
       phase: this.phase,
       round: this.round,
       activeSide: this.activeSide,
-      turnRemainingMs: Math.max(0, this.turnDeadline - Date.now()),
-      draftRemainingMs: Math.max(0, this.draftDeadline - Date.now()),
+      turnRemainingMs: Math.max(0, this.turnDeadline - now),
+      draftRemainingMs: Math.max(0, this.draftDeadline - now),
       boardSize: this.boardSize,
       frozen: this.disconnects.size > 0,
-      opponent: opp ? safeUser(opp) : { username: 'Oponente', displayName: 'Oponente', avatar: '♟' },
+      opponentIsBot,
+      self: me ? { username: me.username, displayName: me.displayName || me.username } : { username: 'voce', displayName: 'Você' },
+      opponent: opponentIsBot
+        ? { username: this.isTutorial ? 'mentor' : 'crownbot', displayName: this.playerLabel(enemySide), isBot: true }
+        : (opp ? { username: opp.username, displayName: opp.displayName || opp.username } : { username: 'oponente', displayName: 'Oponente' }),
+      rules: {
+        targetVp: TACTICAL_TARGET_VP,
+        basePa: TACTICAL_BASE_PA,
+        crownPaPenalty: TACTICAL_CROWN_PA_PENALTY,
+        turnLimitMs: TACTICAL_TURN_MS,
+        draftMs: TACTICAL_DRAFT_MS,
+        draftEveryRounds: 3,
+        visionRadius: TACTICAL_VISION_RADIUS,
+        reconnectMs: TACTICAL_RECONNECT_MS
+      },
+      clock: {
+        phase: this.phase,
+        activeSide: this.activeSide,
+        elapsedMs: this.over ? 0 : this.currentTurnElapsed(now),
+        paused: this.isClockPaused() || this.over,
+        limitMs: TACTICAL_TURN_MS,
+        remainingMs: this.isClockPaused()
+          ? Math.max(0, TACTICAL_TURN_MS - this.currentTurnElapsed(now))
+          : Math.max(0, this.turnDeadline - now)
+      },
+      turnTimes: this.turnTimes.slice(-12),
+      recentEvents: this.replayLog.slice(-14).map(ev => this.sanitizeEventFor(ev, side, enemyVisible || this.over)),
+      durationMs: (this.endedAt || now) - this.createdAt,
       myUnit,
-      enemyUnit: enemyVisible ? { ...enemyUnit, revealedByCrown: enemyHasCrown } : null,
+      enemyUnit: (enemyVisible || this.over) ? { ...enemyUnit, revealedByCrown: enemyHasCrown } : null,
       crown: { ...this.crown },
       walls: this.walls.map(w => ({ x: w.x, y: w.y, expiresAtRound: w.expiresAtRound })),
       myTeam: {
@@ -1543,6 +1675,7 @@ class TutorialRoom extends TacticalDraftMatch {
     const botUid = `bot:tutor:${id().slice(0, 6)}`;
     super({
       id: id(),
+      kind: 'tutorial',
       players: [playerUid, botUid],
       options: { mode: 'tactical_draft', isTutorial: true }
     });
@@ -1550,6 +1683,7 @@ class TutorialRoom extends TacticalDraftMatch {
     this.tutorialStep = 1; // 1: PA & Movimento, 2: Draft, 3: Coroa & Debuff
     this.tutorialFrozen = true;
     this.frozenRemainingMs = TACTICAL_TURN_MS;
+    this.syncClockPause();
 
     // Posições e Coroa fixas para o roteiro do tutorial
     this.units = [
@@ -1570,14 +1704,16 @@ class TutorialRoom extends TacticalDraftMatch {
     this.frozenRemainingMs = this.phase === 'draft'
       ? Math.max(4000, this.draftDeadline - now)
       : Math.max(10_000, this.turnDeadline - now);
+    this.syncClockPause(now);
   }
 
   completeTutorialStep(step) {
-    if (Number(step) !== this.tutorialStep) return false;
+    if (Number(step) !== this.tutorialStep || !this.tutorialFrozen) return false;
     this.tutorialFrozen = false;
     const now = Date.now();
     if (this.phase === 'draft') this.draftDeadline = now + this.frozenRemainingMs;
     else this.turnDeadline = now + this.frozenRemainingMs;
+    this.syncClockPause(now);
     botController.maybeAct(this);
     return true;
   }
@@ -1615,11 +1751,79 @@ class TutorialRoom extends TacticalDraftMatch {
     base.isTutorial = true;
     base.tutorialStep = this.tutorialStep;
     base.tutorialFrozen = this.tutorialFrozen;
-    if (isBotUid(this.players[1 - side])) {
-      base.opponent = { username: 'crownbot', displayName: 'CrownBot (CPU)', avatar: '🤖' };
-    }
     return base;
   }
+}
+
+// Registra o resultado de uma partida do Cerco Tático no histórico/estatísticas
+function recordTacticalResult(game) {
+  if (game.recorded || game.discarded) return;
+  game.recorded = true;
+  if (game.isTutorial) return; // Tutorial é treino guiado: não entra no histórico
+  const humans = game.players.filter(uid => !isBotUid(uid));
+  const vsBot = humans.length < 2;
+  const reasonLabel = {
+    vp: 'Domínio da Coroa',
+    resign: 'Desistência',
+    abandon: 'Abandono',
+    disconnect: 'Desconexão'
+  }[game.resultType] || 'Fim de partida';
+  const users = game.players.map(uid => isBotUid(uid) ? null : db.users.find(u => u.id === uid));
+
+  if (!vsBot && users[0] && users[1]) {
+    const [a, b] = users;
+    a.games = (a.games || 0) + 1;
+    b.games = (b.games || 0) + 1;
+    if (game.winner === 0) { a.wins = (a.wins || 0) + 1; b.losses = (b.losses || 0) + 1; }
+    else if (game.winner === 1) { b.wins = (b.wins || 0) + 1; a.losses = (a.losses || 0) + 1; }
+    else { a.draws = (a.draws || 0) + 1; b.draws = (b.draws || 0) + 1; }
+  }
+
+  db.games.unshift({
+    id: game.id,
+    mode: vsBot ? 'tactical_cpu' : 'tactical',
+    players: [...game.players],
+    opponentName: vsBot ? 'CrownBot (CPU)' : undefined,
+    winner: game.winner,
+    reason: `${reasonLabel}: ${game.reason}`.slice(0, 140),
+    duration: Math.max(1, Math.floor(((game.endedAt || Date.now()) - game.createdAt) / 1000)),
+    createdAt: nowIso(),
+    scores: game.teams.map(t => t.vp),
+    options: { mode: 'tactical_draft', rounds: game.round }
+  });
+  db.games = db.games.slice(0, 5000);
+  persistDb();
+  for (const u of users) {
+    if (u) sendUser(u.id, 'profile:stats', { user: safeUser(u, true, true), games: userHistoryPayload(u.id) });
+  }
+}
+
+// Saída voluntária (botão "Voltar ao menu"). Regras:
+// - Contra bot/tutorial: a partida é descartada (sem registro) e removida da memória.
+// - Contra pessoa: conta como Abandono — a vitória vai para quem ficou.
+// - Partida já encerrada: apenas libera o jogador; quando todos saem, a partida é removida.
+function leaveTacticalMatch(uid) {
+  const mine = [...activeGames.values()].filter(g =>
+    g.mode === 'tactical_draft' && g.players.includes(uid) && !g.leftPlayers.has(uid));
+  const game = mine.find(g => !g.over) || mine.sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0))[0];
+  if (!game) return { ok: true, outcome: 'none' };
+  const side = game.players.indexOf(uid);
+  const humans = game.players.filter(p => !isBotUid(p));
+  let outcome = 'left';
+  if (!game.over) {
+    if (humans.length < 2) {
+      game.discard('Partida encerrada pelo jogador.');
+      outcome = 'discarded';
+    } else {
+      game.finish(1 - side, `${game.playerLabel(side)} saiu da partida.`, 'abandon');
+      outcome = 'abandon';
+      publishTactical(game, 'game:ended');
+    }
+  }
+  game.leftPlayers.add(uid);
+  if (humans.every(h => game.leftPlayers.has(h))) activeGames.delete(game.id);
+  notifyPresence(uid);
+  return { ok: true, outcome };
 }
 
 function publishTactical(game, type = 'tactical:state', extra = {}) {
@@ -2048,7 +2252,8 @@ async function handleSocketMessage(ws, msg) {
       const game = gameForSocket(ws);
       if (!game) return sendError(ws, 'Você não está em uma partida.');
       if (game.mode === 'tactical_draft') {
-        game.finish(1 - game.players.indexOf(ws.userId), 'O jogador abandonou a partida.');
+        const side = game.players.indexOf(ws.userId);
+        game.finish(1 - side, `${game.playerLabel(side)} desistiu da partida.`, 'resign');
         publishTactical(game, 'game:ended');
       } else {
         finishGame(game, 1 - game.players.indexOf(ws.userId), 'O jogador abandonou a partida.');
@@ -2103,6 +2308,11 @@ async function handleSocketMessage(ws, msg) {
       if (!res.ok) return sendError(ws, res.error);
       publishTactical(game, 'tactical:state');
       botController.maybeAct(game);
+      break;
+    }
+    case 'tactical:leave': {
+      const res = leaveTacticalMatch(ws.userId);
+      send(ws, 'tactical:left', { outcome: res.outcome });
       break;
     }
     case 'tactical:startCpu': {
