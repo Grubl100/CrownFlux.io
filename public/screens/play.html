@@ -1,0 +1,235 @@
+<!-- VIEW 1: JOGAR -->
+  <main id="view-play" class="view-page active">
+    <div class="play-layout">
+      <section class="arena-panel">
+        <div class="board-top">
+          <span id="modeTag">ARENA · 4 FACÇÕES</span>
+          <span id="statusTag"><i class="status-dot"></i><span id="statusText">AGUARDANDO</span></span>
+        </div>
+
+        <!-- Tutorial Guide Banner (Appears outside the canvas so it never obscures pieces) -->
+        <div id="tutorialBanner" class="hidden" role="region" aria-label="Guia do tutorial">
+          <div class="tut-top">
+            <span class="tut-step-badge" id="tutStepBadge">Etapa 1 de 8</span>
+            <div class="tut-progress-track"><div class="tut-progress-fill" id="tutProgressFill"></div></div>
+            <div class="tut-controls">
+              <button class="mini-btn" id="tutPrevBtn" type="button" title="Etapa anterior">◀ Anterior</button>
+              <button class="mini-btn" id="tutReviewBtn" type="button" title="Consultar todas as explicações">📖 Etapas</button>
+              <button class="mini-btn" id="tutPauseBtn" type="button">Pausar</button>
+              <button class="mini-btn" id="tutNextBtn" type="button">Avançar →</button>
+              <button class="mini-btn danger" id="tutExitBtn" type="button">Sair</button>
+            </div>
+          </div>
+          <h2 class="tut-title" id="tutTitle">Conhecendo o tabuleiro</h2>
+          <p class="tut-text" id="tutText">Bem-vindo ao Crownflux.io!</p>
+          <div class="tut-hint hidden" id="tutHint"></div>
+        </div>
+
+        <div id="wrap">
+          <canvas id="cv" aria-label="Tabuleiro de Crownflux.io"></canvas>
+
+          <!-- Overlay: Main Mode Picker -->
+          <div id="start" class="overlay">
+            <div class="modal">
+              <div class="eyebrow">Xadrez estratégico em tempo real</div>
+              <h1>CROWN<em>FLUX</em>.IO</h1>
+              <p class="tagline">Sem turnos. Mova suas peças em tempo real, evolua seu exército e capture o Rei adversário.</p>
+              <div class="mode-grid">
+                <button class="mode-card active" data-mode="arena" type="button">
+                  <span class="mode-icon">⚔️</span>
+                  <span>
+                    <span class="mode-name">Arena 4 Facções</span>
+                    <span class="mode-sub">4 exércitos disputando o mesmo tabuleiro</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="cpu" type="button">
+                  <span class="mode-icon">♟</span>
+                  <span>
+                    <span class="mode-name">Desafie a CPU</span>
+                    <span class="mode-sub">Duelo 1v1 com 5 níveis de dificuldade</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="online" type="button">
+                  <span class="mode-icon">🌐</span>
+                  <span>
+                    <span class="mode-name">Duelo Online</span>
+                    <span class="mode-sub">Jogue contra outras pessoas ou amigos</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="duel" type="button">
+                  <span class="mode-icon">👑</span>
+                  <span>
+                    <span class="mode-name">Duelo Local</span>
+                    <span class="mode-sub">2 jogadores no mesmo dispositivo</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="tactical_draft" type="button" style="grid-column: 1 / -1;">
+                  <span class="mode-icon">🃏</span>
+                  <span>
+                    <span class="mode-name">Cerco Tático (Cartas & Turnos)</span>
+                    <span class="mode-sub">Grid tático 12×12, 3 PA por turno, Draft de cartas e disputa pela Coroa</span>
+                  </span>
+                </button>
+              </div>
+              <div id="modeDesc" class="mode-desc">Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e transforme o rei rival em seu maior troféu.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+                <button id="go" class="primary" type="button">ENTRAR NA ARENA →</button>
+                <button id="startTutorialFromMenuBtn" class="secondary" type="button">🎓 Tutorial Prático (1v1)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay: CPU Difficulty Selection (5 Levels) -->
+          <div id="cpuDiffOverlay" class="overlay hidden">
+            <div class="modal" style="width:min(100%,510px)">
+              <div class="online-head" style="width:100%;display:flex;justify-content:space-between;align-items:center">
+                <div style="text-align:left">
+                  <div class="eyebrow">Duelo 1v1 contra o computador</div>
+                  <h2 style="margin:2px 0 0;font-size:20px">Escolha a dificuldade da CPU</h2>
+                </div>
+                <button class="close-btn" id="cpuDiffBackBtn" type="button" aria-label="Voltar">×</button>
+              </div>
+              <div class="diff-list" id="cpuDiffList"></div>
+              <div style="display:flex;gap:8px;width:100%;justify-content:flex-end">
+                <button class="secondary" id="cpuDiffCancelBtn" type="button">Voltar</button>
+                <button class="primary" id="cpuDiffStartBtn" type="button">Iniciar Partida →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay: Online Matchmaking & Private Room -->
+          <div id="onlineLobbyOverlay" class="overlay hidden">
+            <div class="modal" style="width:min(100%,500px);text-align:left;align-items:stretch">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                <div>
+                  <div class="eyebrow">Multiplayer em tempo real</div>
+                  <h2 style="margin:2px 0 4px;font-size:20px">Duelo Online 1v1</h2>
+                  <p class="muted" style="margin:0" id="onlineLobbySub">Encontre um adversário na fila pública ou crie uma sala privada.</p>
+                </div>
+                <button class="close-btn" id="onlineLobbyCloseBtn" type="button">×</button>
+              </div>
+
+              <div id="onlineLobbyGuestNotice" class="panel-box hidden">
+                <h3>Entre na sua conta para jogar online</h3>
+                <p class="muted" style="margin:0">Para disputar partidas online, manter amigos e salvar seu histórico no servidor, faça login ou crie uma conta rápida.</p>
+                <div style="display:flex;gap:8px">
+                  <button class="primary" id="onlineGoAuthBtn" type="button">Entrar ou Criar Conta</button>
+                </div>
+              </div>
+
+              <div id="onlineLobbyAuthContent" style="display:flex;flex-direction:column;gap:10px">
+                <div class="panel-box">
+                  <h3>Fila Pública 1v1</h3>
+                  <p class="muted" style="margin:0" id="queueStatus">Partidas rápidas em tempo real contra jogadores conectados.</p>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="primary" id="queueBtn" type="button">BUSCAR ADVERSÁRIO</button>
+                    <button class="secondary" id="openFriendsFromLobbyBtn" type="button">Desafiar um Amigo</button>
+                  </div>
+                </div>
+
+                <div class="panel-box">
+                  <h3>Sala Privada com Código</h3>
+                  <div class="field-row">
+                    <button class="secondary" id="createRoomBtn" type="button">CRIAR SALA PRIVADA</button>
+                    <button class="secondary" id="createTacticalRoomBtn" type="button">CERCO TÁTICO (CARTAS)</button>
+                    <button class="secondary" id="startTacticalCpuBtn" type="button">TREINAR VS BOT (CPU)</button>
+                    <button class="secondary" id="startTacticalTutorialBtn" type="button">TUTORIAL GUIADO</button>
+                    <input class="field" id="joinRoomCode" maxlength="6" placeholder="Código (4 ou 6 letras)" style="flex:1;min-width:130px">
+                    <button class="secondary" id="joinRoomBtn" type="button">ENTRAR</button>
+                  </div>
+                  <div id="roomCreated" class="hidden" style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#191815;padding:8px 11px;border-radius:6px;border:1px dashed var(--gold)">
+                    <div>
+                      <span class="muted" style="font-size:10px;display:block">Compartilhe este código:</span>
+                      <strong id="roomCodeText" style="font-size:18px;letter-spacing:3px;color:var(--gold)">------</strong>
+                    </div>
+                    <button class="mini-btn" id="copyRoomCode" type="button">COPIAR</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay: Game Over / Tutorial Complete -->
+          <div id="over" class="overlay hidden">
+            <div class="modal">
+              <div class="eyebrow" id="overEyebrow">Fim de partida</div>
+              <h1 id="resultTitle">REI CAPTURADO</h1>
+              <div id="winnerText" style="font-size:20px;font-weight:800;color:var(--gold)">Vitória!</div>
+              <div id="res" class="muted" style="font-size:13px;line-height:1.7"></div>
+              <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:4px">
+                <button id="again" class="primary" type="button">JOGAR NOVAMENTE</button>
+                <button id="rematch" class="primary hidden" type="button">PEDIR REVANCHE</button>
+                <button id="changeCpuDiffBtn" class="secondary hidden" type="button">MUDAR DIFICULDADE</button>
+                <button id="menu" class="secondary" type="button">MENU PRINCIPAL</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-hint">
+          Toque em uma peça da sua cor e depois na casa de destino. <b>ESC</b> cancela a seleção · <b>ESPAÇO</b> ativa o Surto em 100%.
+        </div>
+      </section>
+
+      <!-- HUD Lateral Permanente -->
+      <aside id="hud" aria-label="Painel lateral da partida">
+        <section class="hud-section" id="scoreCard">
+          <div class="section-head"><span>Informações da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
+          <div class="turn-banner-box my-turn" id="turnBannerBox">
+            <span class="turn-owner-label">
+              <span class="dot" id="turnOwnerDot" style="width:8px;height:8px;border-radius:50%;background:#6f9daf;display:inline-block"></span>
+              <span id="turnOwnerText">Sua vez (Azul)</span>
+            </span>
+            <span class="turn-timer-pill" id="currentMoveTimer" title="Cronômetro da jogada atual">0.0s</span>
+          </div>
+          <div id="lb"></div>
+          <div class="move-meta-box">
+            <div class="stat-line"><span>Jogada anterior:</span><strong id="lastMoveTimeText">—</strong></div>
+            <div class="stat-line" id="hudTutProgressRow" style="display:none"><span>Progresso do tutorial:</span><strong id="hudTutProgressText" style="color:var(--gold)">Etapa 1 de 8</strong></div>
+            <div id="moveHistoryList" class="move-history-list"></div>
+          </div>
+        </section>
+
+        <section class="hud-section hidden" id="hudTutorialCard">
+          <div class="section-head"><span>Orientações do Tutorial</span><span id="hudTutBadge">ETAPA 1/8</span></div>
+          <strong id="hudTutTitle" style="font-size:12.5px;display:block;margin-bottom:4px;color:var(--text)">Conhecendo o jogo</strong>
+          <div id="hudTutDesc" class="muted" style="font-size:11.5px;line-height:1.45"></div>
+          <div id="hudTutExpected" class="hud-tut-expected"></div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+            <button class="mini-btn" id="hudTutPrevBtn" type="button">◀ Anterior</button>
+            <button class="mini-btn" id="hudTutReviewBtn" type="button">📖 Explicações</button>
+            <button class="mini-btn" id="hudTutNextBtn" type="button">Avançar →</button>
+          </div>
+        </section>
+
+        <section class="hud-section" id="progressCard">
+          <div class="section-head"><span id="progressTitle">Sua Evolução</span><span id="tm">0:00</span></div>
+          <div class="stat-line"><span id="lvl">Nível 0</span><strong id="xpText">0 / 4 XP</strong></div>
+          <div class="xp-bar"><div id="xp" class="xp-fill"></div></div>
+          <div class="muted" id="nx">Próximo reforço: Peão</div>
+          <div class="stat-line" style="margin-top:9px"><span id="energyLabel">Habilidade Surto</span><strong id="energyText">0%</strong></div>
+          <div class="energy-bar"><div id="energy" class="energy-fill"></div></div>
+          <button id="boost" class="ability-btn" type="button" disabled>SURTO · 0%</button>
+        </section>
+
+        <section class="hud-section">
+          <div class="section-head"><span>Registro da Batalha</span><span>AO VIVO</span></div>
+          <div id="feed"></div>
+        </section>
+
+        <section class="hud-section match-controls-col" id="matchControlsCard">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:12px">Controles da Partida</strong>
+            <span class="muted" id="recordPill">Recorde: 0</span>
+          </div>
+          <div class="match-controls-row">
+            <button class="mini-btn danger" id="hudResignBtn" type="button">🏳️ Desistir</button>
+            <button class="mini-btn" id="hudMenuBtn" type="button">🏠 Menu Principal</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="mini-btn" id="hudGuideBtn" type="button" style="flex:1">📖 Como jogar</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>

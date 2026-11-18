@@ -1,0 +1,80 @@
+<!-- VIEW 6: CONFIGURAÇÕES -->
+  <section id="view-settings" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Configurações e Preferências</h1>
+          <p>Suas preferências são salvas automaticamente na sua conta e neste navegador.</p>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel-box">
+          <h3>Tabuleiro e Interface</h3>
+          <div class="setting-row">
+            <div>
+              <strong>Cores do Tabuleiro</strong>
+              <span>Escolha a paleta de cores das casas</span>
+            </div>
+            <select class="field" id="prefBoardTheme" style="width:auto">
+              <option value="classic">Clássico Verde-Sálvia</option>
+              <option value="slate">Ardósia Noturna</option>
+              <option value="wood">Madeira Quente</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Mostrar Coordenadas</strong>
+              <span>Exibe a numeração lateral nas bordas do tabuleiro</span>
+            </div>
+            <input type="checkbox" id="prefShowCoords" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Destacar Movimentos e Último Lance</strong>
+              <span>Mostra indicadores de destino e destaca a última peça movida</span>
+            </div>
+            <input type="checkbox" id="prefHighlightMoves" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Agendar Movimento na Recarga (Pré-move)</strong>
+              <span>Permite clicar no próximo destino enquanto a peça ainda está recarregando</span>
+            </div>
+            <input type="checkbox" id="prefAutoQueue" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Efeitos Sonoros</strong>
+              <span>Sons discretos para movimentos, capturas e Surto</span>
+            </div>
+            <input type="checkbox" id="prefSound" checked>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>Confirmar antes de Sair de Partida</strong>
+              <span>Evita desistências acidentais durante duelos</span>
+            </div>
+            <input type="checkbox" id="prefConfirmResign" checked>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <h3>Tutorial e Aprendizado</h3>
+          <p class="muted" style="margin:0">Você pode iniciar ou repetir o tutorial interativo de 7 etapas a qualquer momento.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="primary" id="settingsStartTutorialBtn" type="button">🎓 Iniciar Tutorial Prático 1v1</button>
+            <button class="secondary" data-goto="guide" type="button">Abrir Guia "Como Jogar"</button>
+          </div>
+          <hr style="border:0;border-top:1px solid var(--border);width:100%;margin:8px 0">
+          <h3>Jogadores Bloqueados</h3>
+          <div id="blockedUsersList" class="muted">Nenhum jogador bloqueado.</div>
+        </div>
+      </div>
+    </div>
+  </section>

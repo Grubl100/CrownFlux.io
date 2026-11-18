@@ -1,0 +1,136 @@
+<!-- VIEW 4: PERFIL E CONTA -->
+  <section id="view-profile" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Perfil e Conta</h1>
+          <p>Gerencie suas credenciais, personalize seu perfil e consulte seu desempenho.</p>
+        </div>
+      </div>
+
+      <!-- Auth View (Login / Register / Password Reset) -->
+      <div id="authView" class="two-col">
+        <div class="panel-box">
+          <h2 id="authFormTitle">Entrar na sua conta</h2>
+          <p class="muted" style="margin:0">Mantenha seus amigos, estatísticas e preferências salvos em qualquer dispositivo.</p>
+          <div>
+            <label class="field-label" for="authUsername">Nome de usuário</label>
+            <input class="field" id="authUsername" autocomplete="username" maxlength="18" placeholder="Ex: mestre_flux">
+          </div>
+          <div>
+            <label class="field-label" for="authPassword">Senha</label>
+            <input class="field" id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo de 8 caracteres">
+          </div>
+          <label class="checkbox-line">
+            <input type="checkbox" id="authRememberMe" checked>
+            <span>Lembrar de mim neste dispositivo (sessão de 30 dias)</span>
+          </label>
+          <div class="field-row" style="margin-top:4px">
+            <button class="primary" id="loginBtn" type="button">Entrar</button>
+            <button class="secondary" id="registerBtn" type="button">Criar Nova Conta</button>
+          </div>
+          <div id="onlineMessage" class="muted" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="panel-box">
+          <h3>Redefinir Senha com Código de Recuperação</h3>
+          <p class="muted" style="margin:0">Ao criar sua conta, você recebe um Código de Recuperação pessoal. Use-o abaixo caso precise criar uma nova senha.</p>
+          <div>
+            <label class="field-label" for="resetUsername">Nome de usuário</label>
+            <input class="field" id="resetUsername" maxlength="18" placeholder="Seu @usuario">
+          </div>
+          <div>
+            <label class="field-label" for="resetRecoveryKey">Código de Recuperação</label>
+            <input class="field" id="resetRecoveryKey" placeholder="CFX-XXXX-XXXX">
+          </div>
+          <div>
+            <label class="field-label" for="resetNewPassword">Nova Senha</label>
+            <input class="field" id="resetNewPassword" type="password" placeholder="Nova senha (mín. 8 caracteres)">
+          </div>
+          <div>
+            <button class="secondary" id="resetPasswordBtn" type="button">Redefinir Minha Senha</button>
+          </div>
+          <div id="resetMessage" class="muted"></div>
+        </div>
+      </div>
+
+      <!-- Logged-in Account View -->
+      <div id="accountView" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel-box" style="flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="avatar-badge" id="profileBigAvatar" style="width:52px;height:52px;font-size:28px">♟</div>
+            <div>
+              <h2 id="accountName" style="margin:0;font-size:19px">Jogador</h2>
+              <span class="muted" id="accountHandle">@jogador</span>
+              <p class="muted" id="accountBioText" style="margin:4px 0 0"></p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="secondary" data-goto="friends" type="button">Ver Amigos</button>
+            <button class="mini-btn danger" id="logoutBtn" type="button">Encerrar Sessão (Sair)</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box"><span>Partidas Online</span><strong id="statOnlineGames">0</strong></div>
+          <div class="stat-box"><span>Vitórias Online</span><strong id="statOnlineWins">0</strong></div>
+          <div class="stat-box"><span>Derrotas / Empates</span><strong id="statOnlineLosses">0 / 0</strong></div>
+          <div class="stat-box"><span>Taxa de Vitória</span><strong id="statWinRate">0%</strong></div>
+          <div class="stat-box"><span>Vitórias vs CPU</span><strong id="statCpuWins">0</strong></div>
+          <div class="stat-box"><span>Maior CPU Vencida</span><strong id="statCpuMax">Nenhuma</strong></div>
+        </div>
+
+        <div class="two-col">
+          <div class="panel-box">
+            <h3>Editar Perfil</h3>
+            <div>
+              <label class="field-label" for="editUsername">Nome de usuário (único, 3 a 18 caracteres)</label>
+              <input class="field" id="editUsername" maxlength="18">
+            </div>
+            <div>
+              <label class="field-label" for="editDisplayName">Nome de exibição</label>
+              <input class="field" id="editDisplayName" maxlength="24">
+            </div>
+            <div>
+              <label class="field-label" for="editBio">Frase ou estilo de jogo (opcional)</label>
+              <input class="field" id="editBio" maxlength="120" placeholder="Ex: Especialista em contra-ataques de Cavalo">
+            </div>
+            <div>
+              <label class="field-label">Escolha seu Avatar</label>
+              <div class="avatar-grid" id="avatarSelectorGrid"></div>
+            </div>
+            <div>
+              <button class="primary" id="saveProfileBtn" type="button">Salvar Alterações do Perfil</button>
+            </div>
+            <div id="profileSaveMsg" class="muted"></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="panel-box">
+              <h3>Alterar Senha</h3>
+              <div>
+                <label class="field-label" for="curPasswordInput">Senha atual</label>
+                <input class="field" id="curPasswordInput" type="password">
+              </div>
+              <div>
+                <label class="field-label" for="newPasswordInput">Nova senha (mín. 8 caracteres)</label>
+                <input class="field" id="newPasswordInput" type="password">
+              </div>
+              <div>
+                <button class="secondary" id="changePasswordBtn" type="button">Atualizar Senha</button>
+              </div>
+              <div id="passwordChangeMsg" class="muted"></div>
+            </div>
+
+            <div class="panel-box">
+              <h3>Código de Recuperação da Conta</h3>
+              <p class="muted" style="margin:0">Gere um novo código de recuperação caso tenha perdido o anterior. Digite sua senha atual no campo acima antes de gerar.</p>
+              <div>
+                <button class="secondary" id="regenRecoveryBtn" type="button">Gerar Novo Código de Recuperação</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>

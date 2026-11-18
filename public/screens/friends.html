@@ -1,0 +1,62 @@
+<!-- VIEW 3: CENTRAL DE AMIGOS -->
+  <section id="view-friends" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Central de Amigos</h1>
+          <p>Encontre jogadores, acompanhe quem está online ou em partida e envie desafios personalizados.</p>
+        </div>
+        <button class="secondary" id="refreshFriendsBtn" type="button">Atualizar Lista</button>
+      </div>
+
+      <div id="friendsGuestNotice" class="panel-box hidden">
+        <h2>Entre na sua conta para acessar seus amigos</h2>
+        <p class="muted" style="margin:0">Sua lista de amigos, solicitações e desafios em tempo real ficam salvos na sua conta do Crownflux.io.</p>
+        <div><button class="primary" data-goto="profile" type="button">Entrar ou Criar Conta</button></div>
+      </div>
+
+      <div id="friendsAuthContent" class="two-col">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="panel-box">
+            <h3>Desafios Recebidos</h3>
+            <div id="challengeList" class="muted">Nenhum desafio pendente no momento.</div>
+          </div>
+
+          <div class="panel-box">
+            <h3>Seus Amigos</h3>
+            <div>
+              <div class="friend-category-title">Disponíveis Online (<span id="countOnlineFriends">0</span>)</div>
+              <div id="friendsOnlineList" class="muted">Nenhum amigo disponível agora.</div>
+
+              <div class="friend-category-title" style="margin-top:14px">Atualmente em Partida (<span id="countInGameFriends">0</span>)</div>
+              <div id="friendsInGameList" class="muted">Nenhum amigo em partida no momento.</div>
+
+              <div class="friend-category-title" style="margin-top:14px">Offline (<span id="countOfflineFriends">0</span>)</div>
+              <div id="friendsOfflineList" class="muted">Nenhum amigo offline.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="panel-box">
+            <h3>Procurar Jogadores</h3>
+            <div class="field-row">
+              <input class="field" id="searchPlayer" maxlength="18" placeholder="Digite o @usuario" style="flex:1">
+              <button class="primary" id="searchBtn" type="button">Buscar</button>
+            </div>
+            <div id="searchResults" class="muted">Digite pelo menos 2 caracteres para procurar jogadores.</div>
+          </div>
+
+          <div class="panel-box">
+            <h3>Solicitações Recebidas (<span id="countIncomingReq">0</span>)</h3>
+            <div id="friendRequests" class="muted">Nenhuma solicitação recebida.</div>
+          </div>
+
+          <div class="panel-box">
+            <h3>Solicitações Enviadas (<span id="countOutgoingReq">0</span>)</h3>
+            <div id="sentRequestsList" class="muted">Nenhuma solicitação enviada pendente.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>

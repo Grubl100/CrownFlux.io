@@ -19,6 +19,18 @@ Crownflux.io é um jogo de estratégia em tempo real inspirado no xadrez, com ta
    ```
 3. Abra `http://localhost:8080` no navegador.
 
+## Estrutura do projeto
+
+- `server.mjs`: servidor HTTP e WebSocket.
+- `public/index.html`: shell principal e carregador das telas.
+- `public/screens/`: telas de jogo, guia, amigos, perfil, histórico e configurações, além dos fragmentos compartilhados e da cena tática.
+- `public/styles.css`: estilos da interface.
+- `public/app.js` e `public/tactical.js`: lógica do jogo e do modo Cerco Tático.
+- `scripts/check-client.mjs`: valida a sintaxe do frontend e a presença das telas.
+- `data/db.json`: banco local criado durante a execução.
+
+O frontend permanece em JavaScript nativo para preservar a lógica existente, que interage diretamente com os elementos da página; React não é necessário para separar as telas.
+
 ## Funcionalidades Implementadas
 
 ### 1. Página Exclusiva "Como jogar"

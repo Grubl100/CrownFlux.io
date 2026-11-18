@@ -1,0 +1,141 @@
+<!-- ================================================================
+     CERCO TÁTICO — Cena de partida (HUD própria)
+     ================================================================ -->
+<div id="tacticalScene" class="ts-scene" hidden role="region" aria-label="Partida do Cerco Tático">
+  <header class="ts-top">
+    <div class="ts-brand">
+      <svg class="ts-brand-mark" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 28V12h14v16"/><path d="M7 12h18V6h-3v3h-3V6h-6v3h-3V6H7z"/><path d="M14 28v-6a2 2 0 0 1 4 0v6"/><path d="M4 28h24"/>
+      </svg>
+      <div style="min-width:0">
+        <strong>Cerco Tático</strong>
+        <small id="tsMeta">Preparando partida…</small>
+      </div>
+    </div>
+    <div class="ts-turn" id="tsTurnBox" data-owner="none" aria-live="polite">
+      <span class="ts-turn-dot"></span>
+      <span class="ts-turn-label" id="tsTurnLabel">Aguardando</span>
+      <div class="ts-clock-box">
+        <span class="ts-clock" id="tsClock" title="Tempo de decisão do turno atual">0:00</span>
+        <span class="ts-limit" id="tsLimit">—</span>
+      </div>
+    </div>
+    <div class="ts-controls">
+      <button class="ts-btn" id="tsRulesBtn" type="button" title="Regras do Cerco Tático">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3h4a2 2 0 0 1 1.5.7A2 2 0 0 1 9.5 3h4v10h-4a1.5 1.5 0 0 0-1.5 1.2A1.5 1.5 0 0 0 6.5 13h-4z"/><path d="M8 3.7V14"/></svg>
+        <span>Regras</span>
+      </button>
+      <button class="ts-btn" id="tsMenuBtn" type="button" title="Sair da partida e voltar ao menu principal">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 7.5 8 3l5.5 4.5V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5z"/></svg>
+        <span>Menu<span class="lbl-long"> principal</span></span>
+      </button>
+      <button class="ts-btn danger" id="tsResignBtn" type="button" title="Desistir da partida (conta como derrota)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3.5 14.5V2"/><path d="M3.5 2.5h8l-1.8 2.8 1.8 2.8h-8"/></svg>
+        <span>Desistir</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="ts-main">
+    <div class="ts-col">
+      <section class="ts-player" data-side="me" id="tsMe" aria-label="Seu personagem"></section>
+      <section class="ts-box ts-times-box" aria-label="Tempo por jogada">
+        <h4><span>Tempo por jogada</span><span id="tsPrevTurn"></span></h4>
+        <div class="ts-times" id="tsTimes"></div>
+      </section>
+    </div>
+
+    <section class="ts-arena" aria-label="Área de combate">
+      <div class="ts-board-frame" id="tsFrame">
+        <div class="ts-board" id="tsBoard" role="grid" aria-label="Tabuleiro 12 por 12"></div>
+      </div>
+      <div class="ts-feedback" id="tsFeedback" aria-live="polite"></div>
+    </section>
+
+    <div class="ts-col">
+      <section class="ts-player" data-side="enemy" id="tsEnemy" aria-label="Personagem adversário"></section>
+      <section class="ts-box ts-log" aria-label="Registro da partida">
+        <h4><span>Registro da partida</span></h4>
+        <div class="ts-events" id="tsEvents"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="ts-bottom">
+    <div class="ts-hand-wrap">
+      <div class="ts-hand-head"><span>Sua mão</span><span id="tsHandInfo"></span></div>
+      <div class="ts-hand" id="tsHand" role="list" aria-label="Cartas na mão"></div>
+    </div>
+    <aside class="ts-detail" id="tsDetail" aria-live="polite">
+      <div class="ts-detail-title" id="tsDetailTitle">—</div>
+      <div class="ts-detail-text" id="tsDetailText"></div>
+      <div class="ts-detail-actions">
+        <button class="ts-btn" id="tsCancelSel" type="button" hidden>Cancelar seleção</button>
+        <button class="ts-btn primary" id="tsUseCard" type="button" hidden>Usar carta</button>
+        <button class="ts-btn" id="tsShowResult" type="button" hidden>Ver resumo</button>
+        <button class="ts-btn primary" id="tsEndTurn" type="button">Encerrar turno</button>
+      </div>
+    </aside>
+  </footer>
+
+  <!-- Fase de Draft -->
+  <div class="ts-overlay" id="tsDraft" hidden>
+    <div class="ts-panel" role="dialog" aria-modal="true" aria-labelledby="tsDraftTitle">
+      <div class="ts-eyebrow">Fase de Draft</div>
+      <h2 id="tsDraftTitle">Escolha 1 carta para sua mão</h2>
+      <p id="tsDraftText"></p>
+      <div class="ts-countbar"><i id="tsDraftBar"></i></div>
+      <div class="ts-draft-cards" id="tsDraftChoices"></div>
+    </div>
+  </div>
+
+  <!-- Resultado -->
+  <div class="ts-overlay" id="tsResult" hidden>
+    <div class="ts-panel" role="dialog" aria-modal="true" aria-labelledby="tsResTitle">
+      <div class="ts-result-figs">
+        <div class="ts-result-fig" id="tsResFigMe"></div>
+        <div class="ts-result-fig" id="tsResFigEnemy"></div>
+      </div>
+      <div class="ts-result-title" id="tsResTitleBox">
+        <div class="ts-eyebrow" id="tsResEyebrow">Fim de partida</div>
+        <h2 id="tsResTitle">—</h2>
+        <p id="tsResReason"></p>
+      </div>
+      <div class="ts-stats-grid" id="tsResStats"></div>
+      <div>
+        <div class="ts-eyebrow" style="margin-bottom:6px;color:var(--muted)">Resumo tático</div>
+        <ul class="ts-timeline" id="tsResTimeline"></ul>
+      </div>
+      <div class="ts-note" id="tsResNote"></div>
+      <div class="ts-panel-actions">
+        <button class="ts-btn primary" id="tsAgainBtn" type="button">Nova partida</button>
+        <button class="ts-btn" id="tsCloseResult" type="button">Ver tabuleiro final</button>
+        <button class="ts-btn" id="tsResMenuBtn" type="button">Menu principal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regras rápidas -->
+  <div class="ts-overlay" id="tsRules" hidden>
+    <div class="ts-panel" role="dialog" aria-modal="true" aria-labelledby="tsRulesTitle">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><div class="ts-eyebrow">Consulta rápida</div><h2 id="tsRulesTitle">Regras do Cerco Tático</h2></div>
+        <button class="close-btn" id="tsRulesClose" type="button" aria-label="Fechar">×</button>
+      </div>
+      <ul class="ts-rules-list" id="tsRulesList"></ul>
+      <div class="tg-cards" id="tsRulesCards"></div>
+      <div class="ts-panel-actions"><button class="ts-btn primary" id="tsRulesOk" type="button">Voltar à partida</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tutorial do Cerco Tático: foco no elemento explicado -->
+<div class="ts-tut-layer" id="tsTut" hidden>
+  <div class="ts-spot" id="tsSpot"></div>
+  <div class="ts-tip" id="tsTip" role="dialog" aria-live="polite">
+    <span class="ts-eyebrow" id="tsTipStep">Tutorial · Etapa 1 de 3</span>
+    <strong id="tsTipTitle"></strong>
+    <p id="tsTipText"></p>
+    <button class="ts-btn primary" id="tsTipNext" type="button">Entendi, continuar</button>
+  </div>
+</div>

@@ -2960,6 +2960,6 @@ const heartbeat = setInterval(() => {
 setInterval(tickGames, 100);
 
 await loadDb();
-server.listen(PORT, HOST, () => console.log(`Crownflux.io disponível em http://${HOST}:${PORT}`));
+server.listen(PORT, HOST, () => console.log(`Crownflux.io disponível em http://localhost:${PORT}`));
 process.on('SIGINT', () => { clearInterval(heartbeat); server.close(() => process.exit(0)); });
 process.on('SIGTERM', () => { clearInterval(heartbeat); server.close(() => process.exit(0)); });

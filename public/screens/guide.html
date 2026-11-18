@@ -1,0 +1,238 @@
+<!-- VIEW 2: COMO JOGAR (Interactive Visual Guide) -->
+  <section id="view-guide" class="view-page">
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>Como jogar Crownflux.io</h1>
+          <p>Aprenda as regras reais do jogo com exemplos interativos ou pratique no tutorial guiado.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="primary" id="guideStartTutorialBtn" type="button">🎓 Iniciar Tutorial Prático 1v1</button>
+          <button class="secondary" data-goto="play" type="button">Voltar ao Tabuleiro</button>
+        </div>
+      </div>
+
+      <div class="guide-tabs" role="tablist">
+        <button class="guide-tab active" data-gtab="overview" type="button">1. Objetivo & Vitória</button>
+        <button class="guide-tab" data-gtab="pieces" type="button">2. Tabuleiro & Peças (Interativo)</button>
+        <button class="guide-tab" data-gtab="captures" type="button">3. Capturas & Evolução</button>
+        <button class="guide-tab" data-gtab="flux" type="button">4. Fragmentos Flux & Surto</button>
+        <button class="guide-tab" data-gtab="modes" type="button">5. Modos & Partidas Online</button>
+        <button class="guide-tab" data-gtab="tactical" type="button">6. Cerco Tático (Cartas)</button>
+      </div>
+
+      <!-- Tab 1: Overview -->
+      <div class="guide-section active" id="gtab-overview">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>👑 Qual é o objetivo do jogo?</h3>
+            <p>Em <b>Crownflux.io</b>, o objetivo principal é <b>proteger o seu Rei (♚) e capturar o Rei adversário</b>.</p>
+            <p>Ao contrário do xadrez tradicional, <b>não existem turnos</b>: todas as facções movem suas peças em tempo real no mesmo tabuleiro 16×16.</p>
+          </div>
+          <div class="guide-block">
+            <h3>⏱️ Tempo de Recuperação (Cooldown)</h3>
+            <p>Quando uma peça se move, ela entra em um breve <b>tempo de recuperação</b> (indicado por uma sombra vertical que esvazia sobre a peça).</p>
+            <p>Enquanto uma peça descansa, você pode <b>mover qualquer outra peça livre</b> do seu exército imediatamente!</p>
+          </div>
+          <div class="guide-block">
+            <h3>🏆 Regras para Vencer</h3>
+            <ul>
+              <li><b>Duelos 1v1 (CPU, Local e Online):</b> A partida termina imediatamente quando um jogador captura o <b>Rei (♚)</b> adversário (ou quem tiver maior pontuação caso haja tempo limite configurado).</li>
+              <li><b>Arena de 4 Facções:</b> Quando você captura o Rei de uma facção rival, <b>todo o exército sobrevivente daquele rival é convertido para a sua cor!</b> Se o seu próprio Rei for capturado, sua partida termina.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Interactive Piece Simulator -->
+      <div class="guide-section" id="gtab-pieces">
+        <div class="piece-lab">
+          <div>
+            <h3 style="margin:0 0 6px">Simulador Interativo de Movimentos</h3>
+            <p class="muted" style="margin:0 0 12px">Clique em uma peça abaixo e depois toque nas casas marcadas do mini-tabuleiro para testar como ela se move e o tempo real de recuperação.</p>
+            <div class="piece-picker" id="guidePiecePicker">
+              <button class="piece-btn active" data-piece="P" type="button">♟ Peão</button>
+              <button class="piece-btn" data-piece="N" type="button">♞ Cavalo</button>
+              <button class="piece-btn" data-piece="B" type="button">♝ Bispo</button>
+              <button class="piece-btn" data-piece="R" type="button">♜ Torre</button>
+              <button class="piece-btn" data-piece="Q" type="button">♛ Rainha</button>
+              <button class="piece-btn" data-piece="K" type="button">♚ Rei</button>
+            </div>
+            <p id="guidePieceRuleText" style="font-size:13px;line-height:1.5;color:var(--text);margin:0">
+              <b>Peão (♟):</b> Avança 1 casa para frente (se estiver livre) e captura 1 casa na diagonal frontal. Quando chega ao extremo oposto do tabuleiro, é promovido automaticamente a <b>Rainha (♛)</b>!
+            </p>
+            <div class="piece-specs">
+              <div class="spec-box"><span>Valor de Captura</span><strong id="guidePieceVal">1 ponto / XP</strong></div>
+              <div class="spec-box"><span>Recarga Base</span><strong id="guidePieceCd">0.9 segundos</strong></div>
+              <div class="spec-box"><span>Alcance</span><strong id="guidePieceRange">1 casa frontal</strong></div>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <canvas id="demoCanvas" width="238" height="238" aria-label="Tabuleiro demonstrativo"></canvas>
+            <span class="muted" style="font-size:11px;display:block;margin-top:6px">Toque nos círculos para mover a peça no exemplo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Captures & Evolution -->
+      <div class="guide-section" id="gtab-captures">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>⚔️ Peças Neutras vs. Inimigas</h3>
+            <p>Espalhadas pelo tabuleiro 16×16 existem <b>peças neutras cinzas</b> que não atacam ninguém. Capturá-las é a maneira mais segura de ganhar seus primeiros pontos de XP e energia nos segundos iniciais da partida.</p>
+            <p>Peças de outra cor pertencem aos exércitos rivais: quando você move uma peça sua para a casa delas, você as captura.</p>
+          </div>
+          <div class="guide-block">
+            <h3>📈 Níveis e Reforços Automáticos</h3>
+            <p>Cada captura soma pontos ao seu placar e <b>XP</b> à sua barra de evolução (necessário: <code>4 + Nível × 3</code> XP).</p>
+            <p>Sempre que a barra de XP enche, você sobe de nível e <b>uma nova peça aliada surge automaticamente</b> ao redor do seu Rei, seguindo a progressão: Peões → Cavalos → Bispos → Torres → Rainhas!</p>
+          </div>
+          <div class="guide-block">
+            <h3>📊 Tabela Real de Pontos e XP</h3>
+            <ul>
+              <li><b>♟ Peão:</b> +1 ponto / +1 XP (+9% de Surto)</li>
+              <li><b>♞ Cavalo:</b> +3 pontos / +3 XP (+27% de Surto)</li>
+              <li><b>♝ Bispo:</b> +3 pontos / +3 XP (+27% de Surto)</li>
+              <li><b>♜ Torre:</b> +5 pontos / +5 XP (+45% de Surto)</li>
+              <li><b>♛ Rainha:</b> +9 pontos / +9 XP (+81% de Surto)</li>
+              <li><b>♚ Rei:</b> +10 pontos (Vitória em 1v1 ou conversão na Arena)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Flux Orbs & Surge -->
+      <div class="guide-section" id="gtab-flux">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>💎 O que são os Fragmentos Flux?</h3>
+            <p>Periodicamente surgem até 5 cristais em formato de losango pelo tabuleiro chamados <b>Fragmentos Flux</b>.</p>
+            <p>Basta mover qualquer peça sua para a casa de um Fragmento para coletá-lo instantaneamente. Ele concede:</p>
+            <ul>
+              <li><b>+3 pontos e +3 XP</b> imediatos para sua evolução.</li>
+              <li><b>+24% de energia</b> extra para a barra de Surto (além dos +27% do ganho de XP, somando <b>+51% de carga</b> de uma só vez!).</li>
+            </ul>
+          </div>
+          <div class="guide-block">
+            <h3>⚡ Como funciona a habilidade Surto?</h3>
+            <p>Quando sua barra de energia chega a <b>100%</b>, o botão <b>⚡ ATIVAR SURTO</b> (ou a tecla <b>Espaço</b>) fica disponível.</p>
+            <p>Ao ativar o Surto:</p>
+            <ul>
+              <li>O tempo restante de todas as suas peças que estão recarregando cai imediatamente pela metade.</li>
+              <li>Durante <b>6 segundos</b>, todas as suas peças recarregam <b>42% mais rápido</b> após cada movimento.</li>
+              <li>Use o Surto para lançar um ataque decisivo contra o Rei adversário ou escapar de um cerco!</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Game Modes & Online -->
+      <div class="guide-section" id="gtab-modes">
+        <div class="guide-grid">
+          <div class="guide-block">
+            <h3>🤖 Desafie a CPU (5 Dificuldades)</h3>
+            <p>Ideal para treinar e evoluir no seu ritmo. Você pode escolher entre <b>Iniciante</b>, <b>Fácil</b>, <b>Normal</b>, <b>Difícil</b> e <b>Especialista</b>. Cada nível muda a inteligência tática do bot.</p>
+          </div>
+          <div class="guide-block">
+            <h3>⚔️ Arena (4 Facções) & Duelo Local</h3>
+            <p>Na <b>Arena</b>, você enfrenta três facções controladas pelo computador ao mesmo tempo; capturar um Rei converte o exército dele para você. No <b>Duelo Local</b>, duas pessoas jogam no mesmo celular, tablet ou computador.</p>
+          </div>
+          <div class="guide-block">
+            <h3>🌐 Partidas Online & Amigos</h3>
+            <p>Com uma conta gratuita, você pode entrar na <b>Fila Pública 1v1</b>, criar uma <b>Sala Privada</b> com código de 6 letras ou adicionar amigos na aba <b>Amigos</b> para enviar desafios personalizados (escolhendo ritmo, frequência de fragmentos e tempo).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 6: Cerco Tático (modo por turnos com cartas) -->
+      <div class="guide-section" id="gtab-tactical">
+        <div class="guide-block">
+          <div class="tg-hero">
+            <div><div class="tg-char" id="tgCharMe"></div><div class="tg-char-label"><b>Guardião Azul</b>Você</div></div>
+            <div>
+              <h3 style="margin:0 0 6px">🃏 O que é o Cerco Tático?</h3>
+              <p>Um duelo 1v1 <b>por turnos</b> num tabuleiro de <span data-rule="boardSize"></span>×<span data-rule="boardSize"></span>. Cada jogador controla <b>um único personagem</b> e gasta <b>Pontos de Ação (PA)</b> para andar, atacar e jogar cartas. O objetivo é capturar a <b>Coroa</b> e mantê-la por <b><span data-rule="targetVp"></span> turnos</b>.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <button class="primary" id="tgStartTutorial" type="button">Tutorial do Cerco Tático (3 etapas)</button>
+                <button class="secondary" id="tgStartCpu" type="button">Treinar contra a CPU</button>
+              </div>
+              <p class="muted" style="margin-top:8px">Requer conta: as partidas são processadas no servidor. Para jogar com um amigo, abra o lobby online, clique em <b>Cerco Tático (Cartas)</b> e compartilhe o código de 4 letras.</p>
+            </div>
+            <div><div class="tg-char" id="tgCharEnemy"></div><div class="tg-char-label"><b>Sitiante Rubi</b>Adversário</div></div>
+          </div>
+        </div>
+
+        <div class="tg-steps">
+          <div class="tg-step">
+            <h4><span>1</span>Objetivo e combate pela Coroa</h4>
+            <p>Pise na casa da Coroa para capturá-la. Para vencer, você precisa sobreviver e encerrar <b><span data-rule="targetVp"></span> turnos</b> com ela.</p>
+            <p>O adversário pode <b>atacar de perto (1 PA)</b> ou usar cartas como <b>Golpe de Cerco</b> para empurrar e derrubar/roubar a Coroa!</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>2</span>Turnos e Pontos de Ação</h4>
+            <p>Os jogadores alternam turnos. No início do seu turno você recebe <b><span data-rule="basePa"></span> PA</b>. Andar custa 1 PA; cada carta mostra seu custo no círculo azul.</p>
+            <p>Clique em <b>Encerrar turno</b> para passar a vez. <b>PA que sobra é perdido</b>. Uma rodada termina quando os dois jogadores jogaram.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>3</span>Movimento</h4>
+            <p>No seu turno, as casas vizinhas válidas aparecem com um ponto escuro. Clique numa delas para andar <b>1 casa para cima, baixo, esquerda ou direita</b>.</p>
+            <p>Não é possível entrar em casas com <b>Parede de Fluxo</b> ou ocupadas pelo outro personagem.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>4</span>Selecionar e usar cartas</h4>
+            <ul>
+              <li>Clique numa carta da sua mão para selecioná-la.</li>
+              <li>Cartas com alvo destacam em <b>dourado</b> as casas válidas: clique numa delas.</li>
+              <li>O <b>Sifão de Fluxo</b> não tem alvo: confirme em <b>Usar carta</b>.</li>
+              <li>Cartas esmaecidas mostram o motivo (falta de PA, não é sua vez, sem alvo no alcance).</li>
+              <li>Você começa com <b>Teleporte Curto</b> e <b>Parede de Fluxo</b>; a carta usada sai da mão.</li>
+            </ul>
+          </div>
+          <div class="tg-step">
+            <h4><span>5</span>Fase de Draft</h4>
+            <p>A cada <b><span data-rule="draftEveryRounds"></span> rodadas completas</b> o jogo pausa por <b><span data-rule="draftMs"></span>s</b>. Cada jogador escolhe <b>1 de 3 cartas</b> sorteadas para adicionar à mão.</p>
+            <p>Se o tempo acabar sem escolha, a primeira opção é adicionada automaticamente.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>6</span>Coroa e névoa de guerra</h4>
+            <p>Você só enxerga o adversário a até <b><span data-rule="visionRadius"></span> casas</b> (distância em passos). Fora disso, ele fica oculto pela névoa.</p>
+            <p>Quem está com a Coroa paga o preço: <b>PA base cai para <span data-rule="basePaCrown"></span></b> e sua <b>posição fica sempre visível</b>.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>7</span>Cronômetro</h4>
+            <p>O relógio no topo da partida mostra há quanto tempo o jogador da vez está decidindo. Ao fim de cada turno, o tempo é registrado em <b>Tempo por jogada</b>.</p>
+            <p>Cada turno tem limite de <b><span data-rule="turnLimitMs"></span>s</b>: ao estourar, o turno é encerrado automaticamente. O relógio pausa durante reconexões e nas explicações do tutorial.</p>
+          </div>
+          <div class="tg-step">
+            <h4><span>8</span>Desistir ou sair</h4>
+            <ul>
+              <li><b>Desistir</b>: pede confirmação e registra <b>derrota</b> no histórico.</li>
+              <li><b>Menu principal</b> contra uma pessoa: conta como <b>abandono</b> (vitória do adversário, registrada).</li>
+              <li><b>Menu principal</b> contra a CPU: a partida é <b>descartada</b>, sem registro.</li>
+              <li>O tutorial é treino e nunca entra no histórico.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="guide-block">
+          <h3>As cartas do Cerco Tático</h3>
+          <p class="muted" style="margin-top:0">Estas são todas as cartas existentes no modo, com os mesmos custos e efeitos usados nas partidas.</p>
+          <div class="tg-cards" id="tgCards"></div>
+        </div>
+
+        <div class="guide-block">
+          <h3>Demonstração interativa</h3>
+          <div class="tg-demo">
+            <div class="tg-demo-board"><div class="ts-board" id="tgDemoBoard" aria-label="Tabuleiro de demonstração"></div></div>
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+              <p class="muted" style="margin:0">Escolha uma ação e clique nas casas destacadas. O alcance segue exatamente as regras da partida real. Leve o Guardião até a Coroa!</p>
+              <div class="tg-demo-actions" id="tgDemoActions"></div>
+              <strong id="tgDemoInfo" style="font-size:12px"></strong>
+              <p id="tgDemoText" style="font-size:12.5px;line-height:1.5;margin:0">Comece andando: clique numa casa com ponto ao lado do Guardião.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
