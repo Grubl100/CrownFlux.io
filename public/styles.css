@@ -1646,3 +1646,397 @@ label.field-label {
   @media (max-width: 860px) {
     #hud { width: 100%; max-width: 640px; flex: 0 0 auto; }
   }
+
+  /* --- REFORMULAÇÃO COMPLETA DO MODO PRINCIPAL (COROA, REGIÕES, HABILIDADES, DOUTRINAS E PROGRESSÃO) --- */
+  body[data-board-theme="imperial"] {
+    --board-light: #d7cebc;
+    --board-dark: #4c5750;
+  }
+  #app {
+    max-width: 1480px;
+  }
+  .board-top-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .phase-pill {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    padding: 3px 8px;
+    border-radius: 99px;
+    background: #2b271d;
+    border: 1px solid #594c33;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .phase-pill.ascension {
+    background: #3b2222;
+    border-color: #824343;
+    color: #f4b1b1;
+  }
+
+  /* Crown Status Bar above the Board */
+  .crown-status-bar {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+    background: #211f1b;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 7px 11px;
+  }
+  .crown-bar-side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .crown-bar-side.right {
+    justify-content: flex-end;
+  }
+  .crown-side-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+  }
+  .crown-side-label .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+  }
+  .crown-Dom-track {
+    flex: 1;
+    min-width: 50px;
+    height: 7px;
+    background: #141310;
+    border: 1px solid #35322b;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .crown-dom-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.22s ease;
+  }
+  .crown-dom-fill.blue {
+    background: linear-gradient(90deg, #568599, #8cc0d6);
+  }
+  .crown-dom-fill.ruby {
+    background: linear-gradient(90deg, #a85b5d, #df8d8f);
+  }
+  .crown-dom-pct {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    min-width: 30px;
+    text-align: right;
+    color: var(--gold);
+  }
+  .crown-bar-side.right .crown-dom-pct {
+    text-align: left;
+  }
+  .crown-center-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: #2d281c;
+    border: 1px solid #695937;
+    color: #f3dfb4;
+    font-size: 11px;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+  .crown-center-badge.held-blue {
+    background: #21323b;
+    border-color: #6f9daf;
+    color: #d9f0fa;
+  }
+  .crown-center-badge.held-ruby {
+    background: #3b2324;
+    border-color: #bd7778;
+    color: #fad9d9;
+  }
+
+  /* Floating Decisive Moment Banner */
+  .decisive-banner {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 15px;
+    border-radius: 8px;
+    background: rgba(26, 24, 20, 0.94);
+    border: 1px solid var(--gold);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    min-width: 250px;
+    max-width: calc(100% - 28px);
+    animation: decisiveSlideIn 0.22s ease-out;
+  }
+  .decisive-banner.blue { border-color: #7da3b5; }
+  .decisive-banner.red { border-color: #d47677; }
+  @keyframes decisiveSlideIn {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .decisive-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+  .decisive-body {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+  }
+  .decisive-body strong {
+    font-size: 12.5px;
+    color: var(--gold);
+  }
+  .decisive-banner.blue .decisive-body strong { color: #9ec5d6; }
+  .decisive-banner.red .decisive-body strong { color: #ee9b9c; }
+  .decisive-body span {
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  /* Pre-match Doctrine Selector */
+  .doctrine-selector {
+    width: 100%;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 11px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .doctrine-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .doctrine-head strong {
+    color: var(--gold);
+  }
+  .doctrine-pills {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .doctrine-pill {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 7px 8px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .doctrine-pill span {
+    font-size: 11.5px;
+    font-weight: 750;
+    color: var(--text);
+  }
+  .doctrine-pill small {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.25;
+  }
+  .doctrine-pill.active {
+    border-color: var(--gold);
+    background: #2f2a1e;
+  }
+
+  /* Strategic Regions Chips in HUD */
+  .zones-hud-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .zone-chip {
+    background: #1b1a17;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .zone-chip strong {
+    font-size: 10.5px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .zone-chip.owned-0 {
+    border-color: rgba(111, 157, 175, 0.65);
+    background: rgba(111, 157, 175, 0.1);
+  }
+  .zone-chip.owned-0 strong { color: #9ec5d6; }
+  .zone-chip.owned-1 {
+    border-color: rgba(189, 119, 120, 0.65);
+    background: rgba(189, 119, 120, 0.1);
+  }
+  .zone-chip.owned-1 strong { color: #e69c9d; }
+  .zone-chip.contested {
+    border-color: var(--gold);
+  }
+  .zone-chip.contested strong { color: var(--gold); }
+
+  /* 3 Tactical Flux Skills Grid */
+  .flux-skills-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 7px;
+  }
+  .skill-btn {
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 7px 8px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .skill-btn:disabled {
+    opacity: 0.44;
+    cursor: not-allowed;
+  }
+  .skill-btn.ready {
+    border-color: var(--accent);
+    background: #253339;
+  }
+  .skill-btn.ready:hover {
+    border-color: var(--gold);
+    background: #2e3d44;
+  }
+  .skill-btn .sk-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+  }
+  .skill-btn .sk-top em {
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+  }
+  .skill-btn small {
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+
+  /* Division Badge & Achievements Grid in Profile */
+  .division-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 99px;
+    background: #2f291c;
+    border: 1px solid #6b5a37;
+    color: var(--gold);
+    font-size: 11.5px;
+    font-weight: 750;
+  }
+  .stat-box.highlight {
+    border-color: #5e5135;
+    background: #27231a;
+  }
+  .stat-box.highlight strong {
+    color: var(--gold);
+  }
+  .achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 9px;
+  }
+  .ach-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    opacity: 0.52;
+  }
+  .ach-card.unlocked {
+    opacity: 1;
+    border-color: #665738;
+    background: #28241b;
+  }
+  .ach-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    background: #1c1a16;
+    border: 1px solid var(--border-strong);
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    flex: 0 0 auto;
+  }
+  .ach-card.unlocked .ach-icon {
+    border-color: var(--gold);
+    background: #362f20;
+  }
+  .ach-info strong {
+    display: block;
+    font-size: 12.5px;
+    color: var(--text);
+  }
+  .ach-info span {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.35;
+  }
+
+  @media (max-width: 640px) {
+    .crown-status-bar {
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .crown-center-badge {
+      grid-column: 1 / -1;
+      order: -1;
+      justify-self: center;
+    }
+    .doctrine-pills {
+      grid-template-columns: 1fr;
+    }
+  }

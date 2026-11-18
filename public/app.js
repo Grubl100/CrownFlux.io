@@ -210,7 +210,9 @@ let pendingChallengeTargetId = null;
 let selectedAvatarEdit = '♟';
 
 let prefs = {
-  boardTheme: 'classic',
+  boardTheme: 'imperial',
+  pieceStyle: 'medallion',
+  doctrine: 'vanguard',
   showCoords: true,
   highlightMoves: true,
   autoQueueMove: true,
@@ -218,6 +220,42 @@ let prefs = {
   soundEffects: true,
   reducedMotion: false
 };
+
+const STRATEGIC_ZONES = [
+  { id: 'sanctuary', name: 'Santuário', icon: '✦', x0: 2, y0: 7, x1: 3, y1: 8 },
+  { id: 'throne', name: 'Trono Imperial', icon: '👑', x0: 7, y0: 7, x1: 8, y1: 8 },
+  { id: 'fortress', name: 'Fortaleza', icon: '🛡️', x0: 12, y0: 7, x1: 13, y1: 8 }
+];
+
+const DOCTRINES_INFO = {
+  vanguard: { label: '⚔️ Vanguarda · Ofensiva', short: 'Vanguarda' },
+  bastion: { label: '🛡️ Bastião · Defensiva & Controle', short: 'Bastião' },
+  celerity: { label: '🐎 Céleres · Mobilidade & Coroa', short: 'Céleres' }
+};
+
+const ACHIEVEMENTS_CATALOG = [
+  { id: 'first_blood', name: 'Primeira Vitória', icon: '⚔️', desc: 'Vença sua primeira partida no modo principal.' },
+  { id: 'crown_sovereign', name: 'Soberano da Coroa', icon: '👑', desc: 'Vença alcançando 100% de Domínio da Coroa.' },
+  { id: 'regicide', name: 'Regicida', icon: '♚', desc: 'Vença capturando diretamente o Rei adversário.' },
+  { id: 'tactician', name: 'Mestre do Fluxo', icon: '⚡', desc: 'Utilize habilidades táticas de Fluxo em combate.' },
+  { id: 'comeback_king', name: 'Virada Imperial', icon: '🔥', desc: 'Vença após o rival ultrapassar 50% de Domínio da Coroa.' },
+  { id: 'veteran_10', name: 'Veterano da Arena', icon: '🛡️', desc: 'Dispute 10 partidas completas no Crownflux.io.' },
+  { id: 'cpu_slayer', name: 'Desafiante Supremo', icon: '💎', desc: 'Vença a CPU na dificuldade Difícil ou Especialista.' }
+];
+
+let decisiveTimer = null;
+let lastShownDecisiveId = null;
+function showDecisiveMoment(title, subtitle, kind = 'gold', icon = '👑') {
+  const banner = $('decisiveMomentBanner');
+  if (!banner) return;
+  $('decisiveIcon').textContent = icon;
+  $('decisiveTitle').textContent = title;
+  $('decisiveSub').textContent = subtitle;
+  banner.className = 'decisive-banner ' + (kind || 'gold');
+  banner.classList.remove('hidden');
+  clearTimeout(decisiveTimer);
+  decisiveTimer = setTimeout(() => banner.classList.add('hidden'), 2900);
+}
 
 let tut = {
   active: false,
@@ -267,6 +305,23 @@ function playTone(kind) {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
       osc.start(now);
       osc.stop(now + 0.18);
+    } else if (kind === 'crown') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523, now);
+      osc.frequency.setValueAtTime(659, now + 0.08);
+      osc.frequency.setValueAtTime(784, now + 0.16);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } else if (kind === 'shield') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(640, now);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.12);
+      gain.gain.setValueAtTime(0.07, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+      osc.start(now);
+      osc.stop(now + 0.13);
     } else if (kind === 'win') {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(440, now);
@@ -360,13 +415,21 @@ function loadLocalPreferences() {
 }
 
 function applyPreferencesToDom() {
-  document.body.dataset.boardTheme = prefs.boardTheme || 'classic';
-  $('prefBoardTheme').value = prefs.boardTheme || 'classic';
+  document.body.dataset.boardTheme = prefs.boardTheme || 'imperial';
+  if ($('prefBoardTheme')) $('prefBoardTheme').value = prefs.boardTheme || 'imperial';
+  if ($('prefPieceStyle')) $('prefPieceStyle').value = prefs.pieceStyle || 'medallion';
+  if ($('prefDoctrine')) $('prefDoctrine').value = prefs.doctrine || 'vanguard';
   $('prefShowCoords').checked = prefs.showCoords !== false;
   $('prefHighlightMoves').checked = prefs.highlightMoves !== false;
   $('prefAutoQueue').checked = prefs.autoQueueMove !== false;
   $('prefSound').checked = prefs.soundEffects !== false;
   $('prefConfirmResign').checked = prefs.confirmResign !== false;
+  document.querySelectorAll('.doctrine-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.doctrine === (prefs.doctrine || 'vanguard'));
+  });
+  if ($('doctrineSummaryLabel')) {
+    $('doctrineSummaryLabel').textContent = DOCTRINES_INFO[prefs.doctrine || 'vanguard']?.label || DOCTRINES_INFO.vanguard.label;
+  }
   draw();
   drawDemoBoard();
 }
@@ -384,6 +447,11 @@ async function savePreferences(partial = {}) {
 }
 
 $('prefBoardTheme').addEventListener('change', e => savePreferences({ boardTheme: e.target.value }));
+$('prefPieceStyle')?.addEventListener('change', e => savePreferences({ pieceStyle: e.target.value }));
+$('prefDoctrine')?.addEventListener('change', e => savePreferences({ doctrine: e.target.value }));
+document.querySelectorAll('.doctrine-pill').forEach(btn => {
+  btn.addEventListener('click', () => savePreferences({ doctrine: btn.dataset.doctrine }));
+});
 $('prefShowCoords').addEventListener('change', e => savePreferences({ showCoords: e.target.checked }));
 $('prefHighlightMoves').addEventListener('change', e => savePreferences({ highlightMoves: e.target.checked }));
 $('prefAutoQueue').addEventListener('change', e => savePreferences({ autoQueueMove: e.target.checked }));
@@ -533,20 +601,42 @@ function reset(mode = selectedMode) {
   const classic = mode === 'classic_cpu';
   const control = CLASSIC_CONTROLS[classicTimeControl] || CLASSIC_CONTROLS.blitz3;
   const teamIds = mode === 'arena' ? [0, 1, 2, 3] : [0, 1];
+  const botDoctrines = ['vanguard', 'bastion', 'celerity'];
   S = {
     mode,
     classic,
     T: 0,
+    phase: 'development',
+    winCondition: '',
+    skillsUsedCount: 0,
     turnOwner: 0,
     turnTimer: createTurnTimer(),
     lastBotMove: null,
     grid: Array.from({ length: N }, () => Array(N).fill(null)),
     pieces: [],
     orbs: [],
-    f: FAC.map((d, i) => ({
-      id: i, score: 0, xp: 0, lvl: 0, alive: teamIds.includes(i),
-      respawn: 0, next: mode === 'tutorial' ? 9999 : (1.2 + i * 0.25), kings: 0, energy: 18, boostUntil: 0, captures: 0
-    })),
+    crown: classic ? null : {
+      x: 7,
+      y: 7,
+      state: 'sealed',
+      unlockAt: mode === 'tutorial' ? 4 : 12,
+      holderId: null,
+      owner: -1,
+      dropCooldownOwner: -1,
+      dropCooldownUntil: 0,
+      tributeTimer: 10
+    },
+    zones: classic ? [] : STRATEGIC_ZONES.map(z => ({ ...z, owner: -1, contested: false, fortressTimer: 14 })),
+    f: FAC.map((d, i) => {
+      const doc = i === 0 ? (prefs.doctrine || 'vanguard') : botDoctrines[(i + cpuDifficulty) % 3];
+      return {
+        id: i, score: 0, xp: 0, lvl: 0, alive: teamIds.includes(i),
+        respawn: 0, next: mode === 'tutorial' ? 9999 : (1.2 + i * 0.25), kings: 0,
+        energy: doc === 'vanguard' ? 28 : doc === 'celerity' ? 8 : 18,
+        boostUntil: 0, aegisCooldownUntil: 0, captures: 0,
+        doctrine: doc, crownProgress: 0, maxCrownProgress: 0
+      };
+    }),
     sel: null,
     over: false,
     started: false,
@@ -580,24 +670,26 @@ function reset(mode = selectedMode) {
     }
   } else {
     for (const i of teamIds) spawnArmy(i);
-    const initialFoodCount = mode === 'arena' ? 24 : mode === 'tutorial' ? 6 : 18;
+    const initialFoodCount = mode === 'arena' ? 20 : mode === 'tutorial' ? 6 : 16;
     for (let i = 0; i < initialFoodCount; i++) spawnFood(mode === 'tutorial');
   }
   calcAtt();
   if (classic) S.repetition.set(classicPositionKey(), 1);
   $('classicMateBanner').classList.add('hidden');
+  $('decisiveMomentBanner')?.classList.add('hidden');
 
   if (mode === 'tutorial') {
     feed('Partida 1v1 iniciada: Você (Azul) contra Mentor Rubi (Bot).');
   } else if (mode === 'cpu') {
     const info = CPU_LEVELS.find(c => c.level === cpuDifficulty) || CPU_LEVELS[0];
-    feed(`Duelo contra CPU (${info.name}) preparado.`);
+    const myDoc = DOCTRINES_INFO[S.f[0].doctrine]?.name || 'Vanguarda';
+    feed(`Duelo contra CPU (${info.name}) · Doutrina <b>${myDoc}</b> ativa. A Coroa Imperial desperta em 12s!`);
   } else if (mode === 'duel') {
-    feed('Duelo local preparado: Azul contra Rubi.');
+    feed('Duelo local preparado: Azul contra Rubi. Disputem a Coroa Imperial no centro!');
   } else if (classic) {
     feed(`Xadrez Clássico · ${control.label}.`);
   } else {
-    feed('Quatro facções entraram na arena.');
+    feed('Quatro facções entraram na arena. A Coroa Imperial despertará no centro em 12s!');
   }
 
   const info = MODE_INFO[mode] || MODE_INFO.arena;
@@ -611,13 +703,19 @@ function reset(mode = selectedMode) {
   }
   $('footerHint').textContent = classic
     ? 'Selecione uma peça e a casa de destino. Xeque-mate vence; o relógio controla o tempo da partida.'
-    : 'Toque em uma peça da sua cor e depois na casa de destino. ESC cancela a seleção · ESPAÇO ativa o Surto em 100%.';
+    : 'Toque em uma peça aliada e na casa de destino · [1] Investida · [2] Égide · [3/Espaço] Surto · Conquiste a Coroa Imperial (👑) ou o Rei inimigo!';
   $('progressCard').classList.toggle('hidden', classic);
+  $('crownStatusBar')?.classList.toggle('hidden', classic);
+  $('phaseTag')?.classList.toggle('hidden', classic);
   $('playersLabel').textContent = info.players;
 }
 
 function add(t, o, x, y) {
-  const p = { id: S.nid++, t, o, x, y, ready: S.T + 0.8, cd0: 0.8, q: null, shield: 0 };
+  const p = {
+    id: S.nid++, t, o, x, y,
+    ready: S.T + 0.8, cd0: 0.8, q: null, shield: 0, chargeUntil: 0,
+    animFromX: x, animFromY: y, animAt: -10, animDur: 0.14
+  };
   S.grid[y][x] = p;
   S.pieces.push(p);
   return p;
@@ -643,6 +741,7 @@ function spawnArmy(i) {
     if (x >= 0 && y >= 0 && x < N && y < N && !S.grid[y][x]) {
       const p = add(t, i, x, y);
       if (S.mode === 'tutorial') p.ready = 0;
+      if (t === 'K' && S.f[i]?.doctrine === 'bastion') p.shield = 1;
       count++;
     }
   }
@@ -862,7 +961,7 @@ function collectOrb(p) {
   return true;
 }
 
-async function recordOfflineMatchToBackend(winner, reason) {
+async function recordOfflineMatchToBackend(winner, reason, winCondition = '') {
   const f0 = S.f[0], f1 = S.f[1];
   const entry = {
     id: 'local-' + Date.now(),
@@ -871,6 +970,7 @@ async function recordOfflineMatchToBackend(winner, reason) {
     opponent: S.mode === 'cpu' ? teamName(1) : S.mode === 'tutorial' ? 'Mentor Rubi (Bot)' : S.mode === 'duel' ? 'Duelo Local' : 'Arena 4 Facções',
     result: winner === null ? 'Empate' : winner === 0 ? 'Vitória' : 'Derrota',
     reason,
+    winCondition,
     duration: Math.max(1, Math.floor(S.T)),
     createdAt: new Date().toISOString(),
     scores: [f0?.score || 0, f1?.score || 0]
@@ -888,19 +988,28 @@ async function recordOfflineMatchToBackend(winner, reason) {
         score: f0?.score || 0,
         opponentScore: f1?.score || 0,
         duration: Math.max(1, Math.floor(S.T)),
-        reason
+        reason,
+        winCondition,
+        skillsUsed: S.skillsUsedCount || 0,
+        opponentMaxCrownProgress: Math.round(f1?.maxCrownProgress || 0)
       });
       if (res.user) onlineUser = res.user;
       if (res.games) historyCache = res.games;
+      if (Array.isArray(res.newlyUnlocked) && res.newlyUnlocked.length) {
+        for (const ach of res.newlyUnlocked) {
+          showToast(`🏆 Conquista desbloqueada: ${ach.icon} ${ach.title}!`);
+        }
+      }
       renderAccount();
     } catch (_) {}
   }
 }
 
-function gameOver(winner, reason = '') {
+function gameOver(winner, reason = '', winCondition = '') {
   if (S.over) return;
   S.over = true;
   S.winner = winner;
+  S.winCondition = winCondition || (reason.includes('Soberania') ? 'crown' : reason.includes('Rei') ? 'regicide' : '');
   const classicCheckmate = S.classic && Number.isInteger(winner) && reason === 'Xeque-mate.';
   S.checkmatedKingOwner = classicCheckmate ? 1 - winner : null;
   syncTurnTimerPauseState();
@@ -937,7 +1046,11 @@ function gameOver(winner, reason = '') {
       $('hudTutorialCard').classList.add('hidden');
       clearHudHighlights();
     }
-    $('overEyebrow').textContent = 'Fim de partida';
+    $('overEyebrow').textContent = S.winCondition === 'crown'
+      ? '👑 Vitória por Soberania Imperial'
+      : S.winCondition === 'regicide'
+        ? '⚔️ Vitória por Regicídio'
+        : 'Fim de partida';
     const winName = winner === 0
       ? 'VOCÊ VENCEU!'
       : winner === 1
@@ -948,8 +1061,13 @@ function gameOver(winner, reason = '') {
     $('resultTitle').textContent = winner === 0 ? 'VITÓRIA' : winner >= 0 ? 'DERROTA' : 'PARTIDA ENCERRADA';
     $('winnerText').textContent = winName;
     let details = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${f0.score}</b> · Nível <b>${f0.lvl}</b>`;
-    if (mode !== 'arena') details += `<br>${teamName(1)}: <b>${f1.score}</b>`;
-    if (reason) details += `<br>${reason}`;
+    if (!S.classic && f0) {
+      details += ` · Domínio da Coroa: <b>${Math.round(f0.crownProgress || 0)}%</b>`;
+    }
+    if (mode !== 'arena') {
+      details += `<br>${teamName(1)}: <b>${f1.score}</b>` + (!S.classic && f1 ? ` · Coroa: <b>${Math.round(f1.crownProgress || 0)}%</b>` : '');
+    }
+    if (reason) details += `<br><b>${reason}</b>`;
     details += `<br>Recorde no modo: <b>${best}</b>`;
     $('res').innerHTML = details;
     $('again').textContent = mode === 'tutorial' ? 'REPETIR TUTORIAL' : 'JOGAR NOVAMENTE';
@@ -961,7 +1079,7 @@ function gameOver(winner, reason = '') {
   $('over').classList.toggle('hidden', classicCheckmate);
   $('statusText').textContent = classicCheckmate ? 'XEQUE-MATE · #' : 'PARTIDA ENCERRADA';
   renderClassicCheckmateBanner();
-  recordOfflineMatchToBackend(winner, reason);
+  recordOfflineMatchToBackend(winner, reason, S.winCondition);
 }
 
 function renderClassicCheckmateBanner() {
@@ -985,14 +1103,42 @@ function capture(p, q) {
     q.shield--;
     S.fx.push({ x: q.x, y: q.y, t: S.T, col: '#a6e9ff' });
     feed('<b>Escudo!</b> Um golpe foi bloqueado.');
+    playTone('shield');
     return false;
   }
+  const wasCrownHolder = S.crown && S.crown.state === 'held' && S.crown.holderId === q.id;
   if (p.o >= 0) {
     gain(p.o, v);
     S.fx.push({ x: q.x, y: q.y, t: S.T, col: FAC[p.o].col });
   }
-  playTone('capture');
+  playTone(wasCrownHolder ? 'crown' : 'capture');
   rm(q);
+
+  if (wasCrownHolder && S.crown) {
+    S.crown.state = 'free';
+    S.crown.holderId = null;
+    S.crown.owner = -1;
+    S.crown.x = q.x;
+    S.crown.y = q.y;
+    S.crown.dropCooldownOwner = owner;
+    S.crown.dropCooldownUntil = S.T + 3.5;
+    if (owner >= 0 && S.f[owner]) {
+      S.f[owner].crownProgress = Math.max(0, (S.f[owner].crownProgress || 0) - 12);
+    }
+    if (p.o >= 0 && S.f[p.o]) {
+      gain(p.o, 4);
+      S.f[p.o].energy = Math.min(100, S.f[p.o].energy + 28);
+    }
+    S.fx.push({ x: q.x, y: q.y, t: S.T, col: '#f0c869', big: 1 });
+    feed(`<b>👑 Portador Derrubado!</b> ${teamName(p.o)} derrubou o Portador da Coroa (+4 XP, +28% Fluxo)! A Coroa caiu em (${q.x + 1},${N - q.y})!`);
+    showDecisiveMoment(
+      'Portador da Coroa Derrubado!',
+      `${teamName(p.o)} derrubou o portador inimigo e abriu contra-ataque (+28% Fluxo)!`,
+      'red',
+      '⚔️'
+    );
+  }
+
   if (q.t === 'K' && owner >= 0) {
     if (S.mode === 'tutorial' && owner === 0) {
       add('K', 0, 8, 14).ready = 0;
@@ -1002,7 +1148,7 @@ function capture(p, q) {
     S.f[p.o >= 0 ? p.o : 0].kings++;
     if (S.mode !== 'arena') {
       S.f[owner].alive = false;
-      gameOver(p.o, 'O Rei adversário foi capturado.');
+      gameOver(p.o, 'Regicídio: O Rei adversário foi capturado!', 'regicide');
       return true;
     }
     const f = S.f[owner];
@@ -1010,8 +1156,8 @@ function capture(p, q) {
     f.respawn = S.T + 7;
     for (const z of S.pieces) if (z.o === owner) z.o = p.o;
     feed('<b>' + teamName(p.o) + '</b> capturou o Rei de <b>' + teamName(owner) + '</b> e converteu seu exército!');
-    if (owner === 0) gameOver(p.o, 'Seu Rei foi capturado.');
-  } else if (owner >= 0) {
+    if (owner === 0) gameOver(p.o, 'Seu Rei foi capturado.', 'regicide');
+  } else if (owner >= 0 && !wasCrownHolder) {
     feed('<b>' + teamName(p.o) + '</b> capturou ' + NOME[q.t] + ' de ' + teamName(owner) + '.');
   }
   return true;
@@ -1027,6 +1173,7 @@ function doMove(p, a, b) {
     p.cd0 = p.ready - S.T;
     S.fx.push({ x: q.x, y: q.y, t: S.T, col: '#a6e9ff', big: 1 });
     feed('<b>Escudo!</b> A peça resistiu ao ataque.');
+    playTone('shield');
     calcAtt();
     return false;
   }
@@ -1038,10 +1185,56 @@ function doMove(p, a, b) {
   }
 
   S.grid[b][a] = p;
+  p.animFromX = fromX;
+  p.animFromY = fromY;
+  p.animAt = S.T;
+  p.animDur = 0.14;
   p.x = a;
   p.y = b;
+
+  // Claim or move Imperial Crown
+  if (S.crown) {
+    if (S.crown.state === 'held' && S.crown.holderId === p.id) {
+      S.crown.x = a;
+      S.crown.y = b;
+    } else if (S.crown.state === 'free' && S.crown.x === a && S.crown.y === b && p.o >= 0) {
+      const dropLocked = S.crown.dropCooldownOwner === p.o && S.T < S.crown.dropCooldownUntil;
+      if (!dropLocked) {
+        S.crown.state = 'held';
+        S.crown.holderId = p.id;
+        S.crown.owner = p.o;
+        S.crown.tributeTimer = 10;
+        p.shield = Math.max(p.shield, 1);
+        S.fx.push({ x: a, y: b, t: S.T, col: '#f0c869', big: 1 });
+        playTone('crown');
+        feed(`<b>👑 Coroa Reivindicada!</b> ${NOME[p.t]} de <b>${teamName(p.o)}</b> empunhou a Coroa Imperial (+1 Escudo)!`);
+        showDecisiveMoment(
+          'Coroa Imperial Conquistada!',
+          `${teamName(p.o)} assumiu a Coroa com ${NOME[p.t]}! Proteja o portador ou cace-o!`,
+          'gold',
+          '👑'
+        );
+      } else {
+        feed('A Coroa ainda está instável para sua facção por mais ' + (S.crown.dropCooldownUntil - S.T).toFixed(1) + 's.');
+      }
+    }
+  }
+
   let cd = BASE[p.t] + (p.t === 'N' ? 0.25 : d * 0.12);
-  if (p.o >= 0 && S.f[p.o].boostUntil > S.T) cd *= 0.58;
+  const f = p.o >= 0 ? S.f[p.o] : null;
+  if (f) {
+    if (f.doctrine === 'vanguard' && hadCapture) cd *= 0.88;
+    if (f.doctrine === 'celerity' && !hadCapture && (p.t === 'P' || p.t === 'N' || p.t === 'K')) cd *= 0.88;
+    if (f.doctrine === 'bastion' && !hadCapture && (p.t === 'R' || p.t === 'Q')) cd *= 1.1;
+    if (S.crown && S.crown.state === 'held' && S.crown.holderId === p.id) {
+      cd *= f.doctrine === 'celerity' ? 1.10 : 1.22;
+    }
+    if (p.chargeUntil && p.chargeUntil > S.T) {
+      cd *= 0.55;
+      p.chargeUntil = 0;
+    }
+    if (f.boostUntil > S.T) cd *= 0.58;
+  }
   p.cd0 = cd;
   p.ready = S.mode === 'tutorial' ? S.T + Math.min(0.65, cd) : S.T + cd;
   p.q = null;
@@ -1243,7 +1436,7 @@ function botThink(i) {
     return;
   }
 
-  // Level 2: Fácil — Recognizes basic captures and nearby orbs, but weak threat awareness
+  // Level 2: Fácil — Recognizes basic captures, nearby orbs, and free Crown, but weak threat awareness
   if (level === 2) {
     let bestMove = null, bs = -1e9;
     for (const p of ps) {
@@ -1252,6 +1445,7 @@ function botThink(i) {
         const q = S.grid[b][a];
         let score = Math.random() * 3.5;
         if (q) score += q.t === 'K' ? 180 : VAL[q.t] * 8;
+        if (S.crown && S.crown.state === 'free' && S.crown.x === a && S.crown.y === b) score += 45;
         if ((S.att[b][a] & ~me) !== 0) score -= VAL[p.t] * 2.2;
         if (S.orbs.some(o => o.x === a && o.y === b)) score += 9;
         if (score > bs) { bs = score; bestMove = [p, a, b]; }
@@ -1264,12 +1458,24 @@ function botThink(i) {
   // Level 3 (Normal), Level 4 (Difícil), Level 5 (Especialista)
   const enemyKing = S.pieces.find(p => p.o === 0 && p.t === 'K');
   const myKing = S.pieces.find(p => p.o === i && p.t === 'K');
+  const crownHolder = S.crown?.state === 'held' ? S.pieces.find(p => p.id === S.crown.holderId) : null;
 
-  if (level >= 3 && S.f[i].energy >= 100) {
-    const recovering = S.pieces.filter(p => p.o === i && p.ready > S.T).length;
-    if (level === 3 && Math.random() < 0.35) activateBoost(i);
-    else if (level >= 4 && (recovering >= 2 || (enemyKing && S.pieces.some(p => p.o === i && cheb(p.x, p.y, enemyKing.x, enemyKing.y) <= 4)))) {
-      activateBoost(i);
+  if (level >= 3) {
+    if (S.f[i].energy >= 100) {
+      const recovering = S.pieces.filter(p => p.o === i && p.ready > S.T).length;
+      if (level === 3 && Math.random() < 0.35) activateSkill(i, 'surge');
+      else if (level >= 4 && (recovering >= 2 || (enemyKing && S.pieces.some(p => p.o === i && cheb(p.x, p.y, enemyKing.x, enemyKing.y) <= 4)))) {
+        activateSkill(i, 'surge');
+      }
+    } else if (level >= 4 && S.f[i].energy >= 60 && S.T >= (S.f[i].aegisCooldownUntil || 0)) {
+      const myCarrierDanger = crownHolder && crownHolder.o === i && crownHolder.shield === 0 && (S.att[crownHolder.y][crownHolder.x] & ~me) !== 0;
+      const myKingDanger = myKing && myKing.shield === 0 && (S.att[myKing.y][myKing.x] & ~me) !== 0;
+      if (myCarrierDanger || myKingDanger) {
+        activateSkill(i, 'aegis', myCarrierDanger ? crownHolder : myKing);
+      }
+    } else if (level === 5 && S.f[i].energy >= 72) {
+      const heavyRec = S.pieces.find(p => p.o === i && (p.t === 'Q' || p.t === 'R' || p.t === 'N') && p.ready - S.T > 0.7);
+      if (heavyRec) activateSkill(i, 'charge', heavyRec);
     }
   }
 
@@ -1279,10 +1485,12 @@ function botThink(i) {
     if (!ms.length) continue;
     let target = null, td = 1e9;
     for (const e of enemies) {
-      const d = cheb(p.x, p.y, e.x, e.y) - (e.o >= 0 ? 1.3 : 0) + (e.t === 'K' ? -2.5 : 0);
+      const isEnemyCarrier = crownHolder && crownHolder.id === e.id;
+      const d = cheb(p.x, p.y, e.x, e.y) - (e.o >= 0 ? 1.3 : 0) + (e.t === 'K' ? -2.5 : 0) + (isEnemyCarrier ? -3.2 : 0);
       if (d < td) { td = d; target = e; }
     }
-    const pv = VAL[p.t] * (p.t === 'K' ? 3.0 : 1);
+    const isMyCarrier = crownHolder && crownHolder.id === p.id;
+    const pv = VAL[p.t] * (p.t === 'K' ? 3.0 : isMyCarrier ? 2.4 : 1);
     const inDanger = (S.att[p.y][p.x] & ~me) !== 0;
     const d0 = target ? cheb(p.x, p.y, target.x, target.y) : 0;
 
@@ -1292,7 +1500,32 @@ function botThink(i) {
 
       if (q) {
         if (q.t === 'K' && q.o >= 0) score += 500;
+        else if (crownHolder && q.id === crownHolder.id) score += 210;
         else score += (VAL[q.t] + 0.5) * (q.o >= 0 ? 11.5 : 8.5);
+      }
+
+      // Imperial Crown Tactical Awareness
+      if (S.crown) {
+        const dropLocked = S.crown.dropCooldownOwner === i && S.T < S.crown.dropCooldownUntil;
+        if (S.crown.state === 'free' && !dropLocked && p.t !== 'K') {
+          if (a === S.crown.x && b === S.crown.y) score += 92;
+          else score += (cheb(p.x, p.y, S.crown.x, S.crown.y) - cheb(a, b, S.crown.x, S.crown.y)) * 4.2;
+        } else if (S.crown.state === 'sealed' && p.t !== 'K') {
+          score += (cheb(p.x, p.y, 7.5, 7.5) - cheb(a, b, 7.5, 7.5)) * 1.8;
+        } else if (isMyCarrier) {
+          // Keep carrier in central zone (avoid retreating to base where dominion stalls)
+          if (a >= 6 && a <= 9 && b >= 6 && b <= 9) score += 9.5;
+          if (b <= 2 || b >= 13) score -= 18;
+        }
+      }
+
+      // Strategic Zones Awareness
+      if (S.zones && S.zones.length && p.t !== 'K') {
+        for (const z of S.zones) {
+          if (a >= z.x0 && a <= z.x1 && b >= z.y0 && b <= z.y1 && z.owner !== i) {
+            score += level >= 4 ? 6.5 : 4.0;
+          }
+        }
       }
 
       const destAttacked = (S.att[b][a] & ~me) !== 0;
@@ -1301,6 +1534,7 @@ function botThink(i) {
       if (destAttacked) {
         const penaltyMult = level >= 4 ? (destDefended ? 5.2 : 8.5) : 6.5;
         score -= pv * penaltyMult;
+        if (isMyCarrier) score -= 45;
       } else if (destDefended && level >= 4) {
         score += 1.8;
       }
@@ -1358,25 +1592,86 @@ function botThink(i) {
   if (bestMove && bs > -35) doMove(bestMove[0], bestMove[1], bestMove[2]);
 }
 
-function activateBoost(i) {
-  if (!S || S.over || i < 0 || !S.f[i] || S.f[i].energy < 100) return false;
+function activateSkill(i, skill = 'surge', explicitTarget = null) {
+  if (!S || S.over || S.classic || i < 0 || !S.f[i] || !S.f[i].alive) return false;
   if (S.mode === 'online') {
-    sendSocket('game:boost');
+    sendSocket('game:skill', { skill, pieceId: (explicitTarget || S.sel)?.id ?? null });
     return true;
   }
   const f = S.f[i];
+
+  if (skill === 'charge') {
+    if (f.energy < 45) {
+      if (i === 0) showToast('Investida Real requer 45% de Energia de Fluxo.');
+      return false;
+    }
+    let target = explicitTarget && explicitTarget.o === i ? explicitTarget : (S.sel && S.sel.o === i ? S.sel : null);
+    if (!target) {
+      const recovering = S.pieces.filter(p => p.o === i && p.ready > S.T).sort((a, b) => (VAL[b.t] || 1) - (VAL[a.t] || 1));
+      target = recovering[0] || S.pieces.find(p => p.o === i && p.t !== 'K') || S.pieces.find(p => p.o === i);
+    }
+    if (!target) return false;
+    f.energy = Math.max(0, f.energy - 45);
+    target.ready = S.T;
+    target.cd0 = 0.2;
+    target.chargeUntil = S.T + 4.5;
+    if (i === 0) S.skillsUsedCount = (S.skillsUsedCount || 0) + 1;
+    S.fx.push({ x: target.x, y: target.y, t: S.T, col: '#f0c869', big: 1 });
+    feed(`<b>⚡ Investida Real!</b> ${NOME[target.t]} de <b>${teamName(i)}</b> zerou a recarga e ganhou impulso tático!`);
+    playTone('boost');
+    hud();
+    return true;
+  }
+
+  if (skill === 'aegis') {
+    if (f.energy < 60) {
+      if (i === 0) showToast('Égide Real requer 60% de Energia de Fluxo.');
+      return false;
+    }
+    if (S.T < (f.aegisCooldownUntil || 0)) {
+      if (i === 0) showToast(`Égide Real em recarga (${(f.aegisCooldownUntil - S.T).toFixed(1)}s).`);
+      return false;
+    }
+    let target = explicitTarget && explicitTarget.o === i ? explicitTarget : (S.sel && S.sel.o === i ? S.sel : null);
+    if (!target) {
+      const carrier = S.crown?.state === 'held' && S.crown.owner === i ? S.pieces.find(p => p.id === S.crown.holderId) : null;
+      const king = S.pieces.find(p => p.o === i && p.t === 'K');
+      target = (carrier && carrier.shield === 0 ? carrier : null) || (king && king.shield === 0 ? king : null) || carrier || king;
+    }
+    if (!target) return false;
+    f.energy = Math.max(0, f.energy - 60);
+    f.aegisCooldownUntil = S.T + 8;
+    target.shield = Math.max(target.shield, 1);
+    if (target.ready > S.T) target.ready = S.T + (target.ready - S.T) * 0.5;
+    if (i === 0) S.skillsUsedCount = (S.skillsUsedCount || 0) + 1;
+    S.fx.push({ x: target.x, y: target.y, t: S.T, col: '#7fd8ff', big: 1 });
+    feed(`<b>🛡️ Égide Real!</b> ${NOME[target.t]} de <b>${teamName(i)}</b> recebeu Escudo Real!`);
+    playTone('shield');
+    hud();
+    return true;
+  }
+
+  // Default: 'surge' (Surto Imperial — 100% Flux)
+  if (f.energy < 100) return false;
+  const dur = f.doctrine === 'celerity' ? 5 : 6;
   f.energy = 0;
-  f.boostUntil = S.T + 6;
+  f.boostUntil = S.T + dur;
   for (const p of S.pieces) {
     if (p.o === i && p.ready > S.T) p.ready = S.T + (p.ready - S.T) * 0.48;
   }
+  if (i === 0) S.skillsUsedCount = (S.skillsUsedCount || 0) + 1;
   S.fx.push({ x: 8, y: 8, t: S.T, col: FAC[i].col, big: 1 });
-  feed('<b>' + teamName(i) + '</b> ativou SURTO! Exército acelerado por 6 segundos.');
+  feed(`<b>🔥 Surto Imperial!</b> <b>${teamName(i)}</b> acelerou todo o exército por ${dur} segundos.`);
   playTone('boost');
   if (S.mode === 'tutorial' && i === 0 && tut.step === 7) {
     advanceTutorialStep(8);
   }
+  hud();
   return true;
+}
+
+function activateBoost(i) {
+  return activateSkill(i, 'surge');
 }
 
 function abilityOwner() {
@@ -1641,6 +1936,126 @@ function update(dt) {
   S.attT -= dt;
   if (S.attT <= 0) { calcAtt(); S.attT = 0.22; }
 
+  // 1. Imperial Crown & Match Phases
+  if (S.crown) {
+    if (S.crown.state === 'sealed' && S.T >= S.crown.unlockAt) {
+      S.crown.state = 'free';
+      S.phase = 'confrontation';
+      playTone('crown');
+      feed('<b>👑 A Coroa Imperial despertou no centro (8,9)!</b> Mova uma peça até lá para reivindicá-la!');
+      if (S.mode !== 'tutorial') {
+        showDecisiveMoment(
+          'A Coroa Imperial Despertou!',
+          'O Trono Central está aberto! Conquiste a Coroa para acumular Domínio Imperial!',
+          'gold',
+          '👑'
+        );
+      }
+      // If a piece is already standing on (x, y), claim it immediately
+      const occ = S.grid[S.crown.y]?.[S.crown.x];
+      if (occ && occ.o >= 0) {
+        S.crown.state = 'held';
+        S.crown.holderId = occ.id;
+        S.crown.owner = occ.o;
+        S.crown.tributeTimer = 10;
+        occ.shield = Math.max(occ.shield, 1);
+        feed(`<b>👑 Coroa Reivindicada!</b> ${NOME[occ.t]} de <b>${teamName(occ.o)}</b> já ocupava o Trono e empunhou a Coroa!`);
+      }
+    } else if (S.crown.state === 'held') {
+      const holder = S.pieces.find(p => p.id === S.crown.holderId);
+      if (!holder || holder.o < 0) {
+        S.crown.state = 'free';
+        S.crown.holderId = null;
+        S.crown.owner = -1;
+      } else {
+        S.crown.x = holder.x;
+        S.crown.y = holder.y;
+        const owner = holder.o;
+        const f = S.f[owner];
+        if (f && f.alive) {
+          const inThrone = holder.x >= 7 && holder.x <= 8 && holder.y >= 7 && holder.y <= 8;
+          const inBase = (owner === 0 && holder.y >= 13) || (owner === 1 && holder.y <= 2) || (owner === 2 && holder.x <= 2) || (owner === 3 && holder.x >= 13);
+          let rate = inThrone ? 3.5 : inBase ? 0.6 : 2.5;
+          if (f.doctrine === 'vanguard') rate *= 0.90;
+          if (S.phase === 'ascension') rate *= 1.35;
+          f.crownProgress = Math.min(100, (f.crownProgress || 0) + rate * dt);
+          f.maxCrownProgress = Math.max(f.maxCrownProgress || 0, f.crownProgress);
+
+          S.crown.tributeTimer -= dt;
+          if (S.crown.tributeTimer <= 0) {
+            S.crown.tributeTimer = 10;
+            gain(owner, 2);
+            f.energy = Math.min(100, f.energy + 15);
+            feed(`<b>👑 Tributo Imperial:</b> ${teamName(owner)} manteve a Coroa (+2 XP e +15% Fluxo).`);
+          }
+
+          if (S.phase !== 'ascension' && (S.T >= 150 || f.crownProgress >= 70)) {
+            S.phase = 'ascension';
+            feed('<b>🔥 Fase III — Ascensão Imperial!</b> A velocidade de Domínio da Coroa aumentou em 35%!');
+            showDecisiveMoment(
+              'Fase III · Ascensão Imperial!',
+              `${teamName(owner)} atingiu ${Math.round(f.crownProgress)}% de Domínio da Coroa!`,
+              'gold',
+              '🔥'
+            );
+          }
+
+          if (f.crownProgress >= 100 && S.mode !== 'tutorial') {
+            gameOver(owner, 'Soberania Imperial: 100% de Domínio da Coroa alcançado!', 'crown');
+            return;
+          }
+        }
+      }
+    }
+    if (S.phase !== 'ascension' && S.T >= 150) {
+      S.phase = 'ascension';
+      feed('<b>🔥 Fase III — Ascensão Imperial!</b> A disputa pela Coroa entrou no estágio decisivo!');
+    }
+  }
+
+  // 2. Strategic Regions (Sanctuary, Throne, Fortress)
+  if (S.zones && S.zones.length) {
+    for (const z of S.zones) {
+      const ownersInZone = new Set();
+      for (const p of S.pieces) {
+        if (p.o >= 0 && p.x >= z.x0 && p.x <= z.x1 && p.y >= z.y0 && p.y <= z.y1) {
+          ownersInZone.add(p.o);
+        }
+      }
+      if (ownersInZone.size === 1) {
+        const ctrl = [...ownersInZone][0];
+        z.owner = ctrl;
+        z.contested = false;
+        const f = S.f[ctrl];
+        if (f && f.alive) {
+          const mult = f.doctrine === 'bastion' ? 1.25 : 1.0;
+          if (z.id === 'sanctuary') {
+            f.energy = Math.min(100, f.energy + 3.0 * mult * dt);
+          } else if (z.id === 'fortress') {
+            z.fortressTimer -= dt * mult;
+            if (z.fortressTimer <= 0) {
+              z.fortressTimer = 14;
+              const king = S.pieces.find(p => p.o === ctrl && p.t === 'K');
+              if (king && king.shield < 1) {
+                king.shield = 1;
+                S.fx.push({ x: king.x, y: king.y, t: S.T, col: '#7fd8ff', big: 1 });
+                feed(`<b>🏰 Fortaleza Real:</b> O Rei de <b>${teamName(ctrl)}</b> recebeu +1 Escudo Real!`);
+              } else {
+                f.energy = Math.min(100, f.energy + 12);
+              }
+            }
+          }
+        }
+      } else if (ownersInZone.size > 1) {
+        z.owner = -1;
+        z.contested = true;
+      } else {
+        z.owner = -1;
+        z.contested = false;
+      }
+    }
+  }
+
   const lvlBoost = Math.min(0.35, S.T / 500);
   for (const i of activeTeams()) {
     if (!isBot(i)) continue;
@@ -1680,8 +2095,8 @@ function update(dt) {
 
   S.foodT -= dt;
   if (S.foodT <= 0) {
-    S.foodT = S.mode === 'tutorial' ? 3.2 : 1.05;
-    const maxNeutral = S.mode === 'arena' ? 45 : S.mode === 'tutorial' ? 10 : 34;
+    S.foodT = S.mode === 'tutorial' ? 3.2 : 1.35;
+    const maxNeutral = S.mode === 'arena' ? 34 : S.mode === 'tutorial' ? 10 : 24;
     if (S.pieces.filter(p => p.o < 0).length < maxNeutral) spawnFood(S.mode === 'tutorial');
   }
   S.orbT -= dt;
@@ -1790,11 +2205,12 @@ cv.addEventListener('pointerdown', e => {
 function resize() {
   const wide = innerWidth > 860;
   const tutHeight = !$('tutorialBanner').classList.contains('hidden') ? ($('tutorialBanner').offsetHeight + 10) : 0;
-  let availableWidth = wide ? Math.min(720, innerWidth - 330) : innerWidth - 22;
-  let availableHeight = wide ? innerHeight - 130 - tutHeight : Math.min(innerHeight * 0.64, 540);
-  let size = Math.max(224, Math.min(688, availableWidth, availableHeight));
+  const crownHeight = $('crownStatusBar') && !$('crownStatusBar').classList.contains('hidden') ? 44 : 0;
+  let availableWidth = wide ? Math.min(820, innerWidth - 320) : innerWidth - 18;
+  let availableHeight = wide ? innerHeight - 126 - tutHeight - crownHeight : Math.min(innerHeight * 0.66, 580);
+  let size = Math.max(240, Math.min(784, availableWidth, availableHeight));
   dpr = Math.min(2, window.devicePixelRatio || 1);
-  cell = Math.max(14, Math.floor(size / N));
+  cell = Math.max(15, Math.floor(size / N));
   const px = cell * N;
   cv.style.width = cv.style.height = px + 'px';
   cv.width = cv.height = Math.floor(px * dpr);
@@ -1803,9 +2219,10 @@ function resize() {
 }
 
 function getThemeColors() {
-  if (prefs.boardTheme === 'slate') return { light: '#c5ccd1', dark: '#637482' };
-  if (prefs.boardTheme === 'wood') return { light: '#dcc9ab', dark: '#967253' };
-  return { light: '#d2cbb8', dark: '#788a7a' };
+  if (prefs.boardTheme === 'slate') return { light: '#c5ccd1', dark: '#637482', border: '#7b93a6' };
+  if (prefs.boardTheme === 'wood') return { light: '#dcc9ab', dark: '#967253', border: '#c49a6c' };
+  if (prefs.boardTheme === 'emerald') return { light: '#d2cbb8', dark: '#788a7a', border: '#6e8c76' };
+  return { light: '#cfc5b0', dark: '#627566', border: '#c9a66b' };
 }
 
 function draw() {
@@ -1817,10 +2234,15 @@ function draw() {
 
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
-      ctx.fillStyle = (x + y) % 2 ? theme.dark : theme.light;
+      const inCenterThrone = !S.classic && x >= 7 && x <= 8 && y >= 7 && y <= 8;
+      if (inCenterThrone) {
+        ctx.fillStyle = (x + y) % 2 ? '#594f3d' : '#b8a682';
+      } else {
+        ctx.fillStyle = (x + y) % 2 ? theme.dark : theme.light;
+      }
       ctx.fillRect(x * cell, y * cell, cell, cell);
       if (prefs.showCoords !== false && x === 0) {
-        ctx.fillStyle = 'rgba(24, 30, 26, 0.45)';
+        ctx.fillStyle = 'rgba(24, 30, 26, 0.5)';
         ctx.font = Math.max(8, Math.floor(cell * 0.21)) + 'px system-ui';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
@@ -1829,16 +2251,111 @@ function draw() {
     }
   }
 
-  ctx.strokeStyle = 'rgba(79, 98, 87, 0.65)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0.5, 0.5, W - 1, W - 1);
+  // Strategic Regions Rendering (Sanctuary, Throne, Fortress)
+  if (!S.classic && S.zones && S.zones.length) {
+    for (const z of S.zones) {
+      const zx = z.x0 * cell;
+      const zy = z.y0 * cell;
+      const zw = (z.x1 - z.x0 + 1) * cell;
+      const zh = (z.y1 - z.y0 + 1) * cell;
+      ctx.save();
+      if (z.contested) {
+        ctx.fillStyle = 'rgba(224, 159, 90, 0.22)';
+        ctx.strokeStyle = '#e09f5a';
+      } else if (z.owner >= 0 && FAC[z.owner]) {
+        ctx.fillStyle = FAC[z.owner].col + '2b';
+        ctx.strokeStyle = FAC[z.owner].col;
+      } else {
+        ctx.fillStyle = z.id === 'throne' ? 'rgba(218, 179, 98, 0.16)' : 'rgba(111, 157, 175, 0.12)';
+        ctx.strokeStyle = z.id === 'throne' ? 'rgba(218, 179, 98, 0.72)' : 'rgba(214, 196, 156, 0.48)';
+      }
+      ctx.fillRect(zx, zy, zw, zh);
+      ctx.lineWidth = z.id === 'throne' ? 2.2 : 1.6;
+      ctx.strokeRect(zx + 1.5, zy + 1.5, zw - 3, zh - 3);
+
+      // Corner tactical brackets
+      const br = Math.max(5, cell * 0.22);
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(zx + 1, zy + br); ctx.lineTo(zx + 1, zy + 1); ctx.lineTo(zx + br, zy + 1);
+      ctx.moveTo(zx + zw - br, zy + 1); ctx.lineTo(zx + zw - 1, zy + 1); ctx.lineTo(zx + zw - 1, zy + br);
+      ctx.moveTo(zx + 1, zy + zh - br); ctx.lineTo(zx + 1, zy + zh - 1); ctx.lineTo(zx + br, zy + zh - 1);
+      ctx.moveTo(zx + zw - br, zy + zh - 1); ctx.lineTo(zx + zw - 1, zy + zh - 1); ctx.lineTo(zx + zw - 1, zy + zh - br);
+      ctx.stroke();
+
+      // Subtle watermark emblem at center of zone
+      if (z.id !== 'throne' || !S.crown || S.crown.state === 'held') {
+        ctx.font = Math.max(11, Math.floor(cell * 0.48)) + 'px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.34;
+        ctx.fillStyle = '#fff5dc';
+        ctx.fillText(z.icon, zx + zw / 2, zy + zh / 2);
+      }
+      ctx.restore();
+    }
+  }
+
+  ctx.strokeStyle = theme.border || 'rgba(79, 98, 87, 0.65)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(0.75, 0.75, W - 1.5, W - 1.5);
+
+  // Imperial Crown on Board (when sealed or free)
+  if (!S.classic && S.crown && S.crown.state !== 'held') {
+    const cx = S.crown.x * cell + cell / 2;
+    const cy = S.crown.y * cell + cell / 2;
+    const pulse = 0.88 + Math.sin(S.T * 4.5) * 0.12;
+    ctx.save();
+    if (S.crown.state === 'sealed') {
+      ctx.fillStyle = 'rgba(26, 32, 28, 0.62)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.44, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(218, 179, 98, 0.65)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.44 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = Math.max(11, Math.floor(cell * 0.46)) + 'px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#d8c292';
+      ctx.fillText('👑', cx, cy - cell * 0.08);
+      const remUnlock = Math.max(1, Math.ceil(S.crown.unlockAt - S.T));
+      ctx.font = `800 ${Math.max(8, Math.floor(cell * 0.24))}px system-ui`;
+      ctx.fillStyle = '#ffe596';
+      ctx.fillText(remUnlock + 's', cx, cy + cell * 0.26);
+    } else if (S.crown.state === 'free') {
+      const grad = ctx.createRadialGradient(cx, cy, cell * 0.06, cx, cy, cell * 0.56);
+      grad.addColorStop(0, 'rgba(255, 223, 126, 0.68)');
+      grad.addColorStop(1, 'rgba(218, 179, 98, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.56 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffdf7e';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.39 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.font = Math.max(13, Math.floor(cell * 0.58)) + 'px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('👑', cx, cy + 1);
+    }
+    ctx.restore();
+  }
 
   // Flux Orbs
   for (const o of S.orbs) {
     const x = o.x * cell + cell / 2, y = o.y * cell + cell / 2;
     const pulse = 0.85 + Math.sin(S.T * 4 + o.x) * 0.15;
     ctx.save();
-    ctx.fillStyle = '#b9935a';
+    ctx.fillStyle = '#c49b5a';
     ctx.beginPath();
     ctx.moveTo(x, y - cell * 0.27 * pulse);
     ctx.lineTo(x + cell * 0.22 * pulse, y);
@@ -1846,8 +2363,8 @@ function draw() {
     ctx.lineTo(x - cell * 0.22 * pulse, y);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#f3e5c8';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = '#fff0d1';
+    ctx.lineWidth = 1.3;
     ctx.stroke();
     if (S.mode === 'tutorial' && tut.step === 7) {
       ctx.strokeStyle = '#ffdf7e';
@@ -1877,7 +2394,6 @@ function draw() {
     const pulse = 0.42 + Math.sin(S.T * 5) * 0.05;
     ctx.save();
     if (tut.step === 1) {
-      // Highlight both Kings (Player & Mentor Bot)
       for (const p of S.pieces) {
         if (p.t === 'K') {
           ctx.strokeStyle = p.o === 0 ? '#f0c869' : '#e07a7c';
@@ -1920,10 +2436,10 @@ function draw() {
 
   const sel = S.sel, ms = sel ? moves(sel) : [];
   if (sel) {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillStyle = 'rgba(255, 245, 214, 0.32)';
     ctx.fillRect(sel.x * cell, sel.y * cell, cell, cell);
-    ctx.strokeStyle = '#eff8ff';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffdf7e';
+    ctx.lineWidth = 2.2;
     ctx.strokeRect(sel.x * cell + 1, sel.y * cell + 1, cell - 2, cell - 2);
   }
   if (prefs.highlightMoves !== false) {
@@ -1931,79 +2447,202 @@ function draw() {
       const q = S.grid[b][a], cx = a * cell + cell / 2, cy = b * cell + cell / 2;
       ctx.beginPath();
       if (q) {
-        ctx.strokeStyle = q.shield > 0 ? '#a4c1bf' : '#c96b6b';
-        ctx.lineWidth = 2.5;
-        ctx.arc(cx, cy, cell * 0.39, 0, Math.PI * 2);
+        ctx.strokeStyle = q.shield > 0 ? '#7fd8ff' : '#e05a5a';
+        ctx.lineWidth = 2.6;
+        ctx.arc(cx, cy, cell * 0.41, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (S.crown && S.crown.state === 'free' && S.crown.x === a && S.crown.y === b) {
+        ctx.strokeStyle = '#ffdf7e';
+        ctx.lineWidth = 2.8;
+        ctx.arc(cx, cy, cell * 0.42, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        ctx.fillStyle = 'rgba(30, 44, 34, 0.45)';
-        ctx.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(24, 34, 27, 0.5)';
+        ctx.arc(cx, cy, cell * 0.15, 0, Math.PI * 2);
         ctx.fill();
       }
     }
     if (S.lastMove && S.T - S.lastMove.t < 0.9) {
-      ctx.fillStyle = 'rgba(76, 94, 77, 0.22)';
+      ctx.fillStyle = 'rgba(218, 179, 98, 0.22)';
       for (const [x, y] of [[S.lastMove.x0, S.lastMove.y0], [S.lastMove.x1, S.lastMove.y1]]) {
         ctx.fillRect(x * cell, y * cell, cell, cell);
       }
     }
   }
 
+  const pStyle = prefs.pieceStyle || 'medallion';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = Math.floor(cell * 0.76) + 'px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif';
 
   for (const p of S.pieces) {
-    const col = p.o >= 0 ? FAC[p.o].col : '#9aa6b2', cx = p.x * cell + cell / 2, cy = p.y * cell + cell / 2;
-    ctx.fillStyle = p.o >= 0 ? col + '24' : '#3f474024';
+    const isNeutral = p.o < 0;
+    const col = !isNeutral ? FAC[p.o].col : '#9aa6b2';
+    const isCrownHolder = !S.classic && S.crown && S.crown.state === 'held' && S.crown.holderId === p.id;
+
+    // Smooth movement interpolation
+    let drawX = p.x, drawY = p.y;
+    if (p.animAt !== undefined && S.T - p.animAt < (p.animDur || 0.14) && S.T >= p.animAt) {
+      const prog = (S.T - p.animAt) / (p.animDur || 0.14);
+      const ease = 1 - Math.pow(1 - prog, 3);
+      drawX = p.animFromX + (p.x - p.animFromX) * ease;
+      drawY = p.animFromY + (p.y - p.animFromY) * ease;
+    }
+    const cx = drawX * cell + cell / 2;
+    const cy = drawY * cell + cell / 2;
+    const rad = cell * (isNeutral ? 0.34 : 0.41);
+
+    ctx.save();
+    // Base shadow
+    ctx.fillStyle = 'rgba(12, 16, 14, 0.38)';
     ctx.beginPath();
-    ctx.arc(cx, cy, cell * 0.41, 0, Math.PI * 2);
+    ctx.arc(cx, cy + cell * 0.04, rad, 0, Math.PI * 2);
     ctx.fill();
 
-    if (p.o >= 0 && p.t === 'K') {
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.8;
+    // Medallion / Heraldic / Minimal piece body
+    if (pStyle === 'heraldic' && !isNeutral) {
+      ctx.fillStyle = '#1d2420';
+      ctx.strokeStyle = isCrownHolder ? '#ffdf7e' : col;
+      ctx.lineWidth = isCrownHolder ? 2.6 : 2.0;
       ctx.beginPath();
-      ctx.arc(cx, cy, cell * 0.43, 0, Math.PI * 2);
+      const r = rad;
+      for (let k = 0; k < 8; k++) {
+        const ang = (Math.PI / 4) * k + Math.PI / 8;
+        const vx = cx + Math.cos(ang) * r;
+        const vy = cy + Math.sin(ang) * r;
+        if (k === 0) ctx.moveTo(vx, vy);
+        else ctx.lineTo(vx, vy);
+      }
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
-      if (S.att && (S.att[p.y][p.x] & ~(1 << p.o)) !== 0) {
-        ctx.strokeStyle = '#e05263';
-        ctx.lineWidth = 2.4;
+    } else if (pStyle === 'minimal') {
+      ctx.fillStyle = isNeutral ? 'rgba(42, 50, 45, 0.55)' : 'rgba(24, 30, 26, 0.78)';
+      ctx.strokeStyle = isCrownHolder ? '#ffdf7e' : col;
+      ctx.lineWidth = isNeutral ? 1.2 : 2.0;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Default: Medalhão Real (Royal Medallion)
+      const grad = ctx.createRadialGradient(cx - rad * 0.25, cy - rad * 0.25, rad * 0.1, cx, cy, rad);
+      if (isNeutral) {
+        grad.addColorStop(0, '#49544d');
+        grad.addColorStop(1, '#262d28');
+      } else {
+        grad.addColorStop(0, '#303b35');
+        grad.addColorStop(1, '#181e1b');
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = isCrownHolder ? '#ffdf7e' : (isNeutral ? '#78847d' : col);
+      ctx.lineWidth = isCrownHolder ? 2.6 : (p.t === 'K' ? 2.3 : 1.7);
+      ctx.stroke();
+
+      if (!isNeutral) {
+        ctx.strokeStyle = col + '55';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(cx, cy, cell * 0.48, 0, Math.PI * 2);
+        ctx.arc(cx, cy, rad * 0.82, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
-    if (p.shield > 0) {
-      ctx.strokeStyle = '#a6e9ff';
-      ctx.lineWidth = 2;
+
+    // King danger & royal ring
+    if (p.o >= 0 && p.t === 'K') {
+      ctx.strokeStyle = '#f0c869';
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.arc(cx, cy, cell * 0.35, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cell * 0.45, 0, Math.PI * 2);
+      ctx.stroke();
+      if (S.att && (S.att[p.y]?.[p.x] & ~(1 << p.o)) !== 0) {
+        ctx.strokeStyle = '#ff5468';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cell * 0.49, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // Crown Holder Aura
+    if (isCrownHolder) {
+      const cPulse = 0.46 + Math.sin(S.T * 6) * 0.03;
+      ctx.strokeStyle = '#ffdf7e';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * cPulse, 0, Math.PI * 2);
       ctx.stroke();
     }
-    ctx.lineWidth = Math.max(2, cell * 0.065);
-    ctx.strokeStyle = '#222622';
-    ctx.strokeText(GLYPH[p.t], cx, cy + cell * 0.025);
-    ctx.fillStyle = col;
-    ctx.fillText(GLYPH[p.t], cx, cy + cell * 0.025);
 
+    // Shield ring (Égide Real / Bastion / Crown Shield)
+    if (p.shield > 0) {
+      ctx.strokeStyle = '#7fd8ff';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.37, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Charge impulse ring (Investida Real)
+    if (p.chargeUntil && p.chargeUntil > S.T) {
+      ctx.strokeStyle = '#ffd978';
+      ctx.lineWidth = 1.9;
+      ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.46, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Piece Glyph
+    ctx.font = Math.floor(cell * (isNeutral ? 0.58 : 0.68)) + 'px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif';
+    ctx.lineWidth = Math.max(2, cell * 0.06);
+    ctx.strokeStyle = '#111613';
+    ctx.strokeText(GLYPH[p.t], cx, cy + cell * 0.02);
+    ctx.fillStyle = isCrownHolder ? '#ffe699' : col;
+    ctx.fillText(GLYPH[p.t], cx, cy + cell * 0.02);
+
+    // Radial Cooldown Arc (replaces dark rectangle)
     const rem = p.ready - S.T;
     if (rem > 0 && p.o >= 0) {
-      ctx.fillStyle = 'rgba(28, 34, 30, 0.56)';
-      ctx.fillRect(p.x * cell, p.y * cell, cell, cell * Math.min(1, rem / (p.cd0 || 1)));
+      const frac = Math.min(1, rem / (p.cd0 || 1));
+      ctx.fillStyle = 'rgba(14, 18, 16, 0.38)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 223, 126, 0.88)';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad + 1, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+      ctx.stroke();
     }
+
+    // Queued Move Indicator
     if (p.q) {
       ctx.strokeStyle = '#cfaf72';
       ctx.lineWidth = 2;
       ctx.strokeRect(p.q[0] * cell + 3, p.q[1] * cell + 3, cell - 6, cell - 6);
     }
-    if (p.o >= 0 && S.f[p.o].boostUntil > S.T) {
-      ctx.strokeStyle = col + 'cc';
-      ctx.lineWidth = 1.5;
+
+    // Surge Active Aura
+    if (p.o >= 0 && S.f[p.o]?.boostUntil > S.T) {
+      ctx.strokeStyle = col + 'dd';
+      ctx.lineWidth = 1.7;
       ctx.beginPath();
       ctx.arc(cx, cy, cell * 0.47, 0, Math.PI * 2);
       ctx.stroke();
     }
+
+    // Crown Holder floating badge
+    if (isCrownHolder) {
+      ctx.font = Math.max(10, Math.floor(cell * 0.34)) + 'px system-ui';
+      ctx.fillText('👑', cx + cell * 0.28, cy - cell * 0.28);
+    }
+    ctx.restore();
   }
 
   if (Number.isInteger(S.checkmatedKingOwner)) {
@@ -2043,6 +2682,8 @@ function hud() {
   const rows = teams.map(i => ({ f: S.f[i], n: S.pieces.filter(p => p.o === i).length })).sort((a, b) => a.f.id - b.f.id);
   if (S.classic) {
     $('progressCard').classList.add('hidden');
+    $('crownStatusBar')?.classList.add('hidden');
+    $('phaseTag')?.classList.add('hidden');
     const category = S.options?.category || CLASSIC_CONTROLS[classicTimeControl]?.category || 'blitz';
     const ratings = onlineUser?.stats?.classicRatings || {};
     $('lb').innerHTML = rows.map(({ f }) => {
@@ -2063,12 +2704,81 @@ function hud() {
     $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : (S.mode === 'online' ? 'XADREZ · AO VIVO' : 'XADREZ · EM ANDAMENTO');
     return;
   }
+
   $('progressCard').classList.remove('hidden');
+  $('crownStatusBar')?.classList.remove('hidden');
+  $('phaseTag')?.classList.remove('hidden');
+
+  // Phase Tag
+  const phaseEl = $('phaseTag');
+  if (phaseEl) {
+    const p = S.phase || 'development';
+    phaseEl.textContent = p === 'ascension'
+      ? 'FASE III · ASCENSÃO IMPERIAL'
+      : p === 'confrontation'
+        ? 'FASE II · CONFRONTO PELA COROA'
+        : 'FASE I · DESENVOLVIMENTO';
+    phaseEl.classList.toggle('phase-ascension', p === 'ascension');
+  }
+
+  // Imperial Crown Status Bar
+  if (S.crown && $('crownStatusBar')) {
+    const f0 = S.f[0], f1 = S.f[1];
+    const p0 = Math.min(100, Math.round(f0?.crownProgress || 0));
+    const p1 = Math.min(100, Math.round(f1?.crownProgress || 0));
+    if ($('crownLeftName')) $('crownLeftName').textContent = teamName(0);
+    if ($('crownRightName')) $('crownRightName').textContent = teamName(1);
+    if ($('crownDomText0')) $('crownDomText0').textContent = p0 + '%';
+    if ($('crownDomText1')) $('crownDomText1').textContent = p1 + '%';
+    if ($('crownDomFill0')) $('crownDomFill0').style.width = p0 + '%';
+    if ($('crownDomFill1')) $('crownDomFill1').style.width = p1 + '%';
+
+    const badge = $('crownCenterBadge');
+    const stText = $('crownStateText');
+    if (badge && stText) {
+      badge.classList.remove('free', 'held-0', 'held-1');
+      if (S.crown.state === 'sealed') {
+        const rem = Math.max(0, Math.ceil(S.crown.unlockAt - S.T));
+        stText.textContent = `COROA SELADA (${rem}s)`;
+      } else if (S.crown.state === 'free') {
+        badge.classList.add('free');
+        stText.textContent = `COROA LIVRE EM (${S.crown.x + 1},${N - S.crown.y})`;
+      } else if (S.crown.state === 'held') {
+        badge.classList.add(S.crown.owner === 0 ? 'held-0' : 'held-1');
+        const holder = S.pieces.find(p => p.id === S.crown.holderId);
+        const hName = holder ? NOME[holder.t] : 'Portador';
+        stText.textContent = `COM ${teamName(S.crown.owner).toUpperCase()} (${hName})`;
+      }
+    }
+  }
+
+  // Strategic Regions HUD Chips
+  if (S.zones && S.zones.length) {
+    const mapChip = { sanctuary: 'zoneChipSanctuary', throne: 'zoneChipThrone', fortress: 'zoneChipFortress' };
+    for (const z of S.zones) {
+      const chip = $(mapChip[z.id]);
+      if (!chip) continue;
+      chip.classList.remove('owned-0', 'owned-1', 'contested');
+      const strong = chip.querySelector('strong');
+      if (z.contested) {
+        chip.classList.add('contested');
+        if (strong) strong.textContent = 'Em disputa';
+      } else if (z.owner >= 0) {
+        chip.classList.add(z.owner === 0 ? 'owned-0' : 'owned-1');
+        if (strong) strong.textContent = teamName(z.owner);
+      } else {
+        if (strong) strong.textContent = z.id === 'throne' ? 'Centro' : 'Neutro';
+      }
+    }
+  }
+
   $('lastMoveTimeText').parentElement.firstElementChild.textContent = 'Jogada anterior:';
   $('lb').innerHTML = rows.map(({ f, n }) => {
     const isMe = f.id === (S.mode === 'online' ? onlineSide : 0), down = !f.alive;
     const isActiveTurn = (S.turnTimer?.activeOwner ?? 0) === f.id && S.started && !S.over;
-    return `<div class="player-row${isMe ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)}${isActiveTurn ? ' · jogando' : ''}</span>${down ? '<span class="dead">☠ fora</span>' : `<span class="count">${n} peças</span>`}<span class="score">${f.score} pts</span></div>`;
+    const docIcon = DOCTRINES_INFO[f.doctrine]?.icon || '⚔️';
+    const crownPct = Math.round(f.crownProgress || 0);
+    return `<div class="player-row${isMe ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${docIcon} ${teamName(f.id)}${isActiveTurn ? ' · jogando' : ''}</span>${down ? '<span class="dead">☠ fora</span>' : `<span class="count">👑${crownPct}% · ${n}p</span>`}<span class="score">${f.score} pts</span></div>`;
   }).join('');
 
   // Individual Turn Timer & Previous Move Display
@@ -2084,9 +2794,7 @@ function hud() {
         ? 'Aguardando início'
         : S.over
           ? 'Partida encerrada'
-          : isMyTurn
-            ? `Vez: ${teamName(activeOwner)}`
-            : `Vez: ${teamName(activeOwner)}`;
+          : `Vez: ${teamName(activeOwner)}`;
       $('currentMoveTimer').textContent = getCurrentTurnElapsedSec().toFixed(1) + 's';
     }
     const lastM = S.turnTimer.lastMove;
@@ -2109,7 +2817,8 @@ function hud() {
   }
 
   const owner = abilityOwner(), f = S.f[owner], selectedTeam = S.sel ? S.sel.o : -1;
-  $('progressTitle').textContent = (S.mode === 'online' || owner === 0) ? 'Sua Evolução' : FAC[owner].name;
+  const docName = DOCTRINES_INFO[f.doctrine]?.name || 'Vanguarda';
+  $('progressTitle').textContent = (S.mode === 'online' || owner === 0) ? `Sua Evolução · ${docName}` : `${FAC[owner].name} · ${docName}`;
   $('lvl').textContent = 'Nível ' + f.lvl;
   $('tm').textContent = fmt(S.T);
   $('xpText').textContent = f.xp + ' / ' + need(f) + ' XP';
@@ -2117,17 +2826,42 @@ function hud() {
   $('nx').textContent = 'Próximo reforço: ' + NOME[GROW[Math.min(f.lvl, GROW.length - 1)]];
   $('energyText').textContent = Math.floor(f.energy) + '%';
   $('energy').style.width = f.energy + '%';
-  $('energyLabel').textContent = (S.mode === 'online' || owner === 0) ? 'Habilidade Surto' : ('Surto · ' + (owner === 1 && S.mode === 'duel' ? 'Rubi' : FAC[owner].name));
+  $('energyLabel').textContent = (S.mode === 'online' || owner === 0) ? 'Energia de Fluxo' : ('Fluxo · ' + (owner === 1 && S.mode === 'duel' ? 'Rubi' : FAC[owner].name));
+
+  // 3 Tactical Flux Skills Buttons
+  const chargeBtn = $('skillChargeBtn');
+  if (chargeBtn) {
+    const canCharge = f.alive && f.energy >= 45 && !S.over;
+    chargeBtn.disabled = !canCharge;
+    chargeBtn.classList.toggle('ready', canCharge);
+  }
+  const aegisBtn = $('skillAegisBtn');
+  if (aegisBtn) {
+    const aegisRem = (f.aegisCooldownUntil || 0) - S.T;
+    const canAegis = f.alive && f.energy >= 60 && aegisRem <= 0 && !S.over;
+    aegisBtn.disabled = !canAegis;
+    aegisBtn.classList.toggle('ready', canAegis);
+    const sub = aegisBtn.querySelector('small');
+    if (sub) sub.textContent = aegisRem > 0 ? `Recarga ${aegisRem.toFixed(1)}s` : '60% · Escudo Real';
+  }
 
   const boost = $('boost');
-  if (f.boostUntil > S.T) {
-    boost.textContent = 'SURTO ATIVO · ' + (f.boostUntil - S.T).toFixed(1) + 's';
-    boost.disabled = true;
-    boost.classList.remove('ready');
-  } else {
-    boost.textContent = f.energy >= 100 ? '⚡ ATIVAR SURTO' : 'SURTO · ' + Math.floor(f.energy) + '%';
-    boost.disabled = f.energy < 100 || !f.alive;
-    boost.classList.toggle('ready', !boost.disabled);
+  if (boost) {
+    const strong = boost.querySelector('strong');
+    const sub = boost.querySelector('small');
+    if (f.boostUntil > S.T) {
+      if (strong) strong.textContent = '🔥 SURTO ATIVO · ' + (f.boostUntil - S.T).toFixed(1) + 's';
+      else boost.textContent = 'SURTO ATIVO · ' + (f.boostUntil - S.T).toFixed(1) + 's';
+      boost.disabled = true;
+      boost.classList.remove('ready');
+    } else {
+      const canSurge = f.energy >= 100 && f.alive && !S.over;
+      if (strong) strong.textContent = canSurge ? '🔥 ATIVAR SURTO IMPERIAL' : '🔥 Surto Imperial';
+      else boost.textContent = canSurge ? '⚡ ATIVAR SURTO' : 'SURTO · ' + Math.floor(f.energy) + '%';
+      if (sub) sub.textContent = canSurge ? 'PRONTO · [Espaço]' : `${Math.floor(f.energy)}% / 100% · Acelera exército`;
+      boost.disabled = !canSurge;
+      boost.classList.toggle('ready', canSurge);
+    }
   }
   if (S.mode === 'duel' && selectedTeam === 1) $('progressTitle').textContent = 'Evolução · Rubi';
 
@@ -2371,6 +3105,7 @@ function chooseMode(mode) {
   selectedMode = mode;
   document.querySelectorAll('.mode-card').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   $('modeDesc').textContent = MODE_INFO[mode]?.desc || '';
+  $('doctrineSelectorBox')?.classList.toggle('hidden', mode === 'classic' || mode === 'tactical_draft');
   $('go').textContent = mode === 'arena'
     ? 'ENTRAR NA ARENA →'
     : mode === 'duel'
@@ -2634,6 +3369,15 @@ function renderAccount() {
     $('accountBioText').textContent = onlineUser.bio || 'Sem frase de perfil definida.';
 
     const s = onlineUser.stats || {};
+    const cfRating = Number(s.crownfluxRating) || 1200;
+    const cfDiv = s.crownfluxDivision || 'Prata';
+    const cfIcon = s.crownfluxDivisionIcon || '🥈';
+    if ($('profileDivisionBadge')) $('profileDivisionBadge').textContent = `${cfIcon} ${cfDiv} · ${cfRating}`;
+    if ($('statCrownfluxRating')) $('statCrownfluxRating').textContent = String(cfRating);
+    if ($('statCrownfluxDivision')) $('statCrownfluxDivision').textContent = `${cfIcon} ${cfDiv}`;
+    if ($('statCrownWins')) $('statCrownWins').textContent = String(s.crownWins || 0);
+    if ($('statRegicideWins')) $('statRegicideWins').textContent = String(s.regicideWins || 0);
+
     const g = s.games || 0, w = s.wins || 0, l = s.losses || 0, d = s.draws || 0;
     const rate = g > 0 ? Math.round((w / g) * 100) : 0;
     $('statOnlineGames').textContent = String(g);
@@ -2647,6 +3391,27 @@ function renderAccount() {
     }
     const diffNames = { 0: 'Nenhuma', 1: 'Iniciante', 2: 'Fácil', 3: 'Normal', 4: 'Difícil', 5: 'Especialista' };
     $('statCpuMax').textContent = diffNames[s.highestCpuLevel || 0] || 'Nenhuma';
+
+    // Render Achievements Grid
+    const achGrid = $('achievementsGrid');
+    if (achGrid) {
+      const unlockedSet = new Set(Array.isArray(onlineUser.achievements) ? onlineUser.achievements : []);
+      if ($('achievementsProgressText')) {
+        $('achievementsProgressText').textContent = `${unlockedSet.size} / ${ACHIEVEMENTS_CATALOG.length} desbloqueadas`;
+      }
+      achGrid.innerHTML = ACHIEVEMENTS_CATALOG.map(ach => {
+        const isUnlocked = unlockedSet.has(ach.id);
+        return `
+          <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'}">
+            <div class="ach-icon">${ach.icon}</div>
+            <div class="ach-body">
+              <strong>${ach.title} ${isUnlocked ? '✓' : ''}</strong>
+              <span>${ach.desc}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
     if (document.activeElement !== $('editUsername')) $('editUsername').value = onlineUser.username || '';
     if (document.activeElement !== $('editDisplayName')) $('editDisplayName').value = onlineUser.displayName || '';
@@ -2977,19 +3742,41 @@ function applyOnlineState(data) {
   N = data.classic || data.options?.mode === 'classic' ? 8 : 16;
   const classic = N === 8;
   const selectedId = S?.sel?.id ?? null;
-  const pieces = (data.pieces || []).map(p => ({
-    id: p.id, t: p.type, o: p.owner, x: p.x, y: p.y, ready: p.ready, cd0: p.cd0 || 1, q: null, shield: p.shield || 0
-  }));
+  const prevPiecesMap = new Map((S?.pieces || []).map(p => [p.id, p]));
+  const nowT = data.T || 0;
+  const pieces = (data.pieces || []).map(p => {
+    const prev = prevPiecesMap.get(p.id);
+    const moved = prev && (prev.x !== p.x || prev.y !== p.y);
+    return {
+      id: p.id, t: p.type, o: p.owner, x: p.x, y: p.y,
+      ready: p.ready, cd0: p.cd0 || 1, q: null, shield: p.shield || 0,
+      chargeUntil: p.chargeUntil || 0,
+      animFromX: moved ? prev.x : (prev?.animFromX ?? p.x),
+      animFromY: moved ? prev.y : (prev?.animFromY ?? p.y),
+      animAt: moved ? nowT : (prev?.animAt ?? -10),
+      animDur: 0.14
+    };
+  });
   const grid = Array.from({ length: N }, () => Array(N).fill(null));
   for (const p of pieces) if (p.x >= 0 && p.y >= 0 && p.x < N && p.y < N) grid[p.y][p.x] = p;
   const teams = (data.teams || []).map(t => ({
     id: t.id, score: t.score || 0, xp: t.xp || 0, lvl: t.level || 0,
     alive: t.alive !== false, respawn: 0, kings: t.kings || 0,
-    energy: t.energy || 0, boostUntil: t.boostUntil || 0, captures: t.captures || 0
+    energy: t.energy || 0, boostUntil: t.boostUntil || 0,
+    aegisCooldownUntil: t.aegisCooldownUntil || 0,
+    captures: t.captures || 0,
+    doctrine: t.doctrine || 'vanguard',
+    crownProgress: t.crownProgress || 0,
+    maxCrownProgress: t.crownProgress || 0
   }));
 
   S = {
-    mode: 'online', classic, T: data.T || 0, grid, pieces, orbs: data.orbs || [], f: teams,
+    mode: 'online', classic, T: nowT,
+    phase: data.phase || 'development',
+    winCondition: data.winCondition || '',
+    crown: data.crown || null,
+    zones: data.zones || [],
+    grid, pieces, orbs: data.orbs || [], f: teams,
     opponent: data.opponent || null,
     options: data.options || {},
     turn: data.turn ?? 0,
@@ -3000,15 +3787,22 @@ function applyOnlineState(data) {
     castle: data.castle || null,
     enPassant: data.enPassant || null,
     ratingChanges: data.ratingChanges || null,
+    rated: Boolean(data.rated),
     sel: selectedId ? pieces.find(p => p.id === selectedId) || null : null,
     over: Boolean(data.over), started: true, nid: 0, foodT: 0, orbT: 0, attT: 0, att: null,
-    fx: [], events: data.events || [], lastMove: data.lastMove || null,
+    fx: S?.fx || [], events: data.events || [], lastMove: data.lastMove || null,
     winner: data.winner ?? null, reason: data.reason || '',
     checkmatedKingOwner: classic && data.over && Number.isInteger(data.winner) && data.reason === 'Xeque-mate.'
       ? 1 - data.winner
       : null
   };
   calcAtt();
+
+  if (data.decisiveMoment && data.decisiveMoment.id && data.decisiveMoment.id !== lastShownDecisiveId) {
+    lastShownDecisiveId = data.decisiveMoment.id;
+    showDecisiveMoment(data.decisiveMoment.title, data.decisiveMoment.sub, data.decisiveMoment.kind, data.decisiveMoment.icon);
+    if (data.decisiveMoment.kind === 'gold') playTone('crown');
+  }
 
   $('start').classList.add('hidden');
   $('cpuDiffOverlay').classList.add('hidden');
@@ -3018,7 +3812,7 @@ function applyOnlineState(data) {
     : 'DUELO ONLINE · ' + (onlineUser?.username || 'VOCÊ') + ' × ' + onlineOpponent;
   $('footerHint').textContent = classic
     ? 'Selecione uma peça e a casa de destino. Xeque-mate vence; o relógio controla o tempo da partida.'
-    : 'Toque em uma peça da sua cor e depois na casa de destino. ESC cancela a seleção · ESPAÇO ativa o Surto em 100%.';
+    : 'Toque em uma peça aliada e na casa de destino · [1] Investida · [2] Égide · [3/Espaço] Surto · Conquiste a Coroa Imperial (👑) ou o Rei inimigo!';
   $('playersLabel').textContent = '2 JOGADORES';
   $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : 'ONLINE · AO VIVO';
   $('rematch').classList.toggle('hidden', !S.over);
@@ -3041,18 +3835,29 @@ function applyOnlineState(data) {
 function showOnlineResult() {
   const won = S.winner === onlineSide, draw = S.winner === null;
   if (won) playTone('win');
-  $('overEyebrow').textContent = S.classic ? 'Fim do xadrez clássico' : 'Fim do duelo online';
+  $('overEyebrow').textContent = S.classic
+    ? 'Fim do xadrez clássico'
+    : S.winCondition === 'crown'
+      ? '👑 Vitória por Soberania Imperial'
+      : S.winCondition === 'regicide'
+        ? '⚔️ Vitória por Regicídio'
+        : 'Fim do duelo online';
   $('resultTitle').textContent = won ? 'VITÓRIA!' : draw ? 'EMPATE' : 'FIM DE JOGO';
   $('winnerText').textContent = won ? 'Você venceu!' : draw ? 'Partida empatada.' : onlineOpponent + ' venceu.';
   const mine = S.f[onlineSide], theirs = S.f[1 - onlineSide];
+  const change = S.ratingChanges?.[onlineSide];
+  const ratingText = Number.isFinite(change)
+    ? `<br>Rating Crownflux: <b>${change > 0 ? '+' : ''}${change}</b>`
+    : '';
   if (S.classic) {
-    const change = S.ratingChanges?.[onlineSide];
-    const ratingText = S.rated && Number.isFinite(change)
+    const classicRatingText = S.rated && Number.isFinite(change)
       ? `<br>Variação de rating: <b>${change > 0 ? '+' : ''}${change}</b>`
       : S.rated ? '<br>Rating atualizado.' : '<br>Partida não ranqueada.';
-    $('res').innerHTML = `${S.options?.label || 'Xadrez Clássico'}<br>${String(S.reason || 'Partida encerrada.')}${ratingText}`;
+    $('res').innerHTML = `${S.options?.label || 'Xadrez Clássico'}<br>${String(S.reason || 'Partida encerrada.')}${classicRatingText}`;
   } else {
-    $('res').innerHTML = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${mine.score}</b> · Nível <b>${mine.lvl}</b><br>${onlineOpponent}: <b>${theirs.score}</b><br>${String(S.reason || 'Partida encerrada.')}`;
+    const myCrown = Math.round(mine?.crownProgress || 0);
+    const thCrown = Math.round(theirs?.crownProgress || 0);
+    $('res').innerHTML = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${mine.score}</b> · Nível <b>${mine.lvl}</b> · Coroa: <b>${myCrown}%</b><br>${onlineOpponent}: <b>${theirs.score}</b> · Coroa: <b>${thCrown}%</b><br><b>${String(S.reason || 'Partida encerrada.')}</b>${ratingText}`;
   }
   $('over').classList.remove('hidden');
   $('rematch').classList.remove('hidden');
@@ -3432,18 +4237,18 @@ $('queueBtn').addEventListener('click', () => {
   } else {
     const options = selectedMode === 'classic'
       ? { mode: 'classic', timeControl: $('classicTimeControl').value }
-      : undefined;
+      : { doctrine: prefs.doctrine || 'vanguard' };
     if (selectedMode === 'classic') classicTimeControl = options.timeControl;
-    sendSocket('match:queue', options ? { options } : {});
+    sendSocket('match:queue', { options });
     $('queueStatus').textContent = 'Entrando na fila pública 1v1…';
   }
 });
 $('createRoomBtn').addEventListener('click', () => {
   const options = selectedMode === 'classic'
     ? { mode: 'classic', timeControl: $('classicTimeControl').value }
-    : undefined;
+    : { doctrine: prefs.doctrine || 'vanguard' };
   if (selectedMode === 'classic') classicTimeControl = options.timeControl;
-  sendSocket('room:create', options ? { options } : {});
+  sendSocket('room:create', { options });
 });
 $('createTacticalRoomBtn').addEventListener('click', () => sendSocket('room:create', { options: { mode: 'tactical_draft' } }));
 $('startTacticalCpuBtn').addEventListener('click', () => sendSocket('tactical:startCpu'));
@@ -3480,14 +4285,24 @@ function replayCurrentGame() {
 $('again').addEventListener('click', replayCurrentGame);
 $('classicMateAgain').addEventListener('click', replayCurrentGame);
 $('menu').addEventListener('click', openMenu);
-$('boost').addEventListener('click', () => activateBoost(abilityOwner()));
+$('skillChargeBtn')?.addEventListener('click', () => activateSkill(abilityOwner(), 'charge'));
+$('skillAegisBtn')?.addEventListener('click', () => activateSkill(abilityOwner(), 'aegis'));
+$('boost').addEventListener('click', () => activateSkill(abilityOwner(), 'surge'));
 
 addEventListener('keydown', e => {
   const editing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName);
   if (e.code === 'Escape' && S) { S.sel = null; hud(); }
-  if (e.code === 'Space' && !editing && S && S.started && !S.over) {
-    e.preventDefault();
-    activateBoost(abilityOwner());
+  if (!editing && S && S.started && !S.over && !S.classic) {
+    if (e.code === 'Digit1' || e.code === 'Numpad1') {
+      e.preventDefault();
+      activateSkill(abilityOwner(), 'charge');
+    } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
+      e.preventDefault();
+      activateSkill(abilityOwner(), 'aegis');
+    } else if (e.code === 'Digit3' || e.code === 'Numpad3' || e.code === 'Space') {
+      e.preventDefault();
+      activateSkill(abilityOwner(), 'surge');
+    }
   }
 });
 addEventListener('resize', resize);
@@ -3515,5 +4330,5 @@ window.__crownflux = {
   get tutorial() { return tut; },
   get cpuDifficulty() { return cpuDifficulty; },
   setCpuDifficulty(lv) { cpuDifficulty = lv; },
-  reset, start, launchSelectedGame, startInteractiveTutorial, handleClick, doMove, moves, botThink, activateBoost, switchNav
+  reset, start, launchSelectedGame, startInteractiveTutorial, handleClick, doMove, moves, botThink, activateSkill, activateBoost, switchNav
 };

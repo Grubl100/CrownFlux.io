@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#181715">
-<meta name="description" content="Crownflux.io — estratégia em tempo real inspirada no xadrez. Evolua seu exército, domine os Fragmentos Flux e vença seus rivais.">
-<title>Crownflux.io — Xadrez em Tempo Real</title>
-<link rel="stylesheet" href="/styles.css?v=20261118-checkmate">
+<meta name="description" content="Crownflux.io — estratégia em tempo real pela Coroa Imperial e confronto entre Reis. Domine regiões estratégicas, habilidades táticas de Fluxo e vença seus rivais.">
+<title>Crownflux.io — Disputa pela Coroa Imperial</title>
+<link rel="stylesheet" href="/styles.css?v=20261118-crownflux-v2">
 </head>
-<body data-board-theme="classic">
+<body data-board-theme="imperial">
 <div id="app">
   <header class="topbar">
     <button class="brand" id="brandHomeBtn" type="button">
@@ -54,7 +54,7 @@
   }
   await loadMarkup("sharedRoot", "/screens/shared.html");
   await loadMarkup("tacticalRoot", "/screens/tactical.html");
-  for (const url of ["/app.js?v=20261118-checkmate", "/tactical.js?v=20261118-checkmate"]) {
+  for (const url of ["/app.js?v=20261118-crownflux-v2", "/tactical.js?v=20261118-crownflux-v2"]) {
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = url;
