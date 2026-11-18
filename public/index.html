@@ -1298,6 +1298,14 @@ label.field-label {
     border: 2px solid rgba(201, 122, 122, 0.95); background: rgba(201, 122, 122, 0.22);
   }
   .ts-cell.attack:hover::before { background: rgba(201, 122, 122, 0.42); }
+  .ts-cell.flux-zone { box-shadow: inset 0 0 0 2px rgba(125, 163, 181, 0.85); background-color: rgba(125, 163, 181, 0.25) !important; }
+  .ts-crown-shield { position: absolute; right: -2px; top: -30%; font-size: 11px; filter: drop-shadow(0 1px 1px #000); }
+  .ts-challenge-box {
+    font-size: 11px; padding: 5px 7px; border-radius: 6px;
+    background: #1d2226; border: 1px solid #35414a; color: #cbd5e1;
+    display: flex; justify-content: space-between; gap: 6px; align-items: center;
+  }
+  .ts-challenge-box.done { border-color: #486850; background: #1e2a21; color: #9fd3aa; }
   .ts-cell.move::before { content: ''; position: absolute; inset: 34%; border-radius: 50%; background: rgba(34, 50, 42, 0.5); transition: inset 0.15s; }
   .ts-cell.move:hover::before { inset: 28%; background: rgba(34, 50, 42, 0.72); }
   .ts-cell.target::before {
@@ -1391,6 +1399,9 @@ label.field-label {
   .ts-card[data-card="flux_wall"] { --card-accent: #8d86a0; }
   .ts-card[data-card="flux_siphon"] { --card-accent: #bd7778; }
   .ts-card[data-card="kinetic_push"] { --card-accent: #c98a5b; }
+  .ts-card[data-card="royal_charge"] { --card-accent: #d4945a; }
+  .ts-card[data-card="transposition"] { --card-accent: #7da3b5; }
+  .ts-card[data-card="stamina_overcharge"] { --card-accent: #88b390; }
   .ts-card:hover:not(.locked):not(.static) { transform: translateY(-6px); border-color: var(--muted); border-top-color: var(--card-accent); }
   .ts-card.selected { transform: translateY(-10px); border-color: var(--gold); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--gold); }
   .ts-card.locked { opacity: 0.56; cursor: help; }
@@ -5805,12 +5816,15 @@ window.__crownflux = {
   const FALLBACK = {
     cards: [
       { id: 'short_teleport', name: 'Teleporte Curto', cost: 2, targetType: 'cell', range: 2, desc: 'Pula até 2 casas no grid, ignorando paredes no caminho.' },
-      { id: 'flux_siphon', name: 'Sifão de Fluxo', cost: 1, targetType: 'none', range: 0, desc: 'Rouba 1 PA do inimigo (−1 PA no próximo turno dele, recupera 1 PA). Se o inimigo estiver com a Coroa a até 4 casas, reduz 1 turno de domínio.' },
-      { id: 'flux_wall', name: 'Parede de Fluxo', cost: 1, targetType: 'cell', range: 4, durationRounds: 2, desc: 'Bloqueia uma casa vazia no grid por 2 rodadas.' },
+      { id: 'flux_siphon', name: 'Dreno Tático', cost: 1, targetType: 'none', range: 0, desc: 'Remove 1 PA do próximo turno do inimigo e recupera o PA gasto. Se ele estiver com a Coroa a até 4 casas, reduz 1 turno de domínio.' },
+      { id: 'flux_wall', name: 'Barreira de Fluxo', cost: 1, targetType: 'cell', range: 4, durationRounds: 2, desc: 'Ergue um bloqueio temporário em uma casa vazia por 2 rodadas.' },
       { id: 'crown_dash', name: 'Impulso Real', cost: 3, targetType: 'cell', range: 3, desc: 'Avança até 3 casas em linha reta pelo tabuleiro.' },
-      { id: 'kinetic_push', name: 'Golpe de Cerco', cost: 2, targetType: 'enemy', range: 2, desc: 'Atinge o inimigo a até 2 casas, empurrando-o 1 casa para trás e derrubando a Coroa no chão.' }
+      { id: 'kinetic_push', name: 'Golpe de Cerco', cost: 2, targetType: 'enemy', range: 2, desc: 'Atinge o inimigo a até 2 casas, empurrando-o 1 casa para trás e derrubando a Coroa (se não estiver protegida).' },
+      { id: 'royal_charge', name: 'Investida Real', cost: 2, targetType: 'cell', range: 2, desc: 'Avança até 2 casas em linha reta e empurra um inimigo adjacente em 1 casa, sem roubar a Coroa diretamente.' },
+      { id: 'transposition', name: 'Transposição', cost: 2, targetType: 'cell', range: 5, desc: 'Troca sua posição com uma Barreira de Fluxo aliada (bloqueada enquanto a Coroa estiver sob proteção).' },
+      { id: 'stamina_overcharge', name: 'Sobrecarga de Estamina', cost: 0, targetType: 'none', range: 0, desc: 'Concede +2 PA imediatos neste turno, mas reduz em 1 PA o seu próximo turno.' }
     ],
-    rules: { boardSize: 12, targetVp: 3, crownHoldGoal: 3, basePa: 3, crownPaPenalty: 1, turnLimitMs: 10000, draftMs: 8000, draftEveryRounds: 3, visionRadius: 4, reconnectMs: 30000 }
+    rules: { boardSize: 12, targetVp: 3, crownHoldGoal: 3, basePa: 3, crownPaPenalty: 1, turnLimitMs: 15000, draftMs: 8000, draftEveryRounds: 3, visionRadius: 4, reconnectMs: 30000 }
   };
   let catalog = FALLBACK;
   const R = () => (st && st.rules) || catalog.rules;
@@ -5903,16 +5917,22 @@ window.__crownflux = {
     flux_siphon: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="37" cy="13" r="5"/><circle cx="11" cy="35" r="4.5" fill="currentColor" fill-opacity=".25"/><path d="M33 17c-5 3-6 8-10 11s-6 3-8 4"/><path d="M15.5 27.5l-1 4.6 4.6.8"/></svg>',
     flux_wall: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="8" y="12" width="32" height="26" rx="2"/><path d="M8 20.5h32M8 29h32M18 12v8.5M30 12v8.5M13 20.5V29M24 20.5V29M35 20.5V29M18 29v9M30 29v9"/></svg>',
     crown_dash: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 28l2.6-12 6.4 5.5 4-8.5 4 8.5 6.4-5.5L37 28z"/><path d="M11 32.5h26"/><path d="M9 40h26m-4-4 4 4-4 4"/></svg>',
-    kinetic_push: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 24h24"/><path d="M26 16l8 8-8 8"/><path d="M38 12v24"/></svg>'
+    kinetic_push: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 24h24"/><path d="M26 16l8 8-8 8"/><path d="M38 12v24"/></svg>',
+    royal_charge: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 24h26"/><path d="M26 15l9 9-9 9"/><path d="M14 14v20"/></svg>',
+    transposition: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18h20l-5-5"/><path d="M36 30H16l5 5"/></svg>',
+    stamina_overcharge: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M26 6L12 26h12l-2 16 14-20H24z"/></svg>'
   };
-  const CARD_TYPE = { short_teleport: 'Movimento', crown_dash: 'Movimento', flux_wall: 'Bloqueio', flux_siphon: 'Sabotagem', kinetic_push: 'Combate' };
+  const CARD_TYPE = { short_teleport: 'Movimento', crown_dash: 'Movimento', flux_wall: 'Bloqueio', flux_siphon: 'Sabotagem', kinetic_push: 'Combate', royal_charge: 'Avanço', transposition: 'Tática', stamina_overcharge: 'Energia' };
   function cardChips(card) {
     const chips = [`Custo ${card.cost} PA`];
     if (card.id === 'short_teleport') chips.push(`Alcance 1–${card.range}`, 'Alvo: casa livre');
     else if (card.id === 'crown_dash') chips.push(`Linha reta 1–${card.range}`, 'Alvo: casa livre');
+    else if (card.id === 'royal_charge') chips.push(`Linha reta 1–${card.range}`, 'Empurra adjacente');
     else if (card.id === 'flux_wall') chips.push(`Alcance 0–${card.range}`, `${card.durationRounds || 2} rodadas`);
     else if (card.id === 'flux_siphon') chips.push('Alvo automático', 'Drena Coroa');
     else if (card.id === 'kinetic_push') chips.push(`Alcance 1–${card.range}`, 'Empurra & derruba Coroa');
+    else if (card.id === 'transposition') chips.push(`Alcance 1–${card.range}`, 'Troca com Barreira');
+    else if (card.id === 'stamina_overcharge') chips.push('Custo 0 PA', '+2 PA agora / −1 próximo');
     return chips;
   }
   function renderCardEl(card, opts = {}) {
@@ -5949,6 +5969,11 @@ window.__crownflux = {
         else if (action === 'crown_dash') {
           const dx = Math.abs(x - ctx.me.x), dy = Math.abs(y - ctx.me.y);
           ok = ((dx === 0 && dy > 0 && dy <= 3) || (dy === 0 && dx > 0 && dx <= 3)) && !wall(x, y) && !occupied(x, y);
+        } else if (action === 'royal_charge') {
+          const dx = Math.abs(x - ctx.me.x), dy = Math.abs(y - ctx.me.y);
+          ok = ((dx === 0 && dy > 0 && dy <= 2) || (dy === 0 && dx > 0 && dx <= 2)) && !wall(x, y) && !occupied(x, y);
+        } else if (action === 'transposition') {
+          ok = d >= 1 && d <= 5 && ctx.myWalls && ctx.myWalls.has(`${x},${y}`);
         }
         if (ok) out.push([x, y]);
       }
@@ -5958,8 +5983,10 @@ window.__crownflux = {
   const RULE_HINT = {
     move: 'Movimento: 1 casa para cima, baixo, esquerda ou direita (1 PA), sem parede nem jogador no destino.',
     short_teleport: 'Teleporte Curto: escolha uma casa livre a 1 ou 2 passos de distância (paredes no caminho não bloqueiam).',
-    flux_wall: 'Parede de Fluxo: escolha uma casa vazia a até 4 passos, sem jogadores e que não seja a Coroa livre.',
-    crown_dash: 'Impulso Real: destino na mesma linha ou coluna, de 1 a 3 casas, sem parede nem jogador.'
+    flux_wall: 'Barreira de Fluxo: escolha uma casa vazia a até 4 passos, sem jogadores e que não seja a Coroa livre.',
+    crown_dash: 'Impulso Real: destino na mesma linha ou coluna, de 1 a 3 casas, sem parede nem jogador.',
+    royal_charge: 'Investida Real: avance até 2 casas em linha reta para empurrar um inimigo adjacente.',
+    transposition: 'Transposição: clique em uma Barreira de Fluxo sua a até 5 casas para trocar de posição.'
   };
 
   /* ---------------- Estado da cena ---------------- */
@@ -5980,6 +6007,7 @@ window.__crownflux = {
     me: st.myUnit,
     others: st.enemyUnit ? [st.enemyUnit] : [],
     walls: new Set(st.walls.map(w => `${w.x},${w.y}`)),
+    myWalls: new Set(st.walls.filter(w => w.owner === st.side).map(w => `${w.x},${w.y}`)),
     crown: st.crown
   });
 
@@ -6042,6 +6070,7 @@ window.__crownflux = {
       <div class="ts-stat-row"><span>Cartas na mão</span><strong id="${p}Hand">0</strong></div>
       <div class="ts-stat-row"><span>Última jogada</span><strong id="${p}Last">—</strong></div>
       <div class="ts-badge plain" id="${p}Crown"></div>
+      ${who === 'me' ? `<div class="ts-challenge-box" id="tsMeChallenge" hidden></div>` : ''}
       ${who === 'enemy' ? `<div class="ts-badge fog" id="${p}Vis"></div>` : ''}`;
     el('tsMe').innerHTML = panel('tsMe', 'me');
     el('tsEnemy').innerHTML = panel('tsEn', 'enemy');
@@ -6102,8 +6131,8 @@ window.__crownflux = {
     clock.textContent = fmtClock(elapsed);
     const secs = Math.ceil(remaining / 1000);
     limit.textContent = clockRef.paused ? `pausado · restam ${secs}s` : `limite ${Math.round(clockRef.limitMs / 1000)}s · restam ${secs}s`;
-    limit.classList.toggle('warn', !clockRef.paused && remaining <= 3000);
-    clock.style.color = (!clockRef.paused && remaining <= 3000) ? '#e07a7c' : '';
+    limit.classList.toggle('warn', !clockRef.paused && remaining <= 4000);
+    clock.style.color = (!clockRef.paused && remaining <= 4000) ? '#e07a7c' : '';
   }
 
   /* ---------------- Recepção do estado ---------------- */
@@ -6205,11 +6234,24 @@ window.__crownflux = {
     const crown = el(`${p}Crown`);
     if (hasCrown) {
       const leftTurns = Math.max(0, goal - team.vp);
+      const prot = st.crown.protectionTurns > 0 ? ` · 🔒 Protegida (${st.crown.protectionTurns}t)` : '';
       crown.className = 'ts-badge';
-      crown.innerHTML = `${CROWN_SVG}<span>Com a Coroa: faltam ${leftTurns} turno${leftTurns === 1 ? '' : 's'}<span class="ts-badge-text-long"> · PA base −${rules.crownPaPenalty} · sempre visível</span></span>`;
+      crown.innerHTML = `${CROWN_SVG}<span>Com a Coroa: faltam ${leftTurns} turno${leftTurns === 1 ? '' : 's'}${prot}<span class="ts-badge-text-long"> · PA base −${rules.crownPaPenalty} · sempre visível</span></span>`;
+    } else if (isMe && st.crown.myRecoverCooldown > 0) {
+      crown.className = 'ts-badge';
+      crown.innerHTML = `${CROWN_SVG}<span>⏳ Cooldown da Coroa (${st.crown.myRecoverCooldown} turno)</span>`;
     } else {
       crown.className = 'ts-badge plain';
       crown.innerHTML = `${CROWN_SVG}<span>Sem a Coroa</span>`;
+    }
+    if (isMe && st.myTeam.challenge) {
+      const ch = st.myTeam.challenge;
+      const chEl = el('tsMeChallenge');
+      if (chEl) {
+        chEl.hidden = false;
+        chEl.classList.toggle('done', Boolean(ch.completed));
+        chEl.innerHTML = `<span>${ch.completed ? '✓' : '🎯'} ${esc(ch.label)}</span><strong>${ch.progress}/${ch.goal}</strong>`;
+      }
     }
     if (!isMe) {
       const vis = el('tsEnVis');
@@ -6276,6 +6318,7 @@ window.__crownflux = {
     const targets = new Set(currentTargets().map(([x, y]) => `${x},${y}`));
     const atkKey = currentAttackTarget();
     const wallMap = new Map(st.walls.map(w => [`${w.x},${w.y}`, w]));
+    const fluxSet = new Set((st.fluxZones || []).map(z => `${z.x},${z.y}`));
     const R0 = R().visionRadius;
     for (const cell of el('tsBoard').querySelectorAll('.ts-cell')) {
       const x = +cell.dataset.x, y = +cell.dataset.y, key = `${x},${y}`;
@@ -6284,6 +6327,7 @@ window.__crownflux = {
       cell.classList.toggle('move', isTarget && !card);
       cell.classList.toggle('target', isTarget && Boolean(card));
       cell.classList.toggle('attack', isAtk);
+      cell.classList.toggle('flux-zone', fluxSet.has(key));
       cell.classList.toggle('fog', !st.over && manhattan(st.myUnit.x, st.myUnit.y, x, y) > R0);
       const w = wallMap.get(key);
       const slot = cell.querySelector('.ts-wall-slot');
@@ -6310,6 +6354,9 @@ window.__crownflux = {
     tokEn.classList.toggle('active', active && st.activeSide !== st.side);
     tokMe.querySelector('.ts-crown-on').hidden = st.crown.holder !== st.side;
     tokEn.querySelector('.ts-crown-on').hidden = st.crown.holder !== 1 - st.side;
+    const protMark = st.crown.protectionTurns > 0 ? ' 🔒' : '';
+    tokMe.querySelector('.ts-crown-on').title = st.crown.protectionTurns > 0 ? 'Coroa protegida neste turno' : '';
+    tokEn.querySelector('.ts-crown-on').title = st.crown.protectionTurns > 0 ? 'Coroa protegida neste turno' : '';
     const free = el('tsCrownFree');
     free.hidden = st.crown.holder !== null;
     if (st.crown.holder === null) place(free, st.crown);
@@ -6473,6 +6520,18 @@ window.__crownflux = {
         if (d.cardId === 'flux_wall' && d.target) return `${who} ergueu uma ${esc(d.cardName)} em ${cellName(d.target.x, d.target.y)}.`;
         if (d.target && Number.isFinite(d.target.x)) return `${who} usou ${esc(d.cardName)} até ${cellName(d.target.x, d.target.y)}.`;
         return `${who} usou ${esc(d.cardName)}.`;
+      case 'crown_protected_hit': return `🔒 Coroa protegida! O ataque empurrou o portador, mas não derrubou a Coroa.`;
+      case 'challenge_completed': return `🎯 ${who} concluiu o desafio "${esc(d.label)}" (+1 carta e +1 PA)!`;
+      case 'flux_zone_bonus': return `⚡ ${who} terminou na Zona de Fluxo (+1 PA no próximo turno).`;
+      case 'crown_streak_bonus': return `👑 ${who} manteve a Coroa por 2 turnos e comprou ${esc(d.cardName)}!`;
+      case 'crown_protected_hit':
+        sfx('deny');
+        if (typeof showToast === 'function') showToast('🔒 A Coroa está protegida neste turno! Você ainda pode empurrar ou bloquear rotas.');
+        break;
+      case 'challenge_completed':
+        sfx('crown');
+        if (who === 'me' && typeof showToast === 'function') showToast(`🎯 Desafio concluído! +1 PA e carta ${ev.data?.bonusCard || ''}`);
+        break;
       case 'crown_captured': return mine ? `Você capturou a Coroa! Sobreviva por ${rules.crownHoldGoal || 3} turnos para vencer.` : `${who} capturou a Coroa! Ataque-o para derrubá-la.`;
       case 'crown_dropped': return `Coroa derrubada no chão em ${cellName(d.x, d.y)}!`;
       case 'crown_stolen': return `${who} roubou a Coroa em combate corpo a corpo!`;
@@ -6516,6 +6575,14 @@ window.__crownflux = {
           } else sfx('card');
         } else if (ev.data.cardId === 'short_teleport') { animFig(who, 'blink'); sfx('card'); }
         else { animFig(who, 'cast'); sfx('card'); }
+        break;
+      case 'crown_protected_hit':
+        sfx('deny');
+        if (typeof showToast === 'function') showToast('🔒 A Coroa está protegida neste turno! Você ainda pode empurrar ou bloquear rotas.');
+        break;
+      case 'challenge_completed':
+        sfx('crown');
+        if (who === 'me' && typeof showToast === 'function') showToast(`🎯 Desafio concluído! +1 PA e carta ${ev.data?.bonusCard || ''}`);
         break;
       case 'crown_captured':
         animFig(who, 'cast');

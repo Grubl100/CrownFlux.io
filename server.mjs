@@ -1024,7 +1024,7 @@ function makeGame(room) {
 const TACTICAL_BOARD = 12;
 const TACTICAL_BASE_PA = 3;
 const TACTICAL_CROWN_PA_PENALTY = 1;
-const TACTICAL_TURN_MS = 10_000;
+const TACTICAL_TURN_MS = 15_000;
 const TACTICAL_DRAFT_MS = 8_000;
 const TACTICAL_RECONNECT_MS = 30_000;
 const TACTICAL_CROWN_HOLD_GOAL = 3;
@@ -1043,20 +1043,20 @@ const CARD_CATALOG = {
   },
   flux_siphon: {
     id: 'flux_siphon',
-    name: 'Sifão de Fluxo',
+    name: 'Dreno Tático',
     cost: 1,
     targetType: 'none',
     range: 0,
-    desc: 'Rouba 1 PA do inimigo (−1 PA no próximo turno dele, recupera 1 PA). Se o inimigo estiver com a Coroa a até 4 casas, reduz 1 turno de domínio.'
+    desc: 'Remove 1 PA do próximo turno do inimigo e recupera o PA gasto. Se ele estiver com a Coroa a até 4 casas, reduz 1 turno de domínio.'
   },
   flux_wall: {
     id: 'flux_wall',
-    name: 'Parede de Fluxo',
+    name: 'Barreira de Fluxo',
     cost: 1,
     targetType: 'cell',
     range: 4,
     durationRounds: 2,
-    desc: 'Bloqueia uma casa vazia no grid por 2 rodadas.'
+    desc: 'Ergue um bloqueio temporário em uma casa vazia por 2 rodadas.'
   },
   crown_dash: {
     id: 'crown_dash',
@@ -1072,9 +1072,43 @@ const CARD_CATALOG = {
     cost: 2,
     targetType: 'enemy',
     range: 2,
-    desc: 'Atinge o inimigo a até 2 casas, empurrando-o 1 casa para trás e derrubando a Coroa no chão.'
+    desc: 'Atinge o inimigo a até 2 casas, empurrando-o 1 casa para trás e derrubando a Coroa (se não estiver protegida).'
+  },
+  royal_charge: {
+    id: 'royal_charge',
+    name: 'Investida Real',
+    cost: 2,
+    targetType: 'cell',
+    range: 2,
+    desc: 'Avança até 2 casas em linha reta e empurra um inimigo adjacente em 1 casa, sem roubar a Coroa diretamente.'
+  },
+  transposition: {
+    id: 'transposition',
+    name: 'Transposição',
+    cost: 2,
+    targetType: 'cell',
+    range: 5,
+    desc: 'Troca sua posição com uma Barreira de Fluxo aliada (bloqueada enquanto a Coroa estiver sob proteção).'
+  },
+  stamina_overcharge: {
+    id: 'stamina_overcharge',
+    name: 'Sobrecarga de Estamina',
+    cost: 0,
+    targetType: 'none',
+    range: 0,
+    desc: 'Concede +2 PA imediatos neste turno, mas reduz em 1 PA o seu próximo turno.'
   }
 };
+
+function createTacticalChallenge() {
+  const pool = [
+    { id: 'play_3_cards', label: 'Use 3 cartas na partida', goal: 3 },
+    { id: 'center_2_turns', label: 'Termine 2 turnos no centro (linhas/colunas 5–8)', goal: 2 },
+    { id: 'push_2_times', label: 'Empurre ou drene o adversário 2 vezes', goal: 2 }
+  ];
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  return { ...pick, progress: 0, completed: false };
+}
 
 function randomCardChoices(count = 3) {
   const keys = Object.keys(CARD_CATALOG);
@@ -1106,9 +1140,12 @@ class TacticalDraftMatch {
     this.crown = {
       x: Math.floor(TACTICAL_BOARD / 2),
       y: Math.floor(TACTICAL_BOARD / 2),
-      holder: null
+      holder: null,
+      protectionTurns: 0,
+      recoverCooldown: [0, 0]
     };
     this.walls = [];
+    this.fluxZones = [];
     this.teams = [0, 1].map(side => ({
       side,
       vp: 0,
@@ -1119,7 +1156,8 @@ class TacticalDraftMatch {
         { ...CARD_CATALOG.flux_wall, uid: id() }
       ],
       draftOptions: [],
-      draftPicked: false
+      draftPicked: false,
+      challenge: createTacticalChallenge()
     }));
     this.disconnects = new Map();
     this.kind = room.kind || 'private';
@@ -1196,8 +1234,11 @@ class TacticalDraftMatch {
     if (this.manhattan(unit.x, unit.y, toX, toY) !== 1) {
       return { ok: false, error: 'Movimento inválido: apenas 1 casa ortogonal por vez.' };
     }
-    if (this.hasWall(toX, toY)) return { ok: false, error: 'Casa bloqueada por Parede de Fluxo.' };
+    if (this.hasWall(toX, toY)) return { ok: false, error: 'Casa bloqueada por Barreira de Fluxo.' };
     if (this.unitAt(toX, toY)) return { ok: false, error: 'Casa ocupada por outro jogador.' };
+    if (this.crown.holder === null && this.crown.x === toX && this.crown.y === toY && this.crown.recoverCooldown[side] > 0) {
+      return { ok: false, error: 'Você acabou de perder a Coroa! Aguarde 1 turno para recuperá-la.' };
+    }
 
     const from = { x: unit.x, y: unit.y };
     unit.x = toX;
@@ -1206,6 +1247,19 @@ class TacticalDraftMatch {
     this.logEvent('move', side, { from, to: { x: toX, y: toY }, apLeft: team.ap });
     this.checkCrownCapture(side);
     return { ok: true };
+  }
+
+  advanceChallenge(side, triggerId) {
+    const ch = this.teams[side]?.challenge;
+    if (!ch || ch.completed || ch.id !== triggerId) return;
+    ch.progress = Math.min(ch.goal, ch.progress + 1);
+    if (ch.progress >= ch.goal) {
+      ch.completed = true;
+      const bonusCard = randomCardChoices(1)[0];
+      this.teams[side].hand.push(bonusCard);
+      this.teams[side].ap += 1;
+      this.logEvent('challenge_completed', side, { label: ch.label, bonusCard: bonusCard.name });
+    }
   }
 
   pushUnitAway(attackerUnit, targetUnit) {
@@ -1242,21 +1296,31 @@ class TacticalDraftMatch {
     team.ap -= 1;
     const oldPos = { x: enemyUnit.x, y: enemyUnit.y };
     const pushRes = this.pushUnitAway(unit, enemyUnit);
+    if (pushRes.pushed) this.advanceChallenge(side, 'push_2_times');
     let crownOutcome = null;
+    let crownProtectedBlocked = false;
 
     if (this.crown.holder === enemySide) {
-      this.teams[enemySide].vp = 0;
-      if (pushRes.pushed) {
-        this.crown.holder = null;
-        this.crown.x = oldPos.x;
-        this.crown.y = oldPos.y;
-        crownOutcome = 'dropped';
-        this.logEvent('crown_dropped', side, { x: oldPos.x, y: oldPos.y, targetSide: enemySide });
+      if (this.crown.protectionTurns > 0) {
+        crownProtectedBlocked = true;
+        this.logEvent('crown_protected_hit', side, { targetSide: enemySide, protectionTurns: this.crown.protectionTurns });
       } else {
-        this.crown.holder = side;
-        this.teams[side].vp = 0;
-        crownOutcome = 'stolen';
-        this.logEvent('crown_stolen', side, { x: unit.x, y: unit.y, targetSide: enemySide });
+        this.teams[enemySide].vp = 0;
+        this.crown.recoverCooldown[enemySide] = 1;
+        if (pushRes.pushed) {
+          this.crown.holder = null;
+          this.crown.x = oldPos.x;
+          this.crown.y = oldPos.y;
+          crownOutcome = 'dropped';
+          this.logEvent('crown_dropped', side, { x: oldPos.x, y: oldPos.y, targetSide: enemySide });
+        } else {
+          this.crown.holder = side;
+          this.crown.protectionTurns = 1;
+          this.teams[side].vp = 0;
+          if (team.ap === 0) team.ap = 1; // Bônus único de reposicionamento ao roubar
+          crownOutcome = 'stolen';
+          this.logEvent('crown_stolen', side, { x: unit.x, y: unit.y, targetSide: enemySide });
+        }
       }
     }
 
@@ -1264,16 +1328,20 @@ class TacticalDraftMatch {
       targetSide: enemySide,
       pushedTo: pushRes.pushed ? pushRes.to : null,
       crownOutcome,
+      crownProtectedBlocked,
       apLeft: team.ap
     });
-    return { ok: true, hitEnemy: enemySide, crownOutcome };
+    return { ok: true, hitEnemy: enemySide, crownOutcome, crownProtectedBlocked };
   }
 
   checkCrownCapture(side) {
     const unit = this.units[side];
     if (this.crown.holder === null && unit.x === this.crown.x && unit.y === this.crown.y) {
+      if (this.crown.recoverCooldown[side] > 0) return false;
       this.crown.holder = side;
+      this.crown.protectionTurns = 1;
       this.teams[side].vp = 0;
+      if (this.teams[side].ap === 0) this.teams[side].ap = 1; // Bônus único de reposicionamento
       this.logEvent('crown_captured', side, { x: unit.x, y: unit.y });
       return true;
     }
@@ -1284,6 +1352,7 @@ class TacticalDraftMatch {
     const unit = this.units[side];
     const enemyUnit = this.units[1 - side];
     if (card.targetType === 'none') return true;
+    if (card.id === 'transposition' && this.crown.holder === side && this.crown.protectionTurns > 0) return false;
     if (card.targetType === 'enemy') {
       return this.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= card.range;
     }
@@ -1295,10 +1364,12 @@ class TacticalDraftMatch {
         } else if (card.id === 'flux_wall') {
           if (d <= card.range && !this.hasWall(x, y) && !this.unitAt(x, y) &&
               !(this.crown.holder === null && this.crown.x === x && this.crown.y === y)) return true;
-        } else if (card.id === 'crown_dash') {
+        } else if (card.id === 'crown_dash' || card.id === 'royal_charge') {
           const dx = Math.abs(x - unit.x), dy = Math.abs(y - unit.y);
           if (((dx === 0 && dy > 0 && dy <= card.range) || (dy === 0 && dx > 0 && dx <= card.range)) &&
               !this.hasWall(x, y) && !this.unitAt(x, y)) return true;
+        } else if (card.id === 'transposition') {
+          if (d >= 1 && d <= card.range && this.walls.some(w => w.x === x && w.y === y && w.owner === side)) return true;
         }
       }
     }
@@ -1346,6 +1417,9 @@ class TacticalDraftMatch {
       const dist = this.manhattan(unit.x, unit.y, tx, ty);
       if (dist < 1 || dist > card.range) return { ok: false, error: 'Teleporte limitado a 2 casas.' };
       if (this.hasWall(tx, ty) || this.unitAt(tx, ty)) return { ok: false, error: 'Destino ocupado ou bloqueado.' };
+      if (this.crown.holder === null && this.crown.x === tx && this.crown.y === ty && this.crown.recoverCooldown[side] > 0) {
+        return { ok: false, error: 'Você acabou de perder a Coroa! Aguarde 1 turno para recuperá-la.' };
+      }
       unit.x = tx;
       unit.y = ty;
       this.checkCrownCapture(side);
@@ -1355,13 +1429,14 @@ class TacticalDraftMatch {
       if (this.crown.holder === enemySide && this.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= 4) {
         this.teams[enemySide].vp = Math.max(0, this.teams[enemySide].vp - 1);
       }
+      this.advanceChallenge(side, 'push_2_times');
       hitEnemy = enemySide;
     } else if (card.id === 'flux_wall') {
       if (!this.isInside(tx, ty)) return { ok: false, error: 'Posição inválida.' };
-      if (this.manhattan(unit.x, unit.y, tx, ty) > card.range) return { ok: false, error: 'Fora do alcance da Parede de Fluxo.' };
+      if (this.manhattan(unit.x, unit.y, tx, ty) > card.range) return { ok: false, error: 'Fora do alcance da Barreira de Fluxo.' };
       if (this.hasWall(tx, ty) || this.unitAt(tx, ty) ||
           (this.crown.holder === null && this.crown.x === tx && this.crown.y === ty)) {
-        return { ok: false, error: 'Não é possível erguer parede nessa casa.' };
+        return { ok: false, error: 'Não é possível erguer barreira nessa casa.' };
       }
       this.walls.push({ x: tx, y: ty, expiresAtRound: this.round + card.durationRounds, owner: side });
     } else if (card.id === 'crown_dash') {
@@ -1372,6 +1447,9 @@ class TacticalDraftMatch {
         return { ok: false, error: 'Impulso Real exige linha reta de até 3 casas.' };
       }
       if (this.hasWall(tx, ty) || this.unitAt(tx, ty)) return { ok: false, error: 'Destino bloqueado.' };
+      if (this.crown.holder === null && this.crown.x === tx && this.crown.y === ty && this.crown.recoverCooldown[side] > 0) {
+        return { ok: false, error: 'Você acabou de perder a Coroa! Aguarde 1 turno para recuperá-la.' };
+      }
       unit.x = tx;
       unit.y = ty;
       this.checkCrownCapture(side);
@@ -1382,20 +1460,64 @@ class TacticalDraftMatch {
       const oldPos = { x: enemyUnit.x, y: enemyUnit.y };
       const pushRes = this.pushUnitAway(unit, enemyUnit);
       if (this.crown.holder === enemySide) {
-        this.teams[enemySide].vp = 0;
-        this.crown.holder = null;
-        this.crown.x = oldPos.x;
-        this.crown.y = oldPos.y;
-        this.logEvent('crown_dropped', side, { x: oldPos.x, y: oldPos.y, targetSide: enemySide });
+        if (this.crown.protectionTurns > 0) {
+          this.logEvent('crown_protected_hit', side, { targetSide: enemySide, protectionTurns: this.crown.protectionTurns });
+        } else {
+          this.teams[enemySide].vp = 0;
+          this.crown.recoverCooldown[enemySide] = 1;
+          this.crown.holder = null;
+          this.crown.x = oldPos.x;
+          this.crown.y = oldPos.y;
+          this.logEvent('crown_dropped', side, { x: oldPos.x, y: oldPos.y, targetSide: enemySide });
+        }
       }
       hitEnemy = enemySide;
       if (pushRes.pushed) {
+        this.advanceChallenge(side, 'push_2_times');
         this.logEvent('knockback', side, { targetSide: enemySide, to: pushRes.to });
       }
+    } else if (card.id === 'royal_charge') {
+      if (!this.isInside(tx, ty)) return { ok: false, error: 'Destino fora do mapa.' };
+      const dx = Math.abs(tx - unit.x), dy = Math.abs(ty - unit.y);
+      if (!((dx === 0 && dy > 0 && dy <= 2) || (dy === 0 && dx > 0 && dx <= 2))) {
+        return { ok: false, error: 'Investida Real exige linha reta de até 2 casas.' };
+      }
+      if (this.hasWall(tx, ty) || this.unitAt(tx, ty)) return { ok: false, error: 'Destino bloqueado.' };
+      if (this.crown.holder === null && this.crown.x === tx && this.crown.y === ty && this.crown.recoverCooldown[side] > 0) {
+        return { ok: false, error: 'Você acabou de perder a Coroa! Aguarde 1 turno para recuperá-la.' };
+      }
+      unit.x = tx;
+      unit.y = ty;
+      this.checkCrownCapture(side);
+      if (this.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) === 1) {
+        const pushRes = this.pushUnitAway(unit, enemyUnit);
+        if (pushRes.pushed) {
+          hitEnemy = enemySide;
+          this.advanceChallenge(side, 'push_2_times');
+          this.logEvent('knockback', side, { targetSide: enemySide, to: pushRes.to });
+        }
+      }
+    } else if (card.id === 'transposition') {
+      if (this.crown.holder === side && this.crown.protectionTurns > 0) {
+        return { ok: false, error: 'Transposição bloqueada enquanto a Coroa está sob proteção de captura.' };
+      }
+      const wallIdx = this.walls.findIndex(w => w.x === tx && w.y === ty && w.owner === side);
+      if (wallIdx < 0 || this.manhattan(unit.x, unit.y, tx, ty) > card.range) {
+        return { ok: false, error: 'Selecione uma Barreira de Fluxo sua a até 5 casas.' };
+      }
+      const oldX = unit.x, oldY = unit.y;
+      unit.x = tx;
+      unit.y = ty;
+      this.walls[wallIdx].x = oldX;
+      this.walls[wallIdx].y = oldY;
+    } else if (card.id === 'stamina_overcharge') {
+      team.ap += 2;
+      team.nextTurnDeltaAp -= 1;
     }
 
     team.ap -= card.cost;
     team.hand.splice(cardIdx, 1);
+    this.advanceChallenge(side, 'play_3_cards');
     this.logEvent('card_played', side, {
       cardId: card.id,
       cardName: card.name,
@@ -1403,6 +1525,23 @@ class TacticalDraftMatch {
       apLeft: team.ap
     });
     return { ok: true, card, hitEnemy };
+  }
+
+  spawnFluxZones() {
+    this.fluxZones = [];
+    const candidates = [];
+    for (let y = 2; y < this.boardSize - 2; y++) {
+      for (let x = 2; x < this.boardSize - 2; x++) {
+        if (!this.hasWall(x, y) && !this.unitAt(x, y) && !(this.crown.holder === null && this.crown.x === x && this.crown.y === y)) {
+          candidates.push({ x, y });
+        }
+      }
+    }
+    candidates.sort(() => Math.random() - 0.5);
+    for (let i = 0; i < Math.min(2, candidates.length); i++) {
+      this.fluxZones.push({ x: candidates[i].x, y: candidates[i].y, expiresAtRound: this.round + 2 });
+    }
+    if (this.fluxZones.length) this.logEvent('flux_zones', null, { zones: this.fluxZones });
   }
 
   endTurn(side, reason = 'manual') {
@@ -1413,13 +1552,40 @@ class TacticalDraftMatch {
     }
     this.autoEnding = false;
     const team = this.teams[side];
+    const unit = this.units[side];
     const ms = this.recordTurnTime(side, reason);
     this.logEvent('turn_end', side, { ms, reason });
     team.ap = 0;
 
+    // Zona de Fluxo: terminar o turno sobre ela concede +1 PA no próximo turno
+    if (this.fluxZones.some(z => z.x === unit.x && z.y === unit.y)) {
+      team.nextTurnDeltaAp += 1;
+      this.logEvent('flux_zone_bonus', side, { x: unit.x, y: unit.y });
+    }
+
+    // Mini-objetivo: terminar turno no centro (linhas/colunas 4..7 em 0-based)
+    if (unit.x >= 4 && unit.x <= 7 && unit.y >= 4 && unit.y <= 7) {
+      this.advanceChallenge(side, 'center_2_turns');
+    }
+
+    // Expira cooldown de recuperação do jogador que acabou de jogar o turno sem poder pegar a Coroa
+    if (this.crown.recoverCooldown[side] > 0) {
+      this.crown.recoverCooldown[side] = Math.max(0, this.crown.recoverCooldown[side] - 1);
+    }
+    // Expira proteção da Coroa ao fim do turno do adversário do portador
+    if (this.crown.holder !== null && this.crown.holder !== side && this.crown.protectionTurns > 0) {
+      this.crown.protectionTurns = Math.max(0, this.crown.protectionTurns - 1);
+    }
+
     if (this.crown.holder === side) {
       team.vp += 1;
       this.logEvent('crown_vp', side, { vp: team.vp, goal: TACTICAL_CROWN_HOLD_GOAL });
+      if (team.vp === 2) {
+        // Vantagem gradual equilibrada no 2º turno de posse: compra 1 carta bônus
+        const draw = randomCardChoices(1)[0];
+        team.hand.push(draw);
+        this.logEvent('crown_streak_bonus', side, { cardName: draw.name });
+      }
       if (team.vp >= TACTICAL_CROWN_HOLD_GOAL) {
         this.finish(side, `Domínio da Coroa concluído (${TACTICAL_CROWN_HOLD_GOAL} turnos)!`);
         return { ok: true, ended: true };
@@ -1432,6 +1598,10 @@ class TacticalDraftMatch {
     }
 
     this.walls = this.walls.filter(w => w.expiresAtRound > this.round);
+    this.fluxZones = this.fluxZones.filter(z => z.expiresAtRound > this.round);
+    if (this.round % 2 === 0 && this.fluxZones.length === 0) {
+      this.spawnFluxZones();
+    }
     if (this.round % 3 === 0) {
       this.startDraftPhase();
       return { ok: true, phase: 'draft' };
@@ -1645,12 +1815,14 @@ class TacticalDraftMatch {
       durationMs: (this.endedAt || now) - this.createdAt,
       myUnit,
       enemyUnit: (enemyVisible || this.over) ? { ...enemyUnit, revealedByCrown: enemyHasCrown } : null,
-      crown: { ...this.crown },
-      walls: this.walls.map(w => ({ x: w.x, y: w.y, expiresAtRound: w.expiresAtRound })),
+      crown: { ...this.crown, myRecoverCooldown: this.crown.recoverCooldown[side] || 0 },
+      walls: this.walls.map(w => ({ x: w.x, y: w.y, expiresAtRound: w.expiresAtRound, owner: w.owner })),
+      fluxZones: this.fluxZones.map(z => ({ x: z.x, y: z.y, expiresAtRound: z.expiresAtRound })),
       myTeam: {
         vp: this.teams[side].vp,
         ap: this.teams[side].ap,
         hand: this.teams[side].hand,
+        challenge: this.teams[side].challenge,
         draftOptions: this.phase === 'draft' && !this.teams[side].draftPicked ? this.teams[side].draftOptions : []
       },
       enemyTeam: {
@@ -1745,17 +1917,27 @@ class BotController {
     const enemyUnit = game.units[enemySide];
     if (team.ap <= 0) return false;
 
-    // 1. Se o inimigo tem a Coroa, prioriza combate direto / cartas ofensivas
+    // 0. Usa Sobrecarga de Estamina se tiver pouca energia e puder agir
+    const overcharge = team.hand.find(c => c.id === 'stamina_overcharge');
+    if (overcharge && team.ap <= 1) {
+      const res = game.playCard(botSide, overcharge.uid);
+      if (res.ok) {
+        publishTactical(game, 'tactical:state');
+        return true;
+      }
+    }
+
+    // 1. Se o inimigo tem a Coroa, prioriza combate direto / cartas ofensivas (respeitando proteção)
     if (game.crown.holder === enemySide) {
-      if (game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) === 1 && team.ap >= 1) {
+      if (game.crown.protectionTurns === 0 && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) === 1 && team.ap >= 1) {
         const res = game.attackUnit(botSide, enemyUnit.x, enemyUnit.y);
         if (res.ok) {
-          publishTactical(game, 'tactical:cardEffect', { effect: 'melee_attack', hitSide: enemySide, crownOutcome: res.crownOutcome });
+          publishTactical(game, 'tactical:cardEffect', { effect: 'melee_attack', hitSide: enemySide, crownOutcome: res.crownOutcome, crownProtectedBlocked: res.crownProtectedBlocked });
           return true;
         }
       }
       const push = team.hand.find(c => c.id === 'kinetic_push' && team.ap >= c.cost);
-      if (push && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= push.range) {
+      if (push && game.crown.protectionTurns === 0 && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= push.range) {
         const res = game.playCard(botSide, push.uid);
         if (res.ok) {
           publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: enemySide });
@@ -2486,6 +2668,7 @@ async function handleSocketMessage(ws, msg) {
         effect: 'melee_attack',
         hitSide: res.hitEnemy,
         crownOutcome: res.crownOutcome,
+        crownProtectedBlocked: res.crownProtectedBlocked,
         autoEnding: willAutoEnd
       });
       if (!willAutoEnd) botController.maybeAct(game);
