@@ -699,7 +699,8 @@ async function handleApi(req, res, url) {
       cards: Object.values(CARD_CATALOG),
       rules: {
         boardSize: TACTICAL_BOARD,
-        targetVp: TACTICAL_TARGET_VP,
+        targetVp: TACTICAL_CROWN_HOLD_GOAL,
+        crownHoldGoal: TACTICAL_CROWN_HOLD_GOAL,
         basePa: TACTICAL_BASE_PA,
         crownPaPenalty: TACTICAL_CROWN_PA_PENALTY,
         turnLimitMs: TACTICAL_TURN_MS,
@@ -1023,11 +1024,13 @@ function makeGame(room) {
 const TACTICAL_BOARD = 12;
 const TACTICAL_BASE_PA = 3;
 const TACTICAL_CROWN_PA_PENALTY = 1;
-const TACTICAL_TURN_MS = 25_000;
+const TACTICAL_TURN_MS = 10_000;
 const TACTICAL_DRAFT_MS = 8_000;
 const TACTICAL_RECONNECT_MS = 30_000;
-const TACTICAL_TARGET_VP = 10;
+const TACTICAL_CROWN_HOLD_GOAL = 3;
+const TACTICAL_TARGET_VP = TACTICAL_CROWN_HOLD_GOAL;
 const TACTICAL_VISION_RADIUS = 4;
+const TACTICAL_AUTO_END_MS = 450;
 
 const CARD_CATALOG = {
   short_teleport: {
@@ -1044,7 +1047,7 @@ const CARD_CATALOG = {
     cost: 1,
     targetType: 'none',
     range: 0,
-    desc: 'Rouba 1 PA do inimigo: ele começa o próximo turno com −1 PA e você recupera o PA gasto nesta carta.'
+    desc: 'Rouba 1 PA do inimigo (−1 PA no próximo turno dele, recupera 1 PA). Se o inimigo estiver com a Coroa a até 4 casas, reduz 1 turno de domínio.'
   },
   flux_wall: {
     id: 'flux_wall',
@@ -1061,7 +1064,15 @@ const CARD_CATALOG = {
     cost: 3,
     targetType: 'cell',
     range: 3,
-    desc: 'Avança até 3 casas em linha reta e ganha +1 VP se estiver com a Coroa.'
+    desc: 'Avança até 3 casas em linha reta pelo tabuleiro.'
+  },
+  kinetic_push: {
+    id: 'kinetic_push',
+    name: 'Golpe de Cerco',
+    cost: 2,
+    targetType: 'enemy',
+    range: 2,
+    desc: 'Atinge o inimigo a até 2 casas, empurrando-o 1 casa para trás e derrubando a Coroa no chão.'
   }
 };
 
@@ -1118,6 +1129,8 @@ class TacticalDraftMatch {
     this.resultType = null; // 'vp' | 'resign' | 'abandon' | 'disconnect'
     this.recorded = false;
     this.discarded = false;
+    this.autoEnding = false;
+    this.autoEndTimer = null;
     // Cronômetro de decisão do turno (pausa durante reconexão / explicações do tutorial)
     this.turnStartedAt = Date.now();
     this.turnPausedMs = 0;
@@ -1174,7 +1187,7 @@ class TacticalDraftMatch {
   }
 
   moveUnit(side, toX, toY) {
-    if (this.over || this.phase !== 'turn') return { ok: false, error: 'Aguarde a fase de turno.' };
+    if (this.over || this.phase !== 'turn' || this.autoEnding) return { ok: false, error: 'Aguarde a fase de turno.' };
     if (side !== this.activeSide) return { ok: false, error: 'Não é a sua vez.' };
     const team = this.teams[side];
     const unit = this.units[side];
@@ -1195,18 +1208,125 @@ class TacticalDraftMatch {
     return { ok: true };
   }
 
+  pushUnitAway(attackerUnit, targetUnit) {
+    const dx = Math.sign(targetUnit.x - attackerUnit.x);
+    const dy = Math.sign(targetUnit.y - attackerUnit.y);
+    const candidates = dx !== 0 && dy !== 0
+      ? [[dx, 0], [0, dy]]
+      : [[dx, dy]];
+    for (const [cx, cy] of candidates) {
+      const nx = targetUnit.x + cx;
+      const ny = targetUnit.y + cy;
+      if (this.isInside(nx, ny) && !this.hasWall(nx, ny) && !this.unitAt(nx, ny)) {
+        targetUnit.x = nx;
+        targetUnit.y = ny;
+        return { pushed: true, to: { x: nx, y: ny } };
+      }
+    }
+    return { pushed: false };
+  }
+
+  attackUnit(side, toX, toY) {
+    if (this.over || this.phase !== 'turn' || this.autoEnding) return { ok: false, error: 'Aguarde a fase de turno.' };
+    if (side !== this.activeSide) return { ok: false, error: 'Não é a sua vez.' };
+    const team = this.teams[side];
+    const unit = this.units[side];
+    const enemySide = 1 - side;
+    const enemyUnit = this.units[enemySide];
+    if (team.ap < 1) return { ok: false, error: 'Requer 1 PA para atacar.' };
+    if (enemyUnit.x !== toX || enemyUnit.y !== toY) return { ok: false, error: 'Nenhum inimigo nessa casa.' };
+    if (this.manhattan(unit.x, unit.y, toX, toY) !== 1) {
+      return { ok: false, error: 'Ataque corpo a corpo exige adjacência (1 casa).' };
+    }
+
+    team.ap -= 1;
+    const oldPos = { x: enemyUnit.x, y: enemyUnit.y };
+    const pushRes = this.pushUnitAway(unit, enemyUnit);
+    let crownOutcome = null;
+
+    if (this.crown.holder === enemySide) {
+      this.teams[enemySide].vp = 0;
+      if (pushRes.pushed) {
+        this.crown.holder = null;
+        this.crown.x = oldPos.x;
+        this.crown.y = oldPos.y;
+        crownOutcome = 'dropped';
+        this.logEvent('crown_dropped', side, { x: oldPos.x, y: oldPos.y, targetSide: enemySide });
+      } else {
+        this.crown.holder = side;
+        this.teams[side].vp = 0;
+        crownOutcome = 'stolen';
+        this.logEvent('crown_stolen', side, { x: unit.x, y: unit.y, targetSide: enemySide });
+      }
+    }
+
+    this.logEvent('melee_attack', side, {
+      targetSide: enemySide,
+      pushedTo: pushRes.pushed ? pushRes.to : null,
+      crownOutcome,
+      apLeft: team.ap
+    });
+    return { ok: true, hitEnemy: enemySide, crownOutcome };
+  }
+
   checkCrownCapture(side) {
     const unit = this.units[side];
     if (this.crown.holder === null && unit.x === this.crown.x && unit.y === this.crown.y) {
       this.crown.holder = side;
+      this.teams[side].vp = 0;
       this.logEvent('crown_captured', side, { x: unit.x, y: unit.y });
       return true;
     }
     return false;
   }
 
+  cardHasValidTarget(side, card) {
+    const unit = this.units[side];
+    const enemyUnit = this.units[1 - side];
+    if (card.targetType === 'none') return true;
+    if (card.targetType === 'enemy') {
+      return this.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= card.range;
+    }
+    for (let y = 0; y < this.boardSize; y++) {
+      for (let x = 0; x < this.boardSize; x++) {
+        const d = this.manhattan(unit.x, unit.y, x, y);
+        if (card.id === 'short_teleport') {
+          if (d >= 1 && d <= card.range && !this.hasWall(x, y) && !this.unitAt(x, y)) return true;
+        } else if (card.id === 'flux_wall') {
+          if (d <= card.range && !this.hasWall(x, y) && !this.unitAt(x, y) &&
+              !(this.crown.holder === null && this.crown.x === x && this.crown.y === y)) return true;
+        } else if (card.id === 'crown_dash') {
+          const dx = Math.abs(x - unit.x), dy = Math.abs(y - unit.y);
+          if (((dx === 0 && dy > 0 && dy <= card.range) || (dy === 0 && dx > 0 && dx <= card.range)) &&
+              !this.hasWall(x, y) && !this.unitAt(x, y)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  hasAnyValidAction(side) {
+    if (this.over || this.phase !== 'turn' || side !== this.activeSide) return false;
+    const team = this.teams[side];
+    const unit = this.units[side];
+    if (team.ap <= 0) return false;
+
+    // 1. Movimento ortogonal ou ataque adjacente (ambos custam 1 PA)
+    if (team.ap >= 1) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = unit.x + dx;
+        const ny = unit.y + dy;
+        if (!this.isInside(nx, ny) || this.hasWall(nx, ny)) continue;
+        return true; // casa livre (mover) ou inimigo adjacente (atacar)
+      }
+    }
+
+    // 2. Alguma carta pagável com alvo válido
+    return team.hand.some(card => team.ap >= card.cost && this.cardHasValidTarget(side, card));
+  }
+
   playCard(side, cardUid, target = {}) {
-    if (this.over || this.phase !== 'turn') return { ok: false, error: 'Aguarde a fase de turno.' };
+    if (this.over || this.phase !== 'turn' || this.autoEnding) return { ok: false, error: 'Aguarde a fase de turno.' };
     if (side !== this.activeSide) return { ok: false, error: 'Não é a sua vez.' };
     const team = this.teams[side];
     const cardIdx = team.hand.findIndex(c => c.uid === cardUid);
@@ -1216,8 +1336,10 @@ class TacticalDraftMatch {
 
     const unit = this.units[side];
     const enemySide = 1 - side;
+    const enemyUnit = this.units[enemySide];
     const tx = Number(target?.x);
     const ty = Number(target?.y);
+    let hitEnemy = null;
 
     if (card.id === 'short_teleport') {
       if (!this.isInside(tx, ty)) return { ok: false, error: 'Destino fora do mapa.' };
@@ -1230,6 +1352,10 @@ class TacticalDraftMatch {
     } else if (card.id === 'flux_siphon') {
       this.teams[enemySide].nextTurnDeltaAp -= 1;
       team.ap += 1;
+      if (this.crown.holder === enemySide && this.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= 4) {
+        this.teams[enemySide].vp = Math.max(0, this.teams[enemySide].vp - 1);
+      }
+      hitEnemy = enemySide;
     } else if (card.id === 'flux_wall') {
       if (!this.isInside(tx, ty)) return { ok: false, error: 'Posição inválida.' };
       if (this.manhattan(unit.x, unit.y, tx, ty) > card.range) return { ok: false, error: 'Fora do alcance da Parede de Fluxo.' };
@@ -1249,7 +1375,23 @@ class TacticalDraftMatch {
       unit.x = tx;
       unit.y = ty;
       this.checkCrownCapture(side);
-      if (this.crown.holder === side) team.vp += 1;
+    } else if (card.id === 'kinetic_push') {
+      if (this.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) > card.range) {
+        return { ok: false, error: 'Inimigo fora do alcance do Golpe de Cerco (2 casas).' };
+      }
+      const oldPos = { x: enemyUnit.x, y: enemyUnit.y };
+      const pushRes = this.pushUnitAway(unit, enemyUnit);
+      if (this.crown.holder === enemySide) {
+        this.teams[enemySide].vp = 0;
+        this.crown.holder = null;
+        this.crown.x = oldPos.x;
+        this.crown.y = oldPos.y;
+        this.logEvent('crown_dropped', side, { x: oldPos.x, y: oldPos.y, targetSide: enemySide });
+      }
+      hitEnemy = enemySide;
+      if (pushRes.pushed) {
+        this.logEvent('knockback', side, { targetSide: enemySide, to: pushRes.to });
+      }
     }
 
     team.ap -= card.cost;
@@ -1260,21 +1402,26 @@ class TacticalDraftMatch {
       target: card.targetType === 'cell' ? { x: tx, y: ty } : { targetSide: enemySide },
       apLeft: team.ap
     });
-    return { ok: true, card, hitEnemy: card.id === 'flux_siphon' ? enemySide : null };
+    return { ok: true, card, hitEnemy };
   }
 
   endTurn(side, reason = 'manual') {
     if (this.over || this.phase !== 'turn' || side !== this.activeSide) return { ok: false };
+    if (this.autoEndTimer) {
+      clearTimeout(this.autoEndTimer);
+      this.autoEndTimer = null;
+    }
+    this.autoEnding = false;
     const team = this.teams[side];
     const ms = this.recordTurnTime(side, reason);
     this.logEvent('turn_end', side, { ms, reason });
     team.ap = 0;
 
     if (this.crown.holder === side) {
-      team.vp += 2;
-      this.logEvent('crown_vp', side, { vp: team.vp });
-      if (team.vp >= TACTICAL_TARGET_VP) {
-        this.finish(side, 'Domínio da Coroa atingido!');
+      team.vp += 1;
+      this.logEvent('crown_vp', side, { vp: team.vp, goal: TACTICAL_CROWN_HOLD_GOAL });
+      if (team.vp >= TACTICAL_CROWN_HOLD_GOAL) {
+        this.finish(side, `Domínio da Coroa concluído (${TACTICAL_CROWN_HOLD_GOAL} turnos)!`);
         return { ok: true, ended: true };
       }
     }
@@ -1391,6 +1538,8 @@ class TacticalDraftMatch {
 
   finish(winnerSide, reason, resultType = 'vp') {
     if (this.over) return;
+    if (this.autoEndTimer) { clearTimeout(this.autoEndTimer); this.autoEndTimer = null; }
+    this.autoEnding = false;
     this.syncClockPause();
     this.over = true;
     this.winner = winnerSide;
@@ -1405,6 +1554,8 @@ class TacticalDraftMatch {
   // Descarta a partida sem registrar resultado (saída de partida contra bot / tutorial)
   discard(reason) {
     if (this.over) return;
+    if (this.autoEndTimer) { clearTimeout(this.autoEndTimer); this.autoEndTimer = null; }
+    this.autoEnding = false;
     this.over = true;
     this.discarded = true;
     this.winner = null;
@@ -1462,13 +1613,15 @@ class TacticalDraftMatch {
       draftRemainingMs: Math.max(0, this.draftDeadline - now),
       boardSize: this.boardSize,
       frozen: this.disconnects.size > 0,
+      autoEnding: this.autoEnding,
       opponentIsBot,
       self: me ? { username: me.username, displayName: me.displayName || me.username } : { username: 'voce', displayName: 'Você' },
       opponent: opponentIsBot
         ? { username: this.isTutorial ? 'mentor' : 'crownbot', displayName: this.playerLabel(enemySide), isBot: true }
         : (opp ? { username: opp.username, displayName: opp.displayName || opp.username } : { username: 'oponente', displayName: 'Oponente' }),
       rules: {
-        targetVp: TACTICAL_TARGET_VP,
+        targetVp: TACTICAL_CROWN_HOLD_GOAL,
+        crownHoldGoal: TACTICAL_CROWN_HOLD_GOAL,
         basePa: TACTICAL_BASE_PA,
         crownPaPenalty: TACTICAL_CROWN_PA_PENALTY,
         turnLimitMs: TACTICAL_TURN_MS,
@@ -1559,26 +1712,30 @@ class BotController {
     if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen) return;
     this.clear(game.id);
     const step = () => {
-      if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen) return;
+      if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen || game.autoEnding) return;
       const acted = this.executeSingleAction(game, botSide);
-      if (acted && !game.over && game.teams[botSide].ap > 0) {
-        this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(1000, 1800)));
-      } else if (!game.over && game.phase === 'turn' && game.activeSide === botSide) {
-        this.pendingTimers.set(game.id, setTimeout(() => {
-          if (game.over || game.phase !== 'turn' || game.activeSide !== botSide) return;
-          const res = game.endTurn(botSide);
-          if (res.ended) publishTactical(game, 'game:ended');
-          else if (res.phase === 'draft') {
-            publishTactical(game, 'tactical:startDraft');
-            this.scheduleDraft(game, botSide);
-          } else {
-            publishTactical(game, 'tactical:state');
-            this.maybeAct(game);
-          }
-        }, this.humanDelay(1000, 1600)));
+      if (acted && !game.over && game.hasAnyValidAction(botSide)) {
+        this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(900, 1500)));
+      } else if (!game.over && game.phase === 'turn' && game.activeSide === botSide && !game.autoEnding) {
+        if (!game.hasAnyValidAction(botSide)) {
+          scheduleAutoEndTurn(game, botSide);
+        } else {
+          this.pendingTimers.set(game.id, setTimeout(() => {
+            if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.autoEnding) return;
+            const res = game.endTurn(botSide);
+            if (res.ended) publishTactical(game, 'game:ended');
+            else if (res.phase === 'draft') {
+              publishTactical(game, 'tactical:startDraft');
+              this.scheduleDraft(game, botSide);
+            } else {
+              publishTactical(game, 'tactical:state');
+              this.maybeAct(game);
+            }
+          }, this.humanDelay(700, 1200)));
+        }
       }
     };
-    this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(1100, 1900)));
+    this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(800, 1400)));
   }
 
   executeSingleAction(game, botSide) {
@@ -1588,13 +1745,36 @@ class BotController {
     const enemyUnit = game.units[enemySide];
     if (team.ap <= 0) return false;
 
-    // 1. Se inimigo tem a Coroa e Bot tem Sifão de Fluxo, usa a carta ofensiva
+    // 1. Se o inimigo tem a Coroa, prioriza combate direto / cartas ofensivas
     if (game.crown.holder === enemySide) {
+      if (game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) === 1 && team.ap >= 1) {
+        const res = game.attackUnit(botSide, enemyUnit.x, enemyUnit.y);
+        if (res.ok) {
+          publishTactical(game, 'tactical:cardEffect', { effect: 'melee_attack', hitSide: enemySide, crownOutcome: res.crownOutcome });
+          return true;
+        }
+      }
+      const push = team.hand.find(c => c.id === 'kinetic_push' && team.ap >= c.cost);
+      if (push && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= push.range) {
+        const res = game.playCard(botSide, push.uid);
+        if (res.ok) {
+          publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: enemySide });
+          return true;
+        }
+      }
       const siphon = team.hand.find(c => c.id === 'flux_siphon' && team.ap >= c.cost);
       if (siphon) {
         const res = game.playCard(botSide, siphon.uid);
         if (res.ok) {
           publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: enemySide });
+          return true;
+        }
+      }
+      const chase = this.findNextStep(game, unit.x, unit.y, enemyUnit.x, enemyUnit.y);
+      if (chase && team.ap >= 1) {
+        const res = game.moveUnit(botSide, chase.x, chase.y);
+        if (res.ok) {
+          publishTactical(game, 'tactical:state');
           return true;
         }
       }
@@ -1714,6 +1894,7 @@ class TutorialRoom extends TacticalDraftMatch {
     if (this.phase === 'draft') this.draftDeadline = now + this.frozenRemainingMs;
     else this.turnDeadline = now + this.frozenRemainingMs;
     this.syncClockPause(now);
+    if (!this.hasAnyValidAction(this.activeSide)) scheduleAutoEndTurn(this, this.activeSide);
     botController.maybeAct(this);
     return true;
   }
@@ -1824,6 +2005,28 @@ function leaveTacticalMatch(uid) {
   if (humans.every(h => game.leftPlayers.has(h))) activeGames.delete(game.id);
   notifyPresence(uid);
   return { ok: true, outcome };
+}
+
+function scheduleAutoEndTurn(game, side) {
+  if (game.over || game.phase !== 'turn' || game.activeSide !== side || game.autoEnding || game.tutorialFrozen) return false;
+  if (game.hasAnyValidAction(side)) return false;
+  game.autoEnding = true;
+  game.autoEndTimer = setTimeout(() => {
+    game.autoEndTimer = null;
+    if (game.over || game.phase !== 'turn' || game.activeSide !== side) return;
+    const res = game.endTurn(side, 'auto_no_actions');
+    if (!res.ok) return;
+    if (res.ended) {
+      publishTactical(game, 'game:ended');
+    } else if (res.phase === 'draft') {
+      publishTactical(game, 'tactical:startDraft', { autoEnded: true });
+      botController.maybeAct(game);
+    } else {
+      publishTactical(game, 'tactical:state', { autoEnded: true });
+      botController.maybeAct(game);
+    }
+  }, TACTICAL_AUTO_END_MS);
+  return true;
 }
 
 function publishTactical(game, type = 'tactical:state', extra = {}) {
@@ -2267,8 +2470,25 @@ async function handleSocketMessage(ws, msg) {
       const side = game.players.indexOf(ws.userId);
       const res = game.moveUnit(side, Number(msg.x), Number(msg.y));
       if (!res.ok) return sendError(ws, res.error);
-      publishTactical(game, 'tactical:state');
-      botController.maybeAct(game);
+      const willAutoEnd = scheduleAutoEndTurn(game, side);
+      publishTactical(game, 'tactical:state', { autoEnding: willAutoEnd });
+      if (!willAutoEnd) botController.maybeAct(game);
+      break;
+    }
+    case 'tactical:attack': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'tactical_draft') return sendError(ws, 'Partida tática não encontrada.');
+      const side = game.players.indexOf(ws.userId);
+      const res = game.attackUnit(side, Number(msg.x), Number(msg.y));
+      if (!res.ok) return sendError(ws, res.error);
+      const willAutoEnd = scheduleAutoEndTurn(game, side);
+      publishTactical(game, 'tactical:cardEffect', {
+        effect: 'melee_attack',
+        hitSide: res.hitEnemy,
+        crownOutcome: res.crownOutcome,
+        autoEnding: willAutoEnd
+      });
+      if (!willAutoEnd) botController.maybeAct(game);
       break;
     }
     case 'tactical:playCard': {
@@ -2277,11 +2497,13 @@ async function handleSocketMessage(ws, msg) {
       const side = game.players.indexOf(ws.userId);
       const res = game.playCard(side, msg.cardUid, msg.target);
       if (!res.ok) return sendError(ws, res.error);
+      const willAutoEnd = scheduleAutoEndTurn(game, side);
       publishTactical(game, res.hitEnemy !== null ? 'tactical:cardEffect' : 'tactical:state', {
         effect: res.card.id,
-        hitSide: res.hitEnemy
+        hitSide: res.hitEnemy,
+        autoEnding: willAutoEnd
       });
-      botController.maybeAct(game);
+      if (!willAutoEnd) botController.maybeAct(game);
       break;
     }
     case 'tactical:endTurn': {

@@ -1195,7 +1195,7 @@ label.field-label {
   .ts-clock-box { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
   .ts-clock { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 16px; }
   .ts-limit { font-size: 10.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .ts-limit.warn { color: var(--gold); }
+  .ts-limit.warn { color: #e07a7c; font-weight: 700; }
   .ts-controls { display: flex; gap: 6px; flex: 0 0 auto; }
 
   .ts-btn {
@@ -1292,7 +1292,12 @@ label.field-label {
   .ts-cell.l { background: #bfb8a4; }
   .ts-cell.d { background: #98a190; }
   .ts-cell.fog::after { content: ''; position: absolute; inset: 0; background: rgba(28, 27, 24, 0.36); pointer-events: none; }
-  .ts-cell.move, .ts-cell.target { cursor: pointer; }
+  .ts-cell.move, .ts-cell.target, .ts-cell.attack { cursor: pointer; }
+  .ts-cell.attack::before {
+    content: ''; position: absolute; inset: 7%; border-radius: 50%;
+    border: 2px solid rgba(201, 122, 122, 0.95); background: rgba(201, 122, 122, 0.22);
+  }
+  .ts-cell.attack:hover::before { background: rgba(201, 122, 122, 0.42); }
   .ts-cell.move::before { content: ''; position: absolute; inset: 34%; border-radius: 50%; background: rgba(34, 50, 42, 0.5); transition: inset 0.15s; }
   .ts-cell.move:hover::before { inset: 28%; background: rgba(34, 50, 42, 0.72); }
   .ts-cell.target::before {
@@ -1385,6 +1390,7 @@ label.field-label {
   .ts-card[data-card="crown_dash"] { --card-accent: #cfaf72; }
   .ts-card[data-card="flux_wall"] { --card-accent: #8d86a0; }
   .ts-card[data-card="flux_siphon"] { --card-accent: #bd7778; }
+  .ts-card[data-card="kinetic_push"] { --card-accent: #c98a5b; }
   .ts-card:hover:not(.locked):not(.static) { transform: translateY(-6px); border-color: var(--muted); border-top-color: var(--card-accent); }
   .ts-card.selected { transform: translateY(-10px); border-color: var(--gold); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--gold); }
   .ts-card.locked { opacity: 0.56; cursor: help; }
@@ -2030,7 +2036,7 @@ label.field-label {
             <div><div class="tg-char" id="tgCharMe"></div><div class="tg-char-label"><b>Guardião Azul</b>Você</div></div>
             <div>
               <h3 style="margin:0 0 6px">🃏 O que é o Cerco Tático?</h3>
-              <p>Um duelo 1v1 <b>por turnos</b> num tabuleiro de <span data-rule="boardSize"></span>×<span data-rule="boardSize"></span>. Cada jogador controla <b>um único personagem</b> e gasta <b>Pontos de Ação (PA)</b> para andar e jogar cartas. O objetivo é capturar a <b>Coroa</b> e mantê-la até somar <b><span data-rule="targetVp"></span> Pontos de Vitória (PV)</b>.</p>
+              <p>Um duelo 1v1 <b>por turnos</b> num tabuleiro de <span data-rule="boardSize"></span>×<span data-rule="boardSize"></span>. Cada jogador controla <b>um único personagem</b> e gasta <b>Pontos de Ação (PA)</b> para andar, atacar e jogar cartas. O objetivo é capturar a <b>Coroa</b> e mantê-la por <b><span data-rule="targetVp"></span> turnos</b>.</p>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
                 <button class="primary" id="tgStartTutorial" type="button">Tutorial do Cerco Tático (3 etapas)</button>
                 <button class="secondary" id="tgStartCpu" type="button">Treinar contra a CPU</button>
@@ -2043,9 +2049,9 @@ label.field-label {
 
         <div class="tg-steps">
           <div class="tg-step">
-            <h4><span>1</span>Objetivo e vitória</h4>
-            <p>Pise na casa da Coroa para capturá-la. Cada vez que você <b>encerra seu turno com a Coroa</b>, ganha <b>+2 PV</b>. Quem chegar a <b><span data-rule="targetVp"></span> PV</b> vence.</p>
-            <p>A partida também termina por <b>desistência</b>, <b>abandono</b> ou se um jogador ficar desconectado por mais de <span data-rule="reconnectMs"></span>s.</p>
+            <h4><span>1</span>Objetivo e combate pela Coroa</h4>
+            <p>Pise na casa da Coroa para capturá-la. Para vencer, você precisa sobreviver e encerrar <b><span data-rule="targetVp"></span> turnos</b> com ela.</p>
+            <p>O adversário pode <b>atacar de perto (1 PA)</b> ou usar cartas como <b>Golpe de Cerco</b> para empurrar e derrubar/roubar a Coroa!</p>
           </div>
           <div class="tg-step">
             <h4><span>2</span>Turnos e Pontos de Ação</h4>
@@ -5799,11 +5805,12 @@ window.__crownflux = {
   const FALLBACK = {
     cards: [
       { id: 'short_teleport', name: 'Teleporte Curto', cost: 2, targetType: 'cell', range: 2, desc: 'Pula até 2 casas no grid, ignorando paredes no caminho.' },
-      { id: 'flux_siphon', name: 'Sifão de Fluxo', cost: 1, targetType: 'none', range: 0, desc: 'Rouba 1 PA do inimigo: ele começa o próximo turno com −1 PA e você recupera o PA gasto nesta carta.' },
+      { id: 'flux_siphon', name: 'Sifão de Fluxo', cost: 1, targetType: 'none', range: 0, desc: 'Rouba 1 PA do inimigo (−1 PA no próximo turno dele, recupera 1 PA). Se o inimigo estiver com a Coroa a até 4 casas, reduz 1 turno de domínio.' },
       { id: 'flux_wall', name: 'Parede de Fluxo', cost: 1, targetType: 'cell', range: 4, durationRounds: 2, desc: 'Bloqueia uma casa vazia no grid por 2 rodadas.' },
-      { id: 'crown_dash', name: 'Impulso Real', cost: 3, targetType: 'cell', range: 3, desc: 'Avança até 3 casas em linha reta e ganha +1 VP se estiver com a Coroa.' }
+      { id: 'crown_dash', name: 'Impulso Real', cost: 3, targetType: 'cell', range: 3, desc: 'Avança até 3 casas em linha reta pelo tabuleiro.' },
+      { id: 'kinetic_push', name: 'Golpe de Cerco', cost: 2, targetType: 'enemy', range: 2, desc: 'Atinge o inimigo a até 2 casas, empurrando-o 1 casa para trás e derrubando a Coroa no chão.' }
     ],
-    rules: { boardSize: 12, targetVp: 10, basePa: 3, crownPaPenalty: 1, turnLimitMs: 25000, draftMs: 8000, draftEveryRounds: 3, visionRadius: 4, reconnectMs: 30000 }
+    rules: { boardSize: 12, targetVp: 3, crownHoldGoal: 3, basePa: 3, crownPaPenalty: 1, turnLimitMs: 10000, draftMs: 8000, draftEveryRounds: 3, visionRadius: 4, reconnectMs: 30000 }
   };
   let catalog = FALLBACK;
   const R = () => (st && st.rules) || catalog.rules;
@@ -5895,15 +5902,17 @@ window.__crownflux = {
     short_teleport: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="33" r="4.5"/><circle cx="37" cy="33" r="4.5" stroke-dasharray="3 3"/><path d="M14 26c4-11 16-11 20-1" stroke-dasharray="4 3.5"/><path d="M29.5 22.5l4.6 3.2 3.2-4.6"/></svg>',
     flux_siphon: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="37" cy="13" r="5"/><circle cx="11" cy="35" r="4.5" fill="currentColor" fill-opacity=".25"/><path d="M33 17c-5 3-6 8-10 11s-6 3-8 4"/><path d="M15.5 27.5l-1 4.6 4.6.8"/></svg>',
     flux_wall: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="8" y="12" width="32" height="26" rx="2"/><path d="M8 20.5h32M8 29h32M18 12v8.5M30 12v8.5M13 20.5V29M24 20.5V29M35 20.5V29M18 29v9M30 29v9"/></svg>',
-    crown_dash: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 28l2.6-12 6.4 5.5 4-8.5 4 8.5 6.4-5.5L37 28z"/><path d="M11 32.5h26"/><path d="M9 40h26m-4-4 4 4-4 4"/></svg>'
+    crown_dash: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 28l2.6-12 6.4 5.5 4-8.5 4 8.5 6.4-5.5L37 28z"/><path d="M11 32.5h26"/><path d="M9 40h26m-4-4 4 4-4 4"/></svg>',
+    kinetic_push: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 24h24"/><path d="M26 16l8 8-8 8"/><path d="M38 12v24"/></svg>'
   };
-  const CARD_TYPE = { short_teleport: 'Movimento', crown_dash: 'Movimento', flux_wall: 'Bloqueio', flux_siphon: 'Sabotagem' };
+  const CARD_TYPE = { short_teleport: 'Movimento', crown_dash: 'Movimento', flux_wall: 'Bloqueio', flux_siphon: 'Sabotagem', kinetic_push: 'Combate' };
   function cardChips(card) {
     const chips = [`Custo ${card.cost} PA`];
     if (card.id === 'short_teleport') chips.push(`Alcance 1–${card.range}`, 'Alvo: casa livre');
     else if (card.id === 'crown_dash') chips.push(`Linha reta 1–${card.range}`, 'Alvo: casa livre');
     else if (card.id === 'flux_wall') chips.push(`Alcance 0–${card.range}`, `${card.durationRounds || 2} rodadas`);
-    else if (card.id === 'flux_siphon') chips.push('Alvo automático', 'Custo líquido 0');
+    else if (card.id === 'flux_siphon') chips.push('Alvo automático', 'Drena Coroa');
+    else if (card.id === 'kinetic_push') chips.push(`Alcance 1–${card.range}`, 'Empurra & derruba Coroa');
     return chips;
   }
   function renderCardEl(card, opts = {}) {
@@ -6027,7 +6036,7 @@ window.__crownflux = {
         <div class="ts-pips" id="${p}Pips"></div>
       </div>
       <div class="ts-stat">
-        <div class="ts-stat-row"><span>Pontos de Vitória</span><strong id="${p}VpVal">0 / 10</strong></div>
+        <div class="ts-stat-row"><span>Domínio da Coroa</span><strong id="${p}VpVal">0 / 3</strong></div>
         <div class="ts-vp-track"><div class="ts-vp-fill" id="${p}VpFill"></div></div>
       </div>
       <div class="ts-stat-row"><span>Cartas na mão</span><strong id="${p}Hand">0</strong></div>
@@ -6093,7 +6102,8 @@ window.__crownflux = {
     clock.textContent = fmtClock(elapsed);
     const secs = Math.ceil(remaining / 1000);
     limit.textContent = clockRef.paused ? `pausado · restam ${secs}s` : `limite ${Math.round(clockRef.limitMs / 1000)}s · restam ${secs}s`;
-    limit.classList.toggle('warn', !clockRef.paused && remaining <= 5000);
+    limit.classList.toggle('warn', !clockRef.paused && remaining <= 3000);
+    clock.style.color = (!clockRef.paused && remaining <= 3000) ? '#e07a7c' : '';
   }
 
   /* ---------------- Recepção do estado ---------------- */
@@ -6186,15 +6196,17 @@ window.__crownflux = {
     el(`${p}PaVal`).textContent = active ? `${team.ap} restante${team.ap === 1 ? '' : 's'}` : String(team.ap);
     const pipCount = Math.max(baseAp, team.ap, 1);
     el(`${p}Pips`).innerHTML = Array.from({ length: pipCount }, (_, i) => `<i class="ts-pip${i < team.ap ? ' on' : ''}"></i>`).join('');
-    el(`${p}VpVal`).textContent = `${team.vp} / ${rules.targetVp}`;
-    el(`${p}VpFill`).style.width = `${Math.min(100, (team.vp / rules.targetVp) * 100)}%`;
+    const goal = rules.crownHoldGoal || rules.targetVp || 3;
+    el(`${p}VpVal`).textContent = `${team.vp} / ${goal} turnos`;
+    el(`${p}VpFill`).style.width = `${Math.min(100, (team.vp / goal) * 100)}%`;
     el(`${p}Hand`).textContent = String(isMe ? team.hand.length : team.handCount);
     const lastT = [...(st.turnTimes || [])].reverse().find(t => t.side === side);
     el(`${p}Last`).textContent = lastT ? fmtSecs(lastT.ms) : '—';
     const crown = el(`${p}Crown`);
     if (hasCrown) {
+      const leftTurns = Math.max(0, goal - team.vp);
       crown.className = 'ts-badge';
-      crown.innerHTML = `${CROWN_SVG}<span>Com a Coroa: +2 PV ao encerrar o turno<span class="ts-badge-text-long"> · PA base −${rules.crownPaPenalty} · posição sempre visível</span></span>`;
+      crown.innerHTML = `${CROWN_SVG}<span>Com a Coroa: faltam ${leftTurns} turno${leftTurns === 1 ? '' : 's'}<span class="ts-badge-text-long"> · PA base −${rules.crownPaPenalty} · sempre visível</span></span>`;
     } else {
       crown.className = 'ts-badge plain';
       crown.innerHTML = `${CROWN_SVG}<span>Sem a Coroa</span>`;
@@ -6250,17 +6262,28 @@ window.__crownflux = {
     return [];
   }
 
+  function currentAttackTarget() {
+    if (!canAct() || selectedCard() || st.myTeam.ap < 1 || !st.enemyUnit) return null;
+    if (manhattan(st.myUnit.x, st.myUnit.y, st.enemyUnit.x, st.enemyUnit.y) === 1) {
+      return `${st.enemyUnit.x},${st.enemyUnit.y}`;
+    }
+    return null;
+  }
+
   function renderBoard() {
     if (boardBuiltFor !== st.gameId) buildBoard();
     const card = selectedCard();
     const targets = new Set(currentTargets().map(([x, y]) => `${x},${y}`));
+    const atkKey = currentAttackTarget();
     const wallMap = new Map(st.walls.map(w => [`${w.x},${w.y}`, w]));
     const R0 = R().visionRadius;
     for (const cell of el('tsBoard').querySelectorAll('.ts-cell')) {
       const x = +cell.dataset.x, y = +cell.dataset.y, key = `${x},${y}`;
       const isTarget = targets.has(key);
+      const isAtk = atkKey === key;
       cell.classList.toggle('move', isTarget && !card);
       cell.classList.toggle('target', isTarget && Boolean(card));
+      cell.classList.toggle('attack', isAtk);
       cell.classList.toggle('fog', !st.over && manhattan(st.myUnit.x, st.myUnit.y, x, y) > R0);
       const w = wallMap.get(key);
       const slot = cell.querySelector('.ts-wall-slot');
@@ -6270,9 +6293,10 @@ window.__crownflux = {
       } else if (!w && slot.firstChild) slot.innerHTML = '';
       let label = cellName(x, y);
       if (w) label += `, Parede de Fluxo (some ao fim da rodada ${w.expiresAtRound})`;
+      if (isAtk) label += ', atacar inimigo adjacente (1 PA)';
       if (isTarget) label += card ? `, alvo válido para ${card.name}` : ', mover para cá (1 PA)';
       cell.setAttribute('aria-label', label);
-      cell.title = w ? `Parede de Fluxo — some ao fim da rodada ${w.expiresAtRound}` : '';
+      cell.title = isAtk ? 'Atacar inimigo adjacente (1 PA — derruba ou rouba a Coroa)' : (w ? `Parede de Fluxo — some ao fim da rodada ${w.expiresAtRound}` : '');
     }
     prevWalls = new Set(wallMap.keys());
 
@@ -6303,8 +6327,13 @@ window.__crownflux = {
   function onCellClick(x, y) {
     if (!st || st.over) return;
     if (!canAct()) { feedback(reasonCannotAct(), true); return; }
-    if (pendingAction) return;
+    if (pendingAction || st.autoEnding) return;
     const card = selectedCard();
+    if (!card && currentAttackTarget() === `${x},${y}`) {
+      sfx('hit');
+      sendAction('tactical:attack', { x, y });
+      return;
+    }
     const valid = currentTargets().some(([a, b]) => a === x && b === y);
     if (!valid) {
       if (!card && st.myTeam.ap < 1) feedback('Você não tem PA para se mover. Use "Encerrar turno".', true);
@@ -6340,6 +6369,12 @@ window.__crownflux = {
     if (st.tutorialFrozen) return 'Conclua a orientação do tutorial.';
     if (!isMyTurn()) return 'Aguarde sua vez.';
     if (st.myTeam.ap < card.cost) return `Requer ${card.cost} PA — você tem ${st.myTeam.ap}.`;
+    if (card.targetType === 'enemy') {
+      if (!st.enemyUnit || manhattan(st.myUnit.x, st.myUnit.y, st.enemyUnit.x, st.enemyUnit.y) > card.range) {
+        return `Inimigo fora do alcance (${card.range} casas).`;
+      }
+      return null;
+    }
     if (card.targetType === 'cell' && targetsFor(card.id, ctxFromState()).length === 0) return 'Nenhuma casa válida no alcance agora.';
     return null;
   }
@@ -6382,7 +6417,7 @@ window.__crownflux = {
     const cancel = el('tsCancelSel'), use = el('tsUseCard'), endBtn = el('tsEndTurn'), showRes = el('tsShowResult');
     const card = selectedCard();
     cancel.hidden = !card;
-    use.hidden = !(card && card.targetType === 'none');
+    use.hidden = !(card && (card.targetType === 'none' || card.targetType === 'enemy'));
     showRes.hidden = !st.over;
     endBtn.hidden = st.over;
     endBtn.disabled = !canAct() || pendingAction;
@@ -6438,9 +6473,15 @@ window.__crownflux = {
         if (d.cardId === 'flux_wall' && d.target) return `${who} ergueu uma ${esc(d.cardName)} em ${cellName(d.target.x, d.target.y)}.`;
         if (d.target && Number.isFinite(d.target.x)) return `${who} usou ${esc(d.cardName)} até ${cellName(d.target.x, d.target.y)}.`;
         return `${who} usou ${esc(d.cardName)}.`;
-      case 'crown_captured': return mine ? `Você capturou a Coroa! Seu PA base cai para ${rules.basePa - rules.crownPaPenalty} e sua posição fica visível.` : `${who} capturou a Coroa — a posição dele agora fica sempre visível.`;
-      case 'crown_vp': return `${who} recebeu +2 PV pela Coroa (total ${d.vp}).`;
-      case 'turn_end': return d.reason === 'timeout' ? `${who} atingiu o limite de ${Math.round(rules.turnLimitMs / 1000)}s; turno encerrado automaticamente.` : `${who} encerrou o turno em ${fmtSecs(d.ms)}.`;
+      case 'crown_captured': return mine ? `Você capturou a Coroa! Sobreviva por ${rules.crownHoldGoal || 3} turnos para vencer.` : `${who} capturou a Coroa! Ataque-o para derrubá-la.`;
+      case 'crown_dropped': return `Coroa derrubada no chão em ${cellName(d.x, d.y)}!`;
+      case 'crown_stolen': return `${who} roubou a Coroa em combate corpo a corpo!`;
+      case 'melee_attack': return `${who} atacou o adversário em combate corpo a corpo (1 PA).`;
+      case 'knockback': return `${who} empurrou o adversário para trás!`;
+      case 'crown_vp': return `${who} manteve a Coroa (+1 turno de domínio: ${d.vp}/${d.goal || 3}).`;
+      case 'turn_end':
+        if (d.reason === 'auto_no_actions') return `${who} ficou sem ações/PA — turno passado automaticamente (${fmtSecs(d.ms)}).`;
+        return d.reason === 'timeout' ? `${who} atingiu o limite de ${Math.round(rules.turnLimitMs / 1000)}s; turno encerrado automaticamente.` : `${who} encerrou o turno em ${fmtSecs(d.ms)}.`;
       case 'draft_start': return `Fase de Draft: cada jogador escolhe 1 de 3 cartas.`;
       case 'draft_pick': return mine ? `Você adicionou ${esc(d.cardName)} à mão.` : `${who} escolheu uma carta.`;
       case 'match_end': return esc(d.reason || 'Partida encerrada.');
@@ -6476,7 +6517,33 @@ window.__crownflux = {
         } else if (ev.data.cardId === 'short_teleport') { animFig(who, 'blink'); sfx('card'); }
         else { animFig(who, 'cast'); sfx('card'); }
         break;
-      case 'crown_captured': animFig(who, 'cast'); sfx('crown'); break;
+      case 'crown_captured':
+        animFig(who, 'cast');
+        sfx('crown');
+        if (typeof showToast === 'function') showToast(who === 'me' ? `👑 Coroa capturada! Sobreviva por ${R().crownHoldGoal || 3} turnos para vencer.` : `👑 ${enemyName()} capturou a Coroa! Ataque-o para derrubá-la.`);
+        break;
+      case 'crown_dropped':
+        sfx('hit');
+        if (typeof showToast === 'function') showToast('💥 Coroa derrubada no chão!');
+        break;
+      case 'crown_stolen':
+        sfx('crown');
+        if (typeof showToast === 'function') showToast('⚔️ Coroa roubada em combate!');
+        break;
+      case 'melee_attack':
+        animFig(who, 'attack');
+        animFig(other, 'hit', 140);
+        if (other === 'me') {
+          const frame = el('tsFrame');
+          frame.classList.remove('shake'); void frame.offsetWidth; frame.classList.add('shake');
+          sfx('hit');
+        } else sfx('card');
+        break;
+      case 'turn_end':
+        if (ev.data?.reason === 'auto_no_actions' && who === 'me') {
+          feedback('Sem PA ou ações válidas — turno passado automaticamente.');
+        }
+        break;
       case 'turn_start': if (who === 'me') sfx('turn'); break;
       default: break;
     }
@@ -6618,7 +6685,8 @@ window.__crownflux = {
     return [
       `Tabuleiro ${rules.boardSize}×${rules.boardSize}. Cada jogador controla 1 personagem; a Coroa começa livre no tabuleiro.`,
       `No seu turno você recebe ${rules.basePa} PA. Andar 1 casa (cima, baixo, esquerda, direita) custa 1 PA; cada carta mostra seu custo. PA que sobra é perdido.`,
-      `Quem pisa na Coroa a captura. Ao encerrar cada turno com ela, ganha +2 PV. Chegar a ${rules.targetVp} PV vence a partida.`,
+      `Quem pisa na Coroa a captura. Ao encerrar um turno com ela, soma +1 turno de domínio. Chegar a ${rules.targetVp} turnos vence a partida.`,
+      `Combate direto: ataque um inimigo adjacente por 1 PA para empurrá-lo e derrubar (ou roubar) a Coroa. Se ficar sem PA ou ações válidas, o turno passa automaticamente.`,
       `Custo da Coroa: PA base −${rules.crownPaPenalty} por turno e posição sempre visível para o adversário.`,
       `Névoa de guerra: você só vê o adversário a até ${rules.visionRadius} casas (distância em passos), exceto se ele estiver com a Coroa.`,
       `A cada ${rules.draftEveryRounds} rodadas completas há uma Fase de Draft de ${Math.round(rules.draftMs / 1000)}s: escolha 1 de 3 cartas para a mão.`,
@@ -6804,7 +6872,7 @@ window.__crownflux = {
   el('tsCancelSel').addEventListener('click', () => { selectedUid = null; feedback('Seleção cancelada.'); renderBoard(); renderHand(); renderDetail(); });
   el('tsUseCard').addEventListener('click', () => {
     const card = selectedCard();
-    if (!card || card.targetType !== 'none') return;
+    if (!card || (card.targetType !== 'none' && card.targetType !== 'enemy')) return;
     const lock = lockReason(card);
     if (lock) { feedback(lock, true); return; }
     const cardEl = el('tsHand').querySelector(`[data-uid="${card.uid}"]`);
