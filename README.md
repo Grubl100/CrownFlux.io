@@ -1,6 +1,6 @@
 # Crownflux.io
 
-Crownflux.io é um jogo de estratégia em tempo real inspirado no xadrez, com tabuleiro 16×16 sem turnos, tutorial interativo de 7 etapas, cinco níveis de inteligência artificial (CPU), guia visual interativo, sistema de contas, perfis, central de amigos e partidas 1v1 online via WebSockets.
+Crownflux.io reúne um jogo de estratégia em tempo real inspirado no xadrez (tabuleiro 16×16 sem turnos) e um modo de Xadrez Clássico 8×8. Inclui tutorial interativo, cinco níveis de inteligência artificial (CPU), sistema de contas, perfis, central de amigos e partidas 1v1 online via WebSockets.
 
 ## Requisitos
 
@@ -80,6 +80,12 @@ O frontend permanece em JavaScript nativo para preservar a lógica existente, qu
 ### 6. Responsividade Completa (Desktop, Tablet e Mobile)
 - Navegação superior no desktop e barra de navegação inferior adaptada para toque no celular (`<= 760px`).
 - O guia do tutorial fica posicionado acima do tabuleiro, sem cobrir casas ou peças em nenhuma resolução.
+
+### 7. Xadrez Clássico
+- Partidas 8×8 com movimentação legal, xeque, xeque-mate, afogamento, roque, en passant, promoção a rainha e regra dos 50 lances.
+- Bot local com cinco níveis de dificuldade e relógio configurável.
+- Fila pública ranqueada, salas privadas com código e controles Bullet (1+0, 2+1), Blitz (3+0, 5+0), Rapid (10+0, 15+10) e Clássico (30+0, 60+0).
+- Relógio controlado pelo servidor e rating Elo independente por categoria. Partidas em salas privadas não alteram o rating.
 
 ## Configuração e Deploy (Render / Koyeb / Fly.io / Railway)
 

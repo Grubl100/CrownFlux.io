@@ -53,6 +53,7 @@ let saveChain = Promise.resolve();
 const sessions = new Map(); // tokenHash -> { tokenHash, uid, expiresAt, rememberMe, createdAt }
 const socketsByUser = new Map();
 const queue = [];
+const classicQueue = [];
 const rooms = new Map();
 const challenges = new Map();
 const activeGames = new Map();
@@ -156,7 +157,8 @@ function safeUser(user, includeStats = true, includePrivate = false) {
       draws: user.draws || 0,
       cpuGames: cpuStats.games || 0,
       cpuWins: cpuStats.wins || 0,
-      highestCpuLevel: cpuStats.highestDifficultyWon || 0
+      highestCpuLevel: cpuStats.highestDifficultyWon || 0,
+      classicRatings: { bullet: 1200, blitz: 1200, rapid: 1200, classic: 1200, ...(user.classicRatings || {}) }
     };
   }
   if (includePrivate) {
@@ -416,17 +418,29 @@ function sanitizeMatchOptions(raw = {}) {
   const paceValues = ['standard', 'fast', 'tactical'];
   const orbValues = ['normal', 'abundant', 'none'];
   const timeValues = [0, 180, 300];
-  const modeValues = ['realtime', 'tactical_draft'];
+  const modeValues = ['realtime', 'tactical_draft', 'classic'];
   const pace = paceValues.includes(raw?.pace) ? raw.pace : 'standard';
   const orbs = orbValues.includes(raw?.orbs) ? raw.orbs : 'normal';
   const timeLimit = timeValues.includes(Number(raw?.timeLimit)) ? Number(raw.timeLimit) : 0;
   const mode = modeValues.includes(raw?.mode) ? raw.mode : 'realtime';
-  return { pace, orbs, timeLimit, mode };
+  const controls = {
+    bullet1: { category: 'bullet', seconds: 60, increment: 0, label: 'Bullet · 1+0' },
+    bullet2: { category: 'bullet', seconds: 120, increment: 1, label: 'Bullet · 2+1' },
+    blitz3: { category: 'blitz', seconds: 180, increment: 0, label: 'Blitz · 3+0' },
+    blitz5: { category: 'blitz', seconds: 300, increment: 0, label: 'Blitz · 5+0' },
+    rapid10: { category: 'rapid', seconds: 600, increment: 0, label: 'Rapid · 10+0' },
+    rapid15: { category: 'rapid', seconds: 900, increment: 10, label: 'Rapid · 15+10' },
+    classic30: { category: 'classic', seconds: 1800, increment: 0, label: 'Clássico · 30+0' },
+    classic60: { category: 'classic', seconds: 3600, increment: 0, label: 'Clássico · 60+0' }
+  };
+  const timeControl = Object.hasOwn(controls, raw?.timeControl) ? raw.timeControl : 'blitz3';
+  return { pace, orbs, timeLimit, mode, timeControl, ...controls[timeControl] };
 }
 
 function formatMatchOptionsSummary(opts = {}) {
   const o = sanitizeMatchOptions(opts);
   if (o.mode === 'tactical_draft') return 'Cerco Tático · Draft de Cartas · Turnos';
+  if (o.mode === 'classic') return `Xadrez Clássico · ${o.label}`;
   const paceLabel = o.pace === 'fast' ? 'Ritmo Rápido' : o.pace === 'tactical' ? 'Ritmo Tático' : 'Ritmo Padrão';
   const orbsLabel = o.orbs === 'abundant' ? 'Muitos Fragmentos' : o.orbs === 'none' ? 'Sem Fragmentos' : 'Fragmentos Normais';
   const timeLabel = o.timeLimit === 180 ? '3 min' : o.timeLimit === 300 ? '5 min' : 'Sem limite de tempo';
@@ -717,7 +731,7 @@ async function handleApi(req, res, url) {
     if (!user) return json(res, 401, { error: 'Sessão expirada.' });
     let body;
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Dados inválidos.' }); }
-    const mode = ['cpu', 'arena', 'duel', 'tutorial'].includes(body.mode) ? body.mode : 'cpu';
+    const mode = ['cpu', 'classic_cpu', 'arena', 'duel', 'tutorial'].includes(body.mode) ? body.mode : 'cpu';
     const difficulty = Number(body.difficulty) || 1;
     const won = body.result === 'win';
     const draw = body.result === 'draw';
@@ -741,7 +755,9 @@ async function handleApi(req, res, url) {
     }
 
     const diffNames = { 1: 'Iniciante', 2: 'Fácil', 3: 'Normal', 4: 'Difícil', 5: 'Especialista' };
-    const opponentName = mode === 'cpu'
+    const opponentName = mode === 'classic_cpu'
+      ? `Bot de Xadrez (${diffNames[difficulty] || 'Normal'})`
+      : mode === 'cpu'
       ? `CPU (${diffNames[difficulty] || 'Normal'})`
       : mode === 'tutorial'
         ? 'Mentor (Tutorial)'
@@ -941,17 +957,36 @@ function finishGame(game, winner, reason) {
     else if (winner === 1) { b.wins = (b.wins || 0) + 1; a.losses = (a.losses || 0) + 1; }
     else { a.draws = (a.draws || 0) + 1; b.draws = (b.draws || 0) + 1; }
 
+    let ratingChanges = [0, 0];
+    if (game.mode === 'classic' && game.rated) {
+      const category = game.options.category;
+      a.classicRatings ||= {};
+      b.classicRatings ||= {};
+      const ratingA = Number(a.classicRatings[category]) || 1200;
+      const ratingB = Number(b.classicRatings[category]) || 1200;
+      const expectedA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
+      const scoreA = winner === null ? 0.5 : winner === 0 ? 1 : 0;
+      const delta = Math.round(32 * (scoreA - expectedA));
+      ratingChanges = [delta, -delta];
+      a.classicRatings[category] = ratingA + delta;
+      b.classicRatings[category] = ratingB - delta;
+    }
+
     db.games.unshift({
       id: game.id,
-      mode: 'online',
+      mode: game.mode === 'classic' ? 'classic' : 'online',
       players: [a.id, b.id],
       winner,
       reason,
       duration: Math.floor(game.T),
       createdAt: nowIso(),
       scores: game.teams.map(t => t.score),
-      options: game.options
+      options: game.options,
+      timeControl: game.mode === 'classic' ? game.options.timeControl : undefined,
+      rated: Boolean(game.rated),
+      ratingChanges: game.mode === 'classic' ? ratingChanges : undefined
     });
+    game.ratingChanges = ratingChanges;
     db.games = db.games.slice(0, 5000);
     persistDb();
     sendUser(a.id, 'profile:stats', { user: safeUser(a, true, true), games: userHistoryPayload(a.id) });
@@ -969,10 +1004,18 @@ function serializeGame(game, side) {
     side,
     opponent: opponent ? safeUser(opponent) : { username: 'Adversário', displayName: 'Adversário', avatar: '♟' },
     T: game.T,
+    mode: game.mode,
     over: game.over,
     winner: game.winner,
     reason: game.reason || '',
     options: game.options,
+    classic: game.mode === 'classic',
+    turn: game.mode === 'classic' ? game.turn : undefined,
+    clocks: game.mode === 'classic' ? game.clocks : undefined,
+    castle: game.mode === 'classic' ? game.castle : undefined,
+    enPassant: game.mode === 'classic' ? game.enPassant : undefined,
+    rated: game.mode === 'classic' && game.rated,
+    ratingChanges: game.ratingChanges,
     pieces: game.pieces.map(p => ({
       id: p.id, type: p.type, owner: p.owner, x: p.x, y: p.y, ready: p.ready, cd0: p.cooldown, shield: p.shield
     })),
@@ -1019,6 +1062,192 @@ function makeGame(room) {
   for (let i = 0; i < 18; i++) spawnFood(game);
   addEvent(game, `Duelo online iniciado (${formatMatchOptionsSummary(opts)}).`);
   return game;
+}
+
+function makeClassicGame(room) {
+  const options = sanitizeMatchOptions(room.options);
+  const game = {
+    id: id(), roomId: room.id, mode: 'classic', players: [...room.players], options,
+    rated: room.kind === 'public', T: 0, lastTick: Date.now(), lastBroadcast: 0,
+    grid: Array.from({ length: 8 }, () => Array(8).fill(null)), pieces: [], orbs: [],
+    teams: [0, 1].map(id => ({
+      id, score: 0, xp: 0, level: 0, energy: 0, boostUntil: 0, captures: 0, kings: 1, alive: true
+    })),
+    nextPieceId: 1, events: [], lastMove: null, over: false, winner: null,
+    turn: 0, clocks: [options.seconds, options.seconds], clockAt: Date.now(),
+    castle: [{ king: true, queen: true }, { king: true, queen: true }],
+    enPassant: null, halfMoves: 0, repetition: new Map(), disconnects: new Map()
+  };
+  const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+  for (let x = 0; x < 8; x++) {
+    addPiece(game, backRank[x], 1, x, 0);
+    addPiece(game, 'P', 1, x, 1);
+    addPiece(game, 'P', 0, x, 6);
+    addPiece(game, backRank[x], 0, x, 7);
+  }
+  addEvent(game, `Xadrez Clássico iniciado · ${options.label}.`);
+  game.repetition.set(classicPositionKey(game), 1);
+  return game;
+}
+
+function classicPositionKey(game) {
+  const board = game.grid.map(row => row.map(p => p ? `${p.owner}${p.type}` : '--').join('')).join('/');
+  return `${board}|${game.turn}|${game.castle.map(c => `${c.king ? 'K' : ''}${c.queen ? 'Q' : ''}`).join('')}|${game.enPassant ? `${game.enPassant.x},${game.enPassant.y}` : '-'}`;
+}
+
+function classicAttacked(game, x, y, bySide) {
+  for (const p of game.pieces) {
+    if (p.owner !== bySide || game.grid[p.y]?.[p.x] !== p) continue;
+    const dx = x - p.x, dy = y - p.y, ax = Math.abs(dx), ay = Math.abs(dy);
+    if (p.type === 'P' && dy === (bySide === 0 ? -1 : 1) && ax === 1) return true;
+    if (p.type === 'N' && ax * ay === 2) return true;
+    if (p.type === 'K' && Math.max(ax, ay) === 1) return true;
+    const diagonal = ax === ay && ax > 0;
+    const straight = (dx === 0) !== (dy === 0);
+    if ((p.type === 'B' && diagonal) || (p.type === 'R' && straight) || (p.type === 'Q' && (diagonal || straight))) {
+      const sx = Math.sign(dx), sy = Math.sign(dy);
+      let cx = p.x + sx, cy = p.y + sy, blocked = false;
+      while (cx !== x || cy !== y) {
+        if (game.grid[cy][cx]) { blocked = true; break; }
+        cx += sx; cy += sy;
+      }
+      if (!blocked) return true;
+    }
+  }
+  return false;
+}
+
+function classicPseudoMoves(game, p) {
+  const result = [];
+  const add = (x, y) => {
+    if (x < 0 || y < 0 || x >= 8 || y >= 8) return;
+    if (game.grid[y][x]?.owner === p.owner) return;
+    if (game.grid[y][x]?.type !== 'K') result.push([x, y]);
+  };
+  const slide = dirs => {
+    for (const [dx, dy] of dirs) {
+      let x = p.x + dx, y = p.y + dy;
+      while (x >= 0 && y >= 0 && x < 8 && y < 8) {
+        if (game.grid[y][x]?.owner === p.owner) break;
+        if (game.grid[y][x]?.type !== 'K') result.push([x, y]);
+        if (game.grid[y][x]) break;
+        x += dx; y += dy;
+      }
+    }
+  };
+  if (p.type === 'P') {
+    const dir = p.owner === 0 ? -1 : 1, start = p.owner === 0 ? 6 : 1;
+    if (!game.grid[p.y + dir]?.[p.x]) {
+      result.push([p.x, p.y + dir]);
+      if (p.y === start && !game.grid[p.y + 2 * dir][p.x]) result.push([p.x, p.y + 2 * dir]);
+    }
+    for (const dx of [-1, 1]) {
+      const x = p.x + dx, y = p.y + dir;
+      if (x >= 0 && x < 8 && ((game.grid[y][x]?.owner === 1 - p.owner && game.grid[y][x]?.type !== 'K') ||
+        (game.enPassant?.x === x && game.enPassant?.y === y))) result.push([x, y]);
+    }
+  } else if (p.type === 'N') {
+    for (const [dx, dy] of KNIGHT) add(p.x + dx, p.y + dy);
+  } else if (p.type === 'B') slide(DIAG);
+  else if (p.type === 'R') slide(ORTH);
+  else if (p.type === 'Q') slide([...ORTH, ...DIAG]);
+  else if (p.type === 'K') {
+    for (const [dx, dy] of [...ORTH, ...DIAG]) add(p.x + dx, p.y + dy);
+    const row = p.owner === 0 ? 7 : 0, rights = game.castle[p.owner];
+    if (p.x === 4 && p.y === row && !classicAttacked(game, 4, row, 1 - p.owner)) {
+      if (rights.king && !game.grid[row][5] && !game.grid[row][6] &&
+        game.grid[row][7]?.type === 'R' && game.grid[row][7]?.owner === p.owner &&
+        !classicAttacked(game, 5, row, 1 - p.owner) && !classicAttacked(game, 6, row, 1 - p.owner)) result.push([6, row]);
+      if (rights.queen && !game.grid[row][1] && !game.grid[row][2] && !game.grid[row][3] &&
+        game.grid[row][0]?.type === 'R' && game.grid[row][0]?.owner === p.owner &&
+        !classicAttacked(game, 3, row, 1 - p.owner) && !classicAttacked(game, 2, row, 1 - p.owner)) result.push([2, row]);
+    }
+  }
+  return result;
+}
+
+function classicLegalMoves(game, p) {
+  return classicPseudoMoves(game, p).filter(([x, y]) => {
+    const fromX = p.x, fromY = p.y, target = game.grid[y][x];
+    const ep = p.type === 'P' && x !== fromX && !target;
+    const epTarget = ep ? game.grid[y + (p.owner === 0 ? 1 : -1)][x] : null;
+    game.grid[fromY][fromX] = null;
+    if (epTarget) game.grid[epTarget.y][epTarget.x] = null;
+    game.grid[y][x] = p;
+    p.x = x; p.y = y;
+    const king = game.pieces.find(piece => piece.owner === p.owner && piece.type === 'K');
+    const safe = king && !classicAttacked(game, king.x, king.y, 1 - p.owner);
+    p.x = fromX; p.y = fromY;
+    game.grid[fromY][fromX] = p;
+    game.grid[y][x] = target;
+    if (epTarget) game.grid[epTarget.y][epTarget.x] = epTarget;
+    return safe;
+  });
+}
+
+function classicInsufficientMaterial(game) {
+  const material = game.pieces.filter(p => p.type !== 'K');
+  if (!material.length) return true;
+  if (material.some(p => ['P', 'R', 'Q'].includes(p.type))) return false;
+  if (material.length === 1) return true;
+  if (material.every(p => p.type === 'B') && new Set(material.map(p => (p.x + p.y) % 2)).size === 1) return true;
+  return material.length === 2 && material.every(p => p.type === 'N' && p.owner === material[0].owner);
+}
+
+function classicCanMate(game, side) {
+  const material = game.pieces.filter(p => p.owner === side && p.type !== 'K');
+  if (material.some(p => ['P', 'R', 'Q'].includes(p.type))) return true;
+  if (material.some(p => p.type === 'B') && material.some(p => p.type === 'N')) return true;
+  if (material.filter(p => p.type === 'B').length >= 2 &&
+      new Set(material.filter(p => p.type === 'B').map(p => (p.x + p.y) % 2)).size > 1) return true;
+  if (material.filter(p => p.type === 'N').length >= 3) return true;
+  return material.length >= 2 && game.pieces.some(p => p.owner !== side && p.type !== 'K');
+}
+
+function applyClassicMove(game, p, x, y) {
+  const side = game.turn, fromX = p.x, fromY = p.y, target = game.grid[y][x];
+  const pawnMove = p.type === 'P';
+  const epCapture = p.type === 'P' && x !== fromX && !target;
+  const captured = target || (epCapture ? game.grid[y + (side === 0 ? 1 : -1)][x] : null);
+  if (captured) removePiece(game, captured);
+  game.grid[fromY][fromX] = null;
+  p.x = x; p.y = y;
+  game.grid[y][x] = p;
+  if (p.type === 'K' && Math.abs(x - fromX) === 2) {
+    const rookX = x === 6 ? 7 : 0, rook = game.grid[y][rookX];
+    game.grid[y][rookX] = null; rook.x = x === 6 ? 5 : 3; game.grid[y][rook.x] = rook;
+  }
+  if (p.type === 'K') game.castle[side] = { king: false, queen: false };
+  if (p.type === 'R' && fromY === (side === 0 ? 7 : 0)) {
+    if (fromX === 0) game.castle[side].queen = false;
+    if (fromX === 7) game.castle[side].king = false;
+  }
+  if (captured?.type === 'R' && captured.y === (captured.owner === 0 ? 7 : 0)) {
+    if (captured.x === 0) game.castle[captured.owner].queen = false;
+    if (captured.x === 7) game.castle[captured.owner].king = false;
+  }
+  game.enPassant = p.type === 'P' && Math.abs(y - fromY) === 2
+    ? { x, y: (fromY + y) / 2 } : null;
+  if (p.type === 'P' && (y === 0 || y === 7)) p.type = 'Q';
+  game.halfMoves = pawnMove || captured ? 0 : game.halfMoves + 1;
+  game.clocks[side] += game.options.increment;
+  game.turn = 1 - side;
+  game.lastMove = { x0: fromX, y0: fromY, x1: x, y1: y, t: game.T };
+  game.clockAt = Date.now();
+  addEvent(game, captured ? `${TEAM[side].name} capturou uma peça.` : `${TEAM[side].name} moveu.`);
+
+  const key = classicPositionKey(game);
+  game.repetition.set(key, (game.repetition.get(key) || 0) + 1);
+  const nextMoves = game.pieces.filter(piece => piece.owner === game.turn)
+    .some(piece => classicLegalMoves(game, piece).length > 0);
+  const inCheck = classicAttacked(game,
+    game.pieces.find(piece => piece.owner === game.turn && piece.type === 'K').x,
+    game.pieces.find(piece => piece.owner === game.turn && piece.type === 'K').y, side);
+  if (!nextMoves) finishGame(game, inCheck ? side : null, inCheck ? 'Xeque-mate.' : 'Afogamento: empate.');
+  else if (classicInsufficientMaterial(game)) finishGame(game, null, 'Material insuficiente: empate.');
+  else if (game.halfMoves >= 100) finishGame(game, null, 'Regra dos 50 lances: empate.');
+  else if (game.repetition.get(key) >= 3) finishGame(game, null, 'Repetição tripla: empate.');
+  publishGame(game, game.over ? 'game:ended' : 'game:state');
 }
 
 const TACTICAL_BOARD = 12;
@@ -2224,6 +2453,8 @@ function beginRoom(room) {
   if (room.players.length !== 2 || room.gameId) return;
   const game = room.options?.mode === 'tactical_draft'
     ? new TacticalDraftMatch(room)
+    : room.options?.mode === 'classic'
+      ? makeClassicGame(room)
     : makeGame(room);
   room.gameId = game.id;
   activeGames.set(game.id, game);
@@ -2248,6 +2479,8 @@ function createRoom(players, kind = 'private', options = {}) {
   for (const player of players) {
     const queued = queue.indexOf(player);
     if (queued >= 0) queue.splice(queued, 1);
+    const classicQueued = classicQueue.findIndex(entry => entry.uid === player);
+    if (classicQueued >= 0) classicQueue.splice(classicQueued, 1);
   }
   const cleanOpts = sanitizeMatchOptions(options);
   const codeLen = cleanOpts.mode === 'tactical_draft' ? 4 : 6;
@@ -2274,6 +2507,29 @@ function handleMove(ws, msg) {
   const game = gameForSocket(ws);
   if (!game) return sendError(ws, 'Você não está em uma partida ativa.', 'NO_GAME');
   const side = game.players.indexOf(ws.userId);
+  if (game.mode === 'classic') {
+    const now = Date.now();
+    const elapsed = Math.max(0, (now - game.lastTick) / 1000);
+    game.clocks[game.turn] = Math.max(0, game.clocks[game.turn] - elapsed);
+    game.T += elapsed;
+    game.lastTick = now;
+    if (game.clocks[game.turn] <= 0) {
+      const winner = classicCanMate(game, 1 - game.turn) ? 1 - game.turn : null;
+      finishGame(game, winner, winner === null ? 'Tempo esgotado, mas não há material para dar mate: empate.' : 'Tempo esgotado.');
+      publishGame(game, 'game:ended');
+      return;
+    }
+    if (side !== game.turn) return sendError(ws, 'Ainda não é a sua vez.', 'NOT_YOUR_TURN');
+    const p = game.pieces.find(piece => piece.id === Number(msg.pieceId));
+    if (!p || p.owner !== side) return sendError(ws, 'Você só pode mover suas próprias peças.', 'NOT_YOUR_PIECE');
+    const x = Number(msg.x), y = Number(msg.y);
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= 8 || y >= 8 ||
+      !classicLegalMoves(game, p).some(([a, b]) => a === x && b === y)) {
+      return sendError(ws, 'Movimento ilegal no xadrez clássico.', 'ILLEGAL_MOVE');
+    }
+    applyClassicMove(game, p, x, y);
+    return;
+  }
   const p = game.pieces.find(piece => piece.id === Number(msg.pieceId));
   if (!p || p.owner !== side) return sendError(ws, 'Você só pode mover suas próprias peças.', 'NOT_YOUR_PIECE');
   if (p.ready > game.T) return sendError(ws, 'Essa peça ainda está se recuperando.', 'COOLDOWN');
@@ -2589,6 +2845,24 @@ async function handleSocketMessage(ws, msg) {
     }
     case 'match:queue': {
       if (findGameFor(ws.userId)) return sendError(ws, 'Você já está em uma partida.');
+      if (msg.options?.mode === 'classic') {
+        const options = sanitizeMatchOptions({ ...msg.options, mode: 'classic' });
+        const mine = classicQueue.find(entry => entry.uid === ws.userId);
+        if (mine) classicQueue.splice(classicQueue.indexOf(mine), 1);
+        const opponentIndex = classicQueue.findIndex(entry =>
+          entry.uid !== ws.userId &&
+          entry.options.timeControl === options.timeControl &&
+          isOnline(entry.uid) && !findGameFor(entry.uid)
+        );
+        if (opponentIndex >= 0) {
+          const other = classicQueue.splice(opponentIndex, 1)[0];
+          createRoom([other.uid, ws.userId], 'public', options);
+        } else {
+          classicQueue.push({ uid: ws.userId, options });
+          send(ws, 'match:waiting', { position: classicQueue.length, mode: 'classic' });
+        }
+        break;
+      }
       if (!queue.includes(ws.userId)) queue.push(ws.userId);
       const index = queue.findIndex(uid => uid !== ws.userId && isOnline(uid) && !findGameFor(uid));
       if (index >= 0) {
@@ -2603,6 +2877,8 @@ async function handleSocketMessage(ws, msg) {
     case 'match:cancel': {
       const i = queue.indexOf(ws.userId);
       if (i >= 0) queue.splice(i, 1);
+      const classicIndex = classicQueue.findIndex(entry => entry.uid === ws.userId);
+      if (classicIndex >= 0) classicQueue.splice(classicIndex, 1);
       send(ws, 'match:cancelled', {});
       break;
     }
@@ -2770,6 +3046,27 @@ function tickGames() {
     const dt = Math.min(0.25, Math.max(0, (now - game.lastTick) / 1000));
     game.lastTick = now;
     game.T += dt;
+    if (game.mode === 'classic') {
+      game.clocks[game.turn] = Math.max(0, game.clocks[game.turn] - dt);
+      if (game.clocks[game.turn] <= 0) {
+        const winner = classicCanMate(game, 1 - game.turn) ? 1 - game.turn : null;
+        finishGame(game, winner, winner === null ? 'Tempo esgotado, mas não há material para dar mate: empate.' : 'Tempo esgotado.');
+        publishGame(game, 'game:ended');
+        continue;
+      }
+      for (const [uid, disconnectedAt] of game.disconnects) {
+        if (now - disconnectedAt > RECONNECT_GRACE_MS) {
+          finishGame(game, 1 - game.players.indexOf(uid), 'O adversário perdeu a conexão.');
+          publishGame(game, 'game:ended');
+          break;
+        }
+      }
+      if (now - game.lastBroadcast >= 160) {
+        game.lastBroadcast = now;
+        publishGame(game);
+      }
+      continue;
+    }
     game.foodTimer -= dt;
     if (game.foodTimer <= 0) {
       game.foodTimer = 1.1;
@@ -2846,7 +3143,9 @@ const server = http.createServer(async (req, res) => {
     const data = await fs.readFile(file);
     res.writeHead(200, {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
-      'cache-control': path.extname(file) === '.html' ? 'no-cache' : 'public, max-age=3600'
+      'cache-control': ['.html', '.js', '.css'].includes(path.extname(file))
+        ? 'no-cache'
+        : 'public, max-age=3600'
     });
     res.end(data);
   } catch {
@@ -2913,6 +3212,8 @@ wss.on('connection', ws => {
       notifyPresence(uid);
       const i = queue.indexOf(uid);
       if (i >= 0) queue.splice(i, 1);
+      const classicIndex = classicQueue.findIndex(entry => entry.uid === uid);
+      if (classicIndex >= 0) classicQueue.splice(classicIndex, 1);
       const game = findGameFor(uid);
       if (game) {
         if (game.mode === 'tactical_draft') {

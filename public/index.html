@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#181715">
 <meta name="description" content="Crownflux.io — estratégia em tempo real inspirada no xadrez. Evolua seu exército, domine os Fragmentos Flux e vença seus rivais.">
 <title>Crownflux.io — Xadrez em Tempo Real</title>
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261118-checkmate">
 </head>
 <body data-board-theme="classic">
 <div id="app">
@@ -54,7 +54,7 @@
   }
   await loadMarkup("sharedRoot", "/screens/shared.html");
   await loadMarkup("tacticalRoot", "/screens/tactical.html");
-  for (const url of ["/app.js", "/tactical.js"]) {
+  for (const url of ["/app.js?v=20261118-checkmate", "/tactical.js?v=20261118-checkmate"]) {
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = url;

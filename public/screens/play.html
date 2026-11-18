@@ -31,10 +31,17 @@
           <!-- Overlay: Main Mode Picker -->
           <div id="start" class="overlay">
             <div class="modal">
-              <div class="eyebrow">Xadrez estratégico em tempo real</div>
+              <div class="eyebrow">Estratégia em tempo real e xadrez clássico</div>
               <h1>CROWN<em>FLUX</em>.IO</h1>
-              <p class="tagline">Sem turnos. Mova suas peças em tempo real, evolua seu exército e capture o Rei adversário.</p>
+              <p class="tagline">Escolha entre batalhas estratégicas em tempo real ou partidas de xadrez clássico.</p>
               <div class="mode-grid">
+                <button class="mode-card" data-mode="classic" type="button" style="grid-column:1 / -1">
+                  <span class="mode-icon">♟</span>
+                  <span>
+                    <span class="mode-name">Xadrez Clássico</span>
+                    <span class="mode-sub">Regras oficiais, bot ajustável, partidas ranqueadas e relógios</span>
+                  </span>
+                </button>
                 <button class="mode-card active" data-mode="arena" type="button">
                   <span class="mode-icon">⚔️</span>
                   <span>
@@ -103,10 +110,27 @@
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
                 <div>
                   <div class="eyebrow">Multiplayer em tempo real</div>
-                  <h2 style="margin:2px 0 4px;font-size:20px">Duelo Online 1v1</h2>
+                  <h2 id="onlineLobbyTitle" style="margin:2px 0 4px;font-size:20px">Duelo Online 1v1</h2>
                   <p class="muted" style="margin:0" id="onlineLobbySub">Encontre um adversário na fila pública ou crie uma sala privada.</p>
                 </div>
                 <button class="close-btn" id="onlineLobbyCloseBtn" type="button">×</button>
+              </div>
+
+              <div id="classicLobbyControls" class="panel-box hidden">
+                <h3>Configuração do xadrez</h3>
+                <label class="field-label" for="classicTimeControl">Relógio por jogador</label>
+                <select class="field" id="classicTimeControl">
+                  <option value="bullet1">Bullet · 1+0</option>
+                  <option value="bullet2">Bullet · 2+1</option>
+                  <option value="blitz3" selected>Blitz · 3+0</option>
+                  <option value="blitz5">Blitz · 5+0</option>
+                  <option value="rapid10">Rapid · 10+0</option>
+                  <option value="rapid15">Rapid · 15+10</option>
+                  <option value="classic30">Clássico · 30+0</option>
+                  <option value="classic60">Clássico · 60+0</option>
+                </select>
+                <p class="muted" style="margin:0">A fila pública é ranqueada por categoria. Salas privadas não alteram o rating.</p>
+                <button class="secondary" id="classicBotBtn" type="button">JOGAR CONTRA BOT</button>
               </div>
 
               <div id="onlineLobbyGuestNotice" class="panel-box hidden">
@@ -166,7 +190,16 @@
           </div>
         </div>
 
-        <div class="footer-hint">
+        <div id="classicMateBanner" class="classic-mate-banner hidden" role="status" aria-live="polite">
+          <strong id="classicMateText"></strong>
+          <div class="classic-mate-actions">
+            <button id="classicMateAgain" class="primary hidden" type="button">JOGAR NOVAMENTE</button>
+            <button id="classicMateRematch" class="primary hidden" type="button">PEDIR REVANCHE</button>
+            <button id="classicMateMenu" class="secondary" type="button">MENU PRINCIPAL</button>
+          </div>
+        </div>
+
+        <div class="footer-hint" id="footerHint">
           Toque em uma peça da sua cor e depois na casa de destino. <b>ESC</b> cancela a seleção · <b>ESPAÇO</b> ativa o Surto em 100%.
         </div>
       </section>

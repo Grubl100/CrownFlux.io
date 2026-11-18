@@ -28,9 +28,20 @@ for (const fragment of fragments) {
 }
 
 const playMarkup = await readFile(new URL('../public/screens/play.html', import.meta.url), 'utf8');
-for (const requiredId of ['wrap', 'cv', 'start', 'go']) {
+for (const requiredId of [
+  'wrap', 'cv', 'start', 'go', 'classicTimeControl', 'classicBotBtn',
+  'classicMateBanner', 'classicMateText', 'classicMateAgain', 'classicMateRematch', 'classicMateMenu'
+]) {
   if (!playMarkup.includes(`id="${requiredId}"`)) {
     throw new Error(`A tela de jogo não contém ${requiredId}.`);
+  }
+  if (!playMarkup.includes('data-mode="classic"')) {
+    throw new Error('A tela de jogo não contém a configuração do Xadrez Clássico.');
+  }
+
+  const profileMarkup = await readFile(new URL('../public/screens/profile.html', import.meta.url), 'utf8');
+  for (const ratingId of ['statRatingBullet', 'statRatingBlitz', 'statRatingRapid', 'statRatingClassic']) {
+    if (!profileMarkup.includes(`id="${ratingId}"`)) throw new Error(`O perfil não contém ${ratingId}.`);
   }
 }
 

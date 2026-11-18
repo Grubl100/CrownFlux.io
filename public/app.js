@@ -1,6 +1,6 @@
 'use strict';
 
-const N = 16;
+let N = 16;
 const ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
 const KN = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
@@ -80,6 +80,18 @@ const MODE_INFO = {
     players: '1V1 CPU',
     desc: 'Enfrente o computador em 5 níveis de dificuldade com comportamentos e estratégias reais distintas.',
     record: 'cf_best_cpu'
+  },
+  classic: {
+    tag: 'XADREZ CLÁSSICO',
+    players: '1V1 · XADREZ',
+    desc: 'Xadrez 8×8 com regras oficiais. Escolha um bot com dificuldade ajustável ou jogue online com relógio e rating.',
+    record: 'cf_best_classic'
+  },
+  classic_cpu: {
+    tag: 'XADREZ CLÁSSICO · VS BOT',
+    players: '1V1 · XADREZ',
+    desc: 'Partida de xadrez clássico contra um bot com dificuldade ajustável.',
+    record: 'cf_best_classic'
   },
   tactical_draft: {
     tag: 'CERCO TÁTICO · CARTAS',
@@ -162,6 +174,17 @@ const TUTORIAL_STEPS = [
 
 let selectedMode = 'arena';
 let cpuDifficulty = 1;
+let classicTimeControl = 'blitz3';
+const CLASSIC_CONTROLS = {
+  bullet1: { seconds: 60, increment: 0, label: 'Bullet · 1+0' },
+  bullet2: { seconds: 120, increment: 1, label: 'Bullet · 2+1' },
+  blitz3: { seconds: 180, increment: 0, label: 'Blitz · 3+0' },
+  blitz5: { seconds: 300, increment: 0, label: 'Blitz · 5+0' },
+  rapid10: { seconds: 600, increment: 0, label: 'Rapid · 10+0' },
+  rapid15: { seconds: 900, increment: 10, label: 'Rapid · 15+10' },
+  classic30: { seconds: 1800, increment: 0, label: 'Clássico · 30+0' },
+  classic60: { seconds: 3600, increment: 0, label: 'Clássico · 60+0' }
+};
 let S = null;
 let best = 0;
 let cell = 40;
@@ -260,11 +283,16 @@ function playTone(kind) {
 function safeGet(k) { try { return Number(localStorage.getItem(k)) || 0; } catch (_) { return 0; } }
 function safeSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (_) {} }
 function fmt(t) { t = Math.floor(t); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function fmtChessClock(t) {
+  const seconds = Math.max(0, Number(t) || 0);
+  return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+}
 function rand(n) { return Math.floor(Math.random() * n); }
 function activeTeams() { return S.mode === 'arena' ? [0, 1, 2, 3] : [0, 1]; }
-function isBot(i) { return S.mode === 'arena' ? i !== 0 : ((S.mode === 'cpu' || S.mode === 'tutorial') && i === 1); }
+function isBot(i) { return S.mode === 'arena' ? i !== 0 : ((S.mode === 'cpu' || S.mode === 'tutorial' || S.mode === 'classic_cpu') && i === 1); }
 function teamName(i) {
   if (S?.mode === 'online') return i === onlineSide ? (onlineUser?.displayName || onlineUser?.username || 'Você') : onlineOpponent;
+  if (S?.mode === 'classic_cpu' && i === 1) return `Bot · ${CPU_LEVELS.find(c => c.level === cpuDifficulty)?.name || 'Iniciante'}`;
   if (S?.mode === 'cpu' && i === 1) {
     const info = CPU_LEVELS.find(c => c.level === cpuDifficulty);
     return 'CPU ' + (info ? info.name : '');
@@ -501,9 +529,13 @@ function recordMoveAndSwitchTurn(moverOwner, pieceType, fromX, fromY, toX, toY) 
 /* Core Game Setup & Mechanics */
 function reset(mode = selectedMode) {
   selectedMode = mode;
+  N = mode === 'classic_cpu' ? 8 : 16;
+  const classic = mode === 'classic_cpu';
+  const control = CLASSIC_CONTROLS[classicTimeControl] || CLASSIC_CONTROLS.blitz3;
   const teamIds = mode === 'arena' ? [0, 1, 2, 3] : [0, 1];
   S = {
     mode,
+    classic,
     T: 0,
     turnOwner: 0,
     turnTimer: createTurnTimer(),
@@ -518,6 +550,7 @@ function reset(mode = selectedMode) {
     sel: null,
     over: false,
     started: false,
+    checkmatedKingOwner: null,
     nid: 1,
     foodT: 0,
     orbT: 5,
@@ -526,12 +559,33 @@ function reset(mode = selectedMode) {
     fx: [],
     events: [],
     lastMove: null,
-    winner: null
+    winner: null,
+    turn: 0,
+    castle: classic ? [{ king: true, queen: true }, { king: true, queen: true }] : null,
+    enPassant: null,
+    halfMoves: 0,
+    chessClock: classic ? [control.seconds, control.seconds] : null,
+    chessIncrement: classic ? control.increment : 0,
+    repetition: classic ? new Map() : null,
+    clockControlLabel: classic ? control.label : '',
+    nextBotAt: 0
   };
-  for (const i of teamIds) spawnArmy(i);
-  const initialFoodCount = mode === 'arena' ? 24 : mode === 'tutorial' ? 6 : 18;
-  for (let i = 0; i < initialFoodCount; i++) spawnFood(mode === 'tutorial');
+  if (classic) {
+    const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+    for (let x = 0; x < 8; x++) {
+      add(backRank[x], 1, x, 0);
+      add('P', 1, x, 1);
+      add('P', 0, x, 6);
+      add(backRank[x], 0, x, 7);
+    }
+  } else {
+    for (const i of teamIds) spawnArmy(i);
+    const initialFoodCount = mode === 'arena' ? 24 : mode === 'tutorial' ? 6 : 18;
+    for (let i = 0; i < initialFoodCount; i++) spawnFood(mode === 'tutorial');
+  }
   calcAtt();
+  if (classic) S.repetition.set(classicPositionKey(), 1);
+  $('classicMateBanner').classList.add('hidden');
 
   if (mode === 'tutorial') {
     feed('Partida 1v1 iniciada: Você (Azul) contra Mentor Rubi (Bot).');
@@ -540,6 +594,8 @@ function reset(mode = selectedMode) {
     feed(`Duelo contra CPU (${info.name}) preparado.`);
   } else if (mode === 'duel') {
     feed('Duelo local preparado: Azul contra Rubi.');
+  } else if (classic) {
+    feed(`Xadrez Clássico · ${control.label}.`);
   } else {
     feed('Quatro facções entraram na arena.');
   }
@@ -553,6 +609,10 @@ function reset(mode = selectedMode) {
   } else {
     $('modeTag').textContent = info.tag;
   }
+  $('footerHint').textContent = classic
+    ? 'Selecione uma peça e a casa de destino. Xeque-mate vence; o relógio controla o tempo da partida.'
+    : 'Toque em uma peça da sua cor e depois na casa de destino. ESC cancela a seleção · ESPAÇO ativa o Surto em 100%.';
+  $('progressCard').classList.toggle('hidden', classic);
   $('playersLabel').textContent = info.players;
 }
 
@@ -613,6 +673,7 @@ function spawnOrb() {
 }
 
 function moves(p, att = false, grid = S.grid) {
+  if (S?.classic) return att ? classicPseudoMoves(p, grid) : classicLegalMoves(p, grid);
   const r = [], { x, y, t, o } = p;
   const ok = (a, b) => a >= 0 && b >= 0 && a < N && b < N;
   const tryAdd = (a, b) => {
@@ -646,6 +707,96 @@ function moves(p, att = false, grid = S.grid) {
     }
   }
   return r;
+}
+
+function classicIsAttacked(x, y, bySide, grid = S.grid) {
+  for (const p of S.pieces) {
+    if (p.o !== bySide || grid[p.y]?.[p.x] !== p) continue;
+    const dx = x - p.x, dy = y - p.y, ax = Math.abs(dx), ay = Math.abs(dy);
+    if (p.t === 'P' && dy === (bySide === 0 ? -1 : 1) && ax === 1) return true;
+    if (p.t === 'N' && ax * ay === 2) return true;
+    if (p.t === 'K' && Math.max(ax, ay) === 1) return true;
+    const diagonal = ax === ay && ax > 0;
+    const straight = (dx === 0) !== (dy === 0);
+    if ((p.t === 'B' && diagonal) || (p.t === 'R' && straight) || (p.t === 'Q' && (diagonal || straight))) {
+      const sx = Math.sign(dx), sy = Math.sign(dy);
+      let cx = p.x + sx, cy = p.y + sy, blocked = false;
+      while (cx !== x || cy !== y) {
+        if (grid[cy][cx]) { blocked = true; break; }
+        cx += sx; cy += sy;
+      }
+      if (!blocked) return true;
+    }
+  }
+  return false;
+}
+
+function classicPseudoMoves(p, grid = S.grid) {
+  const result = [], { x, y, t, o } = p;
+  const add = (a, b) => {
+    if (a < 0 || b < 0 || a >= 8 || b >= 8 || grid[b][a]?.o === o) return;
+    if (grid[b][a]?.t !== 'K') result.push([a, b]);
+  };
+  const slide = dirs => {
+    for (const [dx, dy] of dirs) {
+      let a = x + dx, b = y + dy;
+      while (a >= 0 && b >= 0 && a < 8 && b < 8) {
+        if (grid[b][a]?.o === o) break;
+        if (grid[b][a]?.t !== 'K') result.push([a, b]);
+        if (grid[b][a]) break;
+        a += dx; b += dy;
+      }
+    }
+  };
+  if (t === 'P') {
+    const dir = o === 0 ? -1 : 1, start = o === 0 ? 6 : 1;
+    if (!grid[y + dir]?.[x]) {
+      result.push([x, y + dir]);
+      if (y === start && !grid[y + dir * 2][x]) result.push([x, y + dir * 2]);
+    }
+    for (const dx of [-1, 1]) {
+      const a = x + dx, b = y + dir;
+      if (a >= 0 && a < 8 && ((grid[b][a]?.o === 1 - o && grid[b][a]?.t !== 'K') || (S.enPassant?.x === a && S.enPassant?.y === b))) {
+        result.push([a, b]);
+      }
+    }
+  } else if (t === 'N') {
+    for (const [dx, dy] of KN) add(x + dx, y + dy);
+  } else if (t === 'B') slide(DIAG);
+  else if (t === 'R') slide(ORTH);
+  else if (t === 'Q') slide(ORTH.concat(DIAG));
+  else if (t === 'K') {
+    for (const [dx, dy] of ORTH.concat(DIAG)) add(x + dx, y + dy);
+    const row = o === 0 ? 7 : 0, rights = S.castle?.[o];
+    if (rights && y === row && x === 4 && !classicIsAttacked(4, row, 1 - o, grid)) {
+      if (rights.king && !grid[row][5] && !grid[row][6] &&
+        grid[row][7]?.t === 'R' && grid[row][7]?.o === o &&
+        !classicIsAttacked(5, row, 1 - o, grid) && !classicIsAttacked(6, row, 1 - o, grid)) result.push([6, row]);
+      if (rights.queen && !grid[row][1] && !grid[row][2] && !grid[row][3] &&
+        grid[row][0]?.t === 'R' && grid[row][0]?.o === o &&
+        !classicIsAttacked(3, row, 1 - o, grid) && !classicIsAttacked(2, row, 1 - o, grid)) result.push([2, row]);
+    }
+  }
+  return result;
+}
+
+function classicLegalMoves(p, grid = S.grid) {
+  return classicPseudoMoves(p, grid).filter(([x, y]) => {
+    const fromX = p.x, fromY = p.y, target = grid[y][x];
+    const ep = p.t === 'P' && x !== fromX && !target;
+    const epPiece = ep ? grid[y + (p.o === 0 ? 1 : -1)][x] : null;
+    grid[fromY][fromX] = null;
+    if (epPiece) grid[epPiece.y][epPiece.x] = null;
+    grid[y][x] = p;
+    p.x = x; p.y = y;
+    const king = S.pieces.find(piece => piece.o === p.o && piece.t === 'K' && grid[piece.y]?.[piece.x] === piece);
+    const safe = king && !classicIsAttacked(king.x, king.y, 1 - p.o, grid);
+    p.x = fromX; p.y = fromY;
+    grid[fromY][fromX] = p;
+    grid[y][x] = target;
+    if (epPiece) grid[epPiece.y][epPiece.x] = epPiece;
+    return safe;
+  });
 }
 
 function calcAtt() {
@@ -750,6 +901,8 @@ function gameOver(winner, reason = '') {
   if (S.over) return;
   S.over = true;
   S.winner = winner;
+  const classicCheckmate = S.classic && Number.isInteger(winner) && reason === 'Xeque-mate.';
+  S.checkmatedKingOwner = classicCheckmate ? 1 - winner : null;
   syncTurnTimerPauseState();
   if (winner === 0) playTone('win');
 
@@ -800,14 +953,30 @@ function gameOver(winner, reason = '') {
     details += `<br>Recorde no modo: <b>${best}</b>`;
     $('res').innerHTML = details;
     $('again').textContent = mode === 'tutorial' ? 'REPETIR TUTORIAL' : 'JOGAR NOVAMENTE';
-    $('changeCpuDiffBtn').classList.toggle('hidden', mode !== 'cpu' && mode !== 'tutorial');
+    $('changeCpuDiffBtn').classList.toggle('hidden', mode !== 'cpu' && mode !== 'classic_cpu' && mode !== 'tutorial');
     $('changeCpuDiffBtn').textContent = mode === 'tutorial' ? 'DESAFIAR A CPU' : 'MUDAR DIFICULDADE';
   }
 
   $('rematch').classList.add('hidden');
-  $('over').classList.remove('hidden');
-  $('statusText').textContent = 'PARTIDA ENCERRADA';
+  $('over').classList.toggle('hidden', classicCheckmate);
+  $('statusText').textContent = classicCheckmate ? 'XEQUE-MATE · #' : 'PARTIDA ENCERRADA';
+  renderClassicCheckmateBanner();
   recordOfflineMatchToBackend(winner, reason);
+}
+
+function renderClassicCheckmateBanner() {
+  const visible = Boolean(S?.classic && S.over && Number.isInteger(S.checkmatedKingOwner));
+  $('classicMateBanner').classList.toggle('hidden', !visible);
+  if (!visible) return;
+
+  const viewerSide = S.mode === 'online' ? onlineSide : 0;
+  $('classicMateText').textContent = S.winner === viewerSide
+    ? 'XEQUE-MATE · VOCÊ VENCEU'
+    : 'XEQUE-MATE · VOCÊ PERDEU';
+  $('classicMateAgain').classList.toggle('hidden', S.mode === 'online');
+  $('classicMateRematch').classList.toggle('hidden', S.mode !== 'online');
+  $('classicMateRematch').textContent = 'PEDIR REVANCHE';
+  $('classicMateRematch').disabled = false;
 }
 
 function capture(p, q) {
@@ -867,6 +1036,7 @@ function doMove(p, a, b) {
     recordMoveAndSwitchTurn(p.o, p.t, fromX, fromY, a, b);
     return true;
   }
+
   S.grid[b][a] = p;
   p.x = a;
   p.y = b;
@@ -909,6 +1079,105 @@ function doMove(p, a, b) {
     }
   }
   return true;
+}
+
+function classicPositionKey() {
+  const board = S.grid.map(row => row.map(p => p ? `${p.o}${p.t}` : '--').join('')).join('/');
+  return `${board}|${S.turnOwner}|${S.castle.map(c => `${c.king ? 'K' : ''}${c.queen ? 'Q' : ''}`).join('')}|${S.enPassant ? `${S.enPassant.x},${S.enPassant.y}` : '-'}`;
+}
+
+function classicInsufficientMaterial() {
+  const material = S.pieces.filter(p => p.t !== 'K');
+  if (!material.length) return true;
+  if (material.some(p => ['P', 'R', 'Q'].includes(p.t))) return false;
+  if (material.length === 1) return true;
+  if (material.every(p => p.t === 'B') && new Set(material.map(p => (p.x + p.y) % 2)).size === 1) return true;
+  return material.length === 2 && material.every(p => p.t === 'N' && p.o === material[0].o);
+}
+
+function classicCanMate(side) {
+  const material = S.pieces.filter(p => p.o === side && p.t !== 'K');
+  if (material.some(p => ['P', 'R', 'Q'].includes(p.t))) return true;
+  if (material.some(p => p.t === 'B') && material.some(p => p.t === 'N')) return true;
+  if (material.filter(p => p.t === 'B').length >= 2 &&
+      new Set(material.filter(p => p.t === 'B').map(p => (p.x + p.y) % 2)).size > 1) return true;
+  if (material.filter(p => p.t === 'N').length >= 3) return true;
+  return material.length >= 2 && S.pieces.some(p => p.o !== side && p.t !== 'K');
+}
+
+function doClassicMove(p, x, y) {
+  const side = S.turnOwner, fromX = p.x, fromY = p.y, target = S.grid[y][x];
+  const pawnMove = p.t === 'P';
+  const enPassantCapture = pawnMove && x !== fromX && !target;
+  const captured = target || (enPassantCapture ? S.grid[y + (side === 0 ? 1 : -1)][x] : null);
+  if (captured) {
+    rm(captured);
+    S.f[side].score += VAL[captured.t] || 1;
+    S.f[side].captures++;
+    playTone('capture');
+  }
+  S.grid[fromY][fromX] = null;
+  p.x = x; p.y = y;
+  S.grid[y][x] = p;
+  if (p.t === 'K' && Math.abs(x - fromX) === 2) {
+    const rookX = x === 6 ? 7 : 0, rook = S.grid[y][rookX];
+    S.grid[y][rookX] = null;
+    rook.x = x === 6 ? 5 : 3;
+    S.grid[y][rook.x] = rook;
+  }
+  if (p.t === 'K') S.castle[side] = { king: false, queen: false };
+  if (p.t === 'R' && fromY === (side === 0 ? 7 : 0)) {
+    if (fromX === 0) S.castle[side].queen = false;
+    if (fromX === 7) S.castle[side].king = false;
+  }
+  if (captured?.t === 'R' && captured.y === (captured.o === 0 ? 7 : 0)) {
+    if (captured.x === 0) S.castle[captured.o].queen = false;
+    if (captured.x === 7) S.castle[captured.o].king = false;
+  }
+  S.enPassant = pawnMove && Math.abs(y - fromY) === 2 ? { x, y: (fromY + y) / 2 } : null;
+  if (pawnMove && (y === 0 || y === 7)) {
+    p.t = 'Q';
+    feed('Promoção: peão convertido em rainha.');
+  }
+  S.halfMoves = pawnMove || captured ? 0 : S.halfMoves + 1;
+  S.chessClock[side] += S.chessIncrement;
+  S.turnOwner = 1 - side;
+  S.turn = S.turnOwner;
+  S.lastMove = { x0: fromX, y0: fromY, x1: x, y1: y, t: S.T };
+  if (!captured) playTone('move');
+  calcAtt();
+
+  const replyExists = S.pieces.some(piece => piece.o === S.turnOwner && moves(piece).length > 0);
+  const king = S.pieces.find(piece => piece.o === S.turnOwner && piece.t === 'K');
+  const checked = king && classicIsAttacked(king.x, king.y, side);
+  if (!replyExists) gameOver(checked ? side : null, checked ? 'Xeque-mate.' : 'Afogamento: empate.');
+  else if (classicInsufficientMaterial()) gameOver(null, 'Material insuficiente: empate.');
+  else if (S.halfMoves >= 100) gameOver(null, 'Regra dos 50 lances: empate.');
+  const key = classicPositionKey();
+  S.repetition.set(key, (S.repetition.get(key) || 0) + 1);
+  if (!S.over && S.repetition.get(key) >= 3) gameOver(null, 'Repetição tripla: empate.');
+  if (S.mode === 'classic_cpu' && S.turnOwner === 1 && !S.over) S.nextBotAt = S.T + 0.45;
+  hud();
+  return true;
+}
+
+function classicBotMove() {
+  const candidates = [];
+  for (const p of S.pieces.filter(piece => piece.o === 1)) {
+    for (const [x, y] of moves(p)) {
+      const target = S.grid[y][x];
+      let score = target ? (VAL[target.t] || 0) * 3 : 0;
+      score += (3.5 - Math.abs(3.5 - x) - Math.abs(3.5 - y)) * 0.22;
+      if (p.t === 'P') score += (y - p.y) * 0.35;
+      if ((p.t === 'N' || p.t === 'B') && (p.x === 1 || p.x === 6) && p.y === 0) score += 0.8;
+      candidates.push({ p, x, y, score: score + Math.random() * (6 - cpuDifficulty) * 0.9 });
+    }
+  }
+  if (!candidates.length) return;
+  candidates.sort((a, b) => b.score - a.score);
+  const pool = Math.max(1, 6 - cpuDifficulty);
+  const choice = candidates[Math.floor(Math.random() * Math.min(pool, candidates.length))];
+  doClassicMove(choice.p, choice.x, choice.y);
 }
 
 function cheb(a, b, c, d) { return Math.max(Math.abs(a - c), Math.abs(b - d)); }
@@ -1359,6 +1628,16 @@ function update(dt) {
   }
 
   S.T += dt;
+  if (S.classic) {
+    S.chessClock[S.turnOwner] = Math.max(0, S.chessClock[S.turnOwner] - dt);
+    if (S.chessClock[S.turnOwner] <= 0) {
+      const winner = classicCanMate(1 - S.turnOwner) ? 1 - S.turnOwner : null;
+      gameOver(winner, winner === null ? 'Tempo esgotado, mas não há material para dar mate: empate.' : 'Tempo esgotado.');
+    } else if (S.mode === 'classic_cpu' && S.turnOwner === 1 && S.T >= S.nextBotAt) {
+      classicBotMove();
+    }
+    return;
+  }
   S.attT -= dt;
   if (S.attT <= 0) { calcAtt(); S.attT = 0.22; }
 
@@ -1438,7 +1717,13 @@ function handleClick(a, b) {
   const q = S.grid[b][a], s = S.sel;
 
   if (S.mode === 'online') {
+    if (S.classic && S.turn !== onlineSide) return;
     if (s && moves(s).some(m => m[0] === a && m[1] === b)) {
+      if (S.classic) {
+        sendSocket('game:move', { pieceId: s.id, x: a, y: b });
+        S.sel = null;
+        return;
+      }
       if (s.ready <= S.T) {
         recordMoveAndSwitchTurn(onlineSide, s.t, s.x, s.y, a, b);
         sendSocket('game:move', { pieceId: s.id, x: a, y: b });
@@ -1452,6 +1737,12 @@ function handleClick(a, b) {
     return;
   }
 
+  if (S.classic && S.turnOwner !== 0) return;
+  if (S.classic && s && moves(s).some(m => m[0] === a && m[1] === b)) {
+    doClassicMove(s, a, b);
+    S.sel = null;
+    return;
+  }
   if (s) {
     if (moves(s).some(m => m[0] === a && m[1] === b)) {
       if (s.ready <= S.T) {
@@ -1471,7 +1762,7 @@ function handleClick(a, b) {
     }
   }
 
-  const selectable = q && q.o >= 0 && (S.mode === 'duel' ? true : q.o === 0);
+  const selectable = q && q.o >= 0 && (S.mode === 'duel' ? true : S.classic ? q.o === S.turnOwner : q.o === 0);
   if (selectable) {
     S.sel = q;
     if (S.mode === 'tutorial') {
@@ -1715,6 +2006,25 @@ function draw() {
     }
   }
 
+  if (Number.isInteger(S.checkmatedKingOwner)) {
+    const king = S.pieces.find(p => p.o === S.checkmatedKingOwner && p.t === 'K');
+    if (king) {
+      const markerX = (king.x + 0.79) * cell;
+      const markerY = (king.y + 0.21) * cell;
+      ctx.save();
+      ctx.fillStyle = '#c94250';
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, cell * 0.19, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `700 ${Math.max(9, Math.floor(cell * 0.3))}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('#', markerX, markerY);
+      ctx.restore();
+    }
+  }
+
   for (const e of S.fx) {
     const k = (S.T - e.t) / 0.65;
     ctx.strokeStyle = e.col;
@@ -1731,6 +2041,30 @@ function hud() {
   if (!S) return;
   const teams = activeTeams();
   const rows = teams.map(i => ({ f: S.f[i], n: S.pieces.filter(p => p.o === i).length })).sort((a, b) => a.f.id - b.f.id);
+  if (S.classic) {
+    $('progressCard').classList.add('hidden');
+    const category = S.options?.category || CLASSIC_CONTROLS[classicTimeControl]?.category || 'blitz';
+    const ratings = onlineUser?.stats?.classicRatings || {};
+    $('lb').innerHTML = rows.map(({ f }) => {
+      const mine = S.mode === 'online' ? f.id === onlineSide : f.id === 0;
+      const rating = mine ? (ratings[category] || 1200) : (S.opponent?.stats?.classicRatings?.[category] || 1200);
+      return `<div class="player-row${mine ? ' me' : ''}"><span class="dot" style="background:${FAC[f.id].col}"></span><span class="name">${teamName(f.id)} · ${rating}</span><strong class="score">${fmtChessClock(S.chessClock[f.id])}</strong></div>`;
+    }).join('');
+    const active = S.turnOwner ?? S.turn ?? 0;
+    $('turnBannerBox').classList.toggle('my-turn', active === (S.mode === 'online' ? onlineSide : 0));
+    $('turnBannerBox').classList.toggle('bot-turn', active !== (S.mode === 'online' ? onlineSide : 0));
+    $('turnOwnerDot').style.background = FAC[active]?.col || '#6f9daf';
+    $('turnOwnerText').textContent = S.over ? 'Partida encerrada' : `Vez: ${teamName(active)}`;
+    $('currentMoveTimer').textContent = fmtChessClock(S.chessClock[active]);
+    $('lastMoveTimeText').textContent = S.clockControlLabel || S.options?.label || 'Xadrez Clássico';
+    $('lastMoveTimeText').parentElement.firstElementChild.textContent = 'Controle de tempo:';
+    $('moveHistoryList').innerHTML = '';
+    $('feed').innerHTML = S.events.slice(0, 4).map(e => `<div class="feed-item"><i class="feed-mark"></i><span>${e.msg}</span></div>`).join('');
+    $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : (S.mode === 'online' ? 'XADREZ · AO VIVO' : 'XADREZ · EM ANDAMENTO');
+    return;
+  }
+  $('progressCard').classList.remove('hidden');
+  $('lastMoveTimeText').parentElement.firstElementChild.textContent = 'Jogada anterior:';
   $('lb').innerHTML = rows.map(({ f, n }) => {
     const isMe = f.id === (S.mode === 'online' ? onlineSide : 0), down = !f.alive;
     const isActiveTurn = (S.turnTimer?.activeOwner ?? 0) === f.id && S.started && !S.over;
@@ -1808,6 +2142,14 @@ function renderCpuDiffSelector() {
   const list = $('cpuDiffList');
   list.replaceChildren();
   for (const item of CPU_LEVELS) {
+    const classicDescriptions = [
+      'Joga lances legais, com escolhas variadas e erros frequentes.',
+      'Prefere desenvolver peças e aproveitar capturas simples.',
+      'Equilibra desenvolvimento, centro e oportunidades de captura.',
+      'Escolhe lances táticos com menos aleatoriedade e protege peças.',
+      'Prioriza os melhores lances avaliados e reduz ao mínimo os erros.'
+    ];
+    const description = selectedMode === 'classic' ? classicDescriptions[item.level - 1] : item.desc;
     const row = document.createElement('div');
     row.className = 'diff-item' + (cpuDifficulty === item.level ? ' selected' : '');
     const barsHtml = Array.from({ length: 5 }, (_, idx) => {
@@ -1822,7 +2164,7 @@ function renderCpuDiffSelector() {
           <div class="diff-meter" aria-label="Nível ${item.level} de 5">${barsHtml}</div>
           ${item.recommended ? '<span class="rec-tag">Recomendado para iniciantes</span>' : ''}
         </div>
-        <div class="diff-desc">${item.desc}</div>
+        <div class="diff-desc">${description}</div>
         <div class="muted" style="font-size:10px;margin-top:2px;color:var(--gold)">${item.challenge}</div>
       </div>
     `;
@@ -1833,7 +2175,7 @@ function renderCpuDiffSelector() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       cpuDifficulty = item.level;
-      launchSelectedGame('cpu');
+      launchSelectedGame(selectedMode === 'classic' ? 'classic_cpu' : 'cpu');
     });
     row.addEventListener('click', () => {
       cpuDifficulty = item.level;
@@ -1844,23 +2186,26 @@ function renderCpuDiffSelector() {
   }
 }
 
-function openCpuDiffSelector() {
+let cpuOriginLobby = false;
+function openCpuDiffSelector(fromLobby = false) {
+  cpuOriginLobby = fromLobby;
   renderCpuDiffSelector();
   $('start').classList.add('hidden');
   $('over').classList.add('hidden');
+  $('onlineLobbyOverlay').classList.add('hidden');
   $('cpuDiffOverlay').classList.remove('hidden');
 }
 
 $('cpuDiffBackBtn').addEventListener('click', () => {
   $('cpuDiffOverlay').classList.add('hidden');
-  $('start').classList.remove('hidden');
+  (cpuOriginLobby ? $('onlineLobbyOverlay') : $('start')).classList.remove('hidden');
 });
 $('cpuDiffCancelBtn').addEventListener('click', () => {
   $('cpuDiffOverlay').classList.add('hidden');
-  $('start').classList.remove('hidden');
+  (cpuOriginLobby ? $('onlineLobbyOverlay') : $('start')).classList.remove('hidden');
 });
-$('cpuDiffStartBtn').addEventListener('click', () => launchSelectedGame('cpu'));
-$('changeCpuDiffBtn').addEventListener('click', openCpuDiffSelector);
+$('cpuDiffStartBtn').addEventListener('click', () => launchSelectedGame(selectedMode === 'classic' ? 'classic_cpu' : 'cpu'));
+$('changeCpuDiffBtn').addEventListener('click', () => openCpuDiffSelector(false));
 
 function openOnlineLobby() {
   $('start').classList.add('hidden');
@@ -1868,6 +2213,14 @@ function openOnlineLobby() {
   $('cpuDiffOverlay').classList.add('hidden');
   $('onlineLobbyOverlay').classList.remove('hidden');
   const signed = Boolean(onlineUser);
+  const classic = selectedMode === 'classic';
+  $('classicLobbyControls').classList.toggle('hidden', !classic);
+  $('onlineLobbyTitle').textContent = classic ? 'Xadrez Clássico' : 'Duelo Online 1v1';
+  $('onlineLobbySub').textContent = classic
+    ? 'Jogue contra o bot, crie uma sala privada ou encontre alguém na fila ranqueada.'
+    : 'Encontre um adversário na fila pública ou crie uma sala privada.';
+  $('queueBtn').textContent = classic ? 'BUSCAR OPONENTE RANQUEADO' : 'BUSCAR ADVERSÁRIO';
+  $('classicTimeControl').value = classicTimeControl;
   $('onlineLobbyGuestNotice').classList.toggle('hidden', signed);
   $('onlineLobbyAuthContent').classList.toggle('hidden', !signed);
   if (signed && !wsReady) connectSocket();
@@ -1884,6 +2237,10 @@ $('onlineGoAuthBtn').addEventListener('click', () => {
 $('openFriendsFromLobbyBtn').addEventListener('click', () => {
   $('onlineLobbyOverlay').classList.add('hidden');
   switchNav('friends');
+});
+$('classicBotBtn').addEventListener('click', () => {
+  classicTimeControl = $('classicTimeControl').value;
+  openCpuDiffSelector(true);
 });
 
 function launchSelectedGame(mode) {
@@ -1906,7 +2263,7 @@ function launchSelectedGame(mode) {
 }
 
 function start() {
-  if (selectedMode === 'online' || selectedMode === 'tactical_draft') {
+  if (selectedMode === 'online' || selectedMode === 'tactical_draft' || selectedMode === 'classic') {
     openOnlineLobby();
     if (selectedMode === 'tactical_draft') {
       setTimeout(() => $('createTacticalRoomBtn')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
@@ -2020,6 +2377,8 @@ function chooseMode(mode) {
       ? 'COMEÇAR DUELO LOCAL →'
       : mode === 'cpu'
         ? 'ESCOLHER DIFICULDADE →'
+        : mode === 'classic'
+          ? 'CONFIGURAR XADREZ →'
         : mode === 'tactical_draft'
           ? 'ABRIR CERCO TÁTICO →'
           : 'ABRIR LOBBY ONLINE →';
@@ -2282,6 +2641,10 @@ function renderAccount() {
     $('statOnlineLosses').textContent = `${l} / ${d}`;
     $('statWinRate').textContent = `${rate}%`;
     $('statCpuWins').textContent = `${s.cpuWins || 0} (${s.cpuGames || 0} jogos)`;
+    const ratings = s.classicRatings || {};
+    for (const category of ['bullet', 'blitz', 'rapid', 'classic']) {
+      $('statRating' + category[0].toUpperCase() + category.slice(1)).textContent = String(ratings[category] || 1200);
+    }
     const diffNames = { 0: 'Nenhuma', 1: 'Iniciante', 2: 'Fácil', 3: 'Normal', 4: 'Difícil', 5: 'Especialista' };
     $('statCpuMax').textContent = diffNames[s.highestCpuLevel || 0] || 'Nenhuma';
 
@@ -2523,7 +2886,7 @@ function renderGameHistory(games) {
     const row = document.createElement('div');
     row.className = 'friend-item';
     const badgeColor = g.result === 'Vitória' ? 'var(--green)' : g.result === 'Derrota' ? 'var(--red)' : 'var(--gold)';
-    const modeLabel = g.mode === 'cpu' ? 'vs CPU' : g.mode === 'tutorial' ? 'Tutorial' : g.mode === 'duel' ? 'Duelo Local' : g.mode === 'arena' ? 'Arena' : g.mode === 'tactical_cpu' ? 'Cerco Tático vs CPU' : g.mode === 'tactical' ? 'Cerco Tático' : 'Online 1v1';
+    const modeLabel = g.mode === 'classic' ? `Xadrez Clássico${CLASSIC_CONTROLS[g.timeControl]?.label ? ' · ' + CLASSIC_CONTROLS[g.timeControl].label : ''}` : g.mode === 'classic_cpu' ? 'Xadrez vs Bot' : g.mode === 'cpu' ? 'vs CPU' : g.mode === 'tutorial' ? 'Tutorial' : g.mode === 'duel' ? 'Duelo Local' : g.mode === 'arena' ? 'Arena' : g.mode === 'tactical_cpu' ? 'Cerco Tático vs CPU' : g.mode === 'tactical' ? 'Cerco Tático' : 'Online 1v1';
     const scoresText = Array.isArray(g.scores) ? `Placar: ${g.scores[0]} × ${g.scores[1]}` : '';
     const dateStr = g.createdAt ? new Date(g.createdAt).toLocaleDateString('pt-BR') : '';
     row.innerHTML = `
@@ -2611,6 +2974,8 @@ function applyOnlineState(data) {
 
   onlineSide = Number(data.side) || 0;
   onlineOpponent = data.opponent?.displayName || data.opponent?.username || 'Adversário';
+  N = data.classic || data.options?.mode === 'classic' ? 8 : 16;
+  const classic = N === 8;
   const selectedId = S?.sel?.id ?? null;
   const pieces = (data.pieces || []).map(p => ({
     id: p.id, t: p.type, o: p.owner, x: p.x, y: p.y, ready: p.ready, cd0: p.cd0 || 1, q: null, shield: p.shield || 0
@@ -2624,36 +2989,71 @@ function applyOnlineState(data) {
   }));
 
   S = {
-    mode: 'online', T: data.T || 0, grid, pieces, orbs: data.orbs || [], f: teams,
+    mode: 'online', classic, T: data.T || 0, grid, pieces, orbs: data.orbs || [], f: teams,
+    opponent: data.opponent || null,
+    options: data.options || {},
+    turn: data.turn ?? 0,
+    turnOwner: data.turn ?? 0,
+    chessClock: classic ? (data.clocks || [0, 0]) : null,
+    chessIncrement: data.options?.increment || 0,
+    clockControlLabel: data.options?.label || '',
+    castle: data.castle || null,
+    enPassant: data.enPassant || null,
+    ratingChanges: data.ratingChanges || null,
     sel: selectedId ? pieces.find(p => p.id === selectedId) || null : null,
     over: Boolean(data.over), started: true, nid: 0, foodT: 0, orbT: 0, attT: 0, att: null,
     fx: [], events: data.events || [], lastMove: data.lastMove || null,
-    winner: data.winner ?? null, reason: data.reason || ''
+    winner: data.winner ?? null, reason: data.reason || '',
+    checkmatedKingOwner: classic && data.over && Number.isInteger(data.winner) && data.reason === 'Xeque-mate.'
+      ? 1 - data.winner
+      : null
   };
   calcAtt();
 
   $('start').classList.add('hidden');
   $('cpuDiffOverlay').classList.add('hidden');
   $('onlineLobbyOverlay').classList.add('hidden');
-  $('modeTag').textContent = 'DUELO ONLINE · ' + (onlineUser?.username || 'VOCÊ') + ' × ' + onlineOpponent;
+  $('modeTag').textContent = classic
+    ? `XADREZ · ${data.options?.label || 'ONLINE'}${data.rated ? ' · RANQUEADA' : ''}`
+    : 'DUELO ONLINE · ' + (onlineUser?.username || 'VOCÊ') + ' × ' + onlineOpponent;
+  $('footerHint').textContent = classic
+    ? 'Selecione uma peça e a casa de destino. Xeque-mate vence; o relógio controla o tempo da partida.'
+    : 'Toque em uma peça da sua cor e depois na casa de destino. ESC cancela a seleção · ESPAÇO ativa o Surto em 100%.';
   $('playersLabel').textContent = '2 JOGADORES';
   $('statusText').textContent = S.over ? 'PARTIDA ENCERRADA' : 'ONLINE · AO VIVO';
   $('rematch').classList.toggle('hidden', !S.over);
   $('changeCpuDiffBtn').classList.add('hidden');
 
-  if (S.over) showOnlineResult();
-  else $('over').classList.add('hidden');
+  if (S.checkmatedKingOwner !== null) {
+    $('over').classList.add('hidden');
+    $('statusText').textContent = 'XEQUE-MATE · #';
+    renderClassicCheckmateBanner();
+  } else if (S.over) {
+    $('classicMateBanner').classList.add('hidden');
+    showOnlineResult();
+  } else {
+    $('over').classList.add('hidden');
+    $('classicMateBanner').classList.add('hidden');
+  }
   hud();
 }
 
 function showOnlineResult() {
   const won = S.winner === onlineSide, draw = S.winner === null;
   if (won) playTone('win');
-  $('overEyebrow').textContent = 'Fim do duelo online';
+  $('overEyebrow').textContent = S.classic ? 'Fim do xadrez clássico' : 'Fim do duelo online';
   $('resultTitle').textContent = won ? 'VITÓRIA!' : draw ? 'EMPATE' : 'FIM DE JOGO';
-  $('winnerText').textContent = won ? 'Você venceu o duelo!' : draw ? 'Partida empatada.' : onlineOpponent + ' venceu.';
+  $('winnerText').textContent = won ? 'Você venceu!' : draw ? 'Partida empatada.' : onlineOpponent + ' venceu.';
   const mine = S.f[onlineSide], theirs = S.f[1 - onlineSide];
-  $('res').innerHTML = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${mine.score}</b> · Nível <b>${mine.lvl}</b><br>${onlineOpponent}: <b>${theirs.score}</b><br>${String(S.reason || 'Partida encerrada.')}`;
+  if (S.classic) {
+    const change = S.ratingChanges?.[onlineSide];
+    const ratingText = S.rated && Number.isFinite(change)
+      ? `<br>Variação de rating: <b>${change > 0 ? '+' : ''}${change}</b>`
+      : S.rated ? '<br>Rating atualizado.' : '<br>Partida não ranqueada.';
+    $('res').innerHTML = `${S.options?.label || 'Xadrez Clássico'}<br>${String(S.reason || 'Partida encerrada.')}${ratingText}`;
+  } else {
+    $('res').innerHTML = `Tempo: <b>${fmt(S.T)}</b><br>Seu placar: <b>${mine.score}</b> · Nível <b>${mine.lvl}</b><br>${onlineOpponent}: <b>${theirs.score}</b><br>${String(S.reason || 'Partida encerrada.')}`;
+  }
   $('over').classList.remove('hidden');
   $('rematch').classList.remove('hidden');
   $('again').classList.add('hidden');
@@ -2786,11 +3186,15 @@ function handleSocketEvent(msg) {
     case 'game:rematch-waiting':
       $('rematch').textContent = 'AGUARDANDO RESPOSTA…';
       $('rematch').disabled = true;
+      $('classicMateRematch').textContent = 'AGUARDANDO RESPOSTA…';
+      $('classicMateRematch').disabled = true;
       showToast('Pedido de revanche enviado.');
       break;
     case 'game:rematch-started':
       $('rematch').disabled = false;
       $('rematch').textContent = 'PEDIR REVANCHE';
+      $('classicMateRematch').disabled = false;
+      $('classicMateRematch').textContent = 'PEDIR REVANCHE';
       break;
   }
 }
@@ -3026,11 +3430,21 @@ $('queueBtn').addEventListener('click', () => {
     $('queueBtn').textContent = 'BUSCAR ADVERSÁRIO';
     $('queueStatus').textContent = 'Busca cancelada.';
   } else {
-    sendSocket('match:queue');
+    const options = selectedMode === 'classic'
+      ? { mode: 'classic', timeControl: $('classicTimeControl').value }
+      : undefined;
+    if (selectedMode === 'classic') classicTimeControl = options.timeControl;
+    sendSocket('match:queue', options ? { options } : {});
     $('queueStatus').textContent = 'Entrando na fila pública 1v1…';
   }
 });
-$('createRoomBtn').addEventListener('click', () => sendSocket('room:create'));
+$('createRoomBtn').addEventListener('click', () => {
+  const options = selectedMode === 'classic'
+    ? { mode: 'classic', timeControl: $('classicTimeControl').value }
+    : undefined;
+  if (selectedMode === 'classic') classicTimeControl = options.timeControl;
+  sendSocket('room:create', options ? { options } : {});
+});
 $('createTacticalRoomBtn').addEventListener('click', () => sendSocket('room:create', { options: { mode: 'tactical_draft' } }));
 $('startTacticalCpuBtn').addEventListener('click', () => sendSocket('tactical:startCpu'));
 $('startTacticalTutorialBtn').addEventListener('click', () => sendSocket('tactical:startTutorial'));
@@ -3052,14 +3466,19 @@ $('copyRoomCode').addEventListener('click', async () => {
   } catch (_) {}
 });
 $('rematch').addEventListener('click', () => sendSocket('game:rematch'));
+$('classicMateRematch').addEventListener('click', () => sendSocket('game:rematch'));
+$('classicMateMenu').addEventListener('click', openMenu);
 
 document.querySelectorAll('.mode-card').forEach(b => b.addEventListener('click', () => chooseMode(b.dataset.mode)));
 $('go').addEventListener('click', start);
-$('again').addEventListener('click', () => {
+function replayCurrentGame() {
   if (S?.mode === 'tutorial') startInteractiveTutorial();
   else if (S?.mode === 'cpu') launchSelectedGame('cpu');
+  else if (S?.mode === 'classic_cpu') launchSelectedGame('classic_cpu');
   else start();
-});
+}
+$('again').addEventListener('click', replayCurrentGame);
+$('classicMateAgain').addEventListener('click', replayCurrentGame);
 $('menu').addEventListener('click', openMenu);
 $('boost').addEventListener('click', () => activateBoost(abilityOwner()));
 
