@@ -1,6 +1,6 @@
-# Crownflux.io
+# Crownflux.io — Disputa pela Coroa Imperial
 
-Crownflux.io reúne um jogo de estratégia em tempo real inspirado no xadrez (tabuleiro 16×16 sem turnos) e um modo de Xadrez Clássico 8×8. Inclui tutorial interativo, cinco níveis de inteligência artificial (CPU), sistema de contas, perfis, central de amigos e partidas 1v1 online via WebSockets.
+Crownflux.io é um jogo competitivo de estratégia em tempo real inspirado no xadrez (**tabuleiro 16×16 sem turnos**), acompanhado do modo **Cerco Tático (Draft de Cartas 12×12)** e do modo **Xadrez Clássico 8×8**. Inclui tutorial interativo, cinco níveis de inteligência artificial (CPU), sistema de contas, ranking competitivo Elo por divisões, conquistas, central de amigos e partidas 1v1 online via WebSockets.
 
 ## Requisitos
 
@@ -19,85 +19,47 @@ Crownflux.io reúne um jogo de estratégia em tempo real inspirado no xadrez (ta
    ```
 3. Abra `http://localhost:8080` no navegador.
 
-## Estrutura do projeto
+## Arquitetura do Projeto
 
-- `server.mjs`: servidor HTTP e WebSocket.
-- `public/index.html`: shell principal e carregador das telas.
-- `public/screens/`: telas de jogo, guia, amigos, perfil, histórico e configurações, além dos fragmentos compartilhados e da cena tática.
-- `public/styles.css`: estilos da interface.
-- `public/app.js` e `public/tactical.js`: lógica do jogo e do modo Cerco Tático.
-- `scripts/check-client.mjs`: valida a sintaxe do frontend e a presença das telas.
-- `data/db.json`: banco local criado durante a execução.
+- `server.mjs`: Servidor HTTP e WebSocket autoritativo (simulação de partidas online, Coroa Imperial, Regiões Estratégicas, Habilidades de Fluxo, Doutrinas, Xadrez Clássico, Cerco Tático, autenticação `scrypt`, amigos e persistência em `data/db.json`).
+- `public/index.html`: Shell principal e carregador dinâmico das telas modulares.
+- `public/screens/`: Telas modulares (`play.html`, `guide.html`, `friends.html`, `profile.html`, `history.html`, `settings.html`, `shared.html` e `tactical.html`).
+- `public/styles.css`: Sistema visual completo (tema *Império Dourado*, barra de Domínio Imperial, HUD tático, animações e responsividade).
+- `public/app.js`: Motor do modo principal 16×16 e Xadrez Clássico 8×8 no cliente, IA de 5 níveis, renderizador Canvas HD com peças em estilo *Medalhão Real* e recarga radial.
+- `public/tactical.js`: Lógica e interface do modo adicional Cerco Tático (Draft de Cartas).
+- `scripts/check-client.mjs`: Validador de sintaxe e presença das telas.
 
-O frontend permanece em JavaScript nativo para preservar a lógica existente, que interage diretamente com os elementos da página; React não é necessário para separar as telas.
+---
 
-## Funcionalidades Implementadas
+## Reformulação Completa do Modo Principal (16×16)
 
-### 1. Página Exclusiva "Como jogar"
-- Guia interativo dividido em 5 categorias:
-  1. **Objetivo & Vitória**
-  2. **Tabuleiro & Peças (Simulador Interativo 7×7)** — permite selecionar cada peça (`♟`, `♞`, `♝`, `♜`, `♛`, `♚`), visualizar casas válidas, alcance, valor de captura e tempo real de recarga, além de movimentar a peça no mini-tabuleiro demonstrativo.
-  3. **Capturas & Evolução (XP)**
-  4. **Fragmentos Flux & Habilidade Surto**
-  5. **Modos de Jogo & Partidas Online**
+### 1. A Coroa Imperial (`👑`) e Duas Formas de Vitória
+- **Regicídio (`⚔️`)**: Capture o **Rei (`♚`)** adversário para vencer imediatamente.
+- **Soberania Imperial (`👑`)**: A Coroa surge no **Trono Imperial `(8,9)`** e desperta após **12 segundos** (Fase I → Fase II).
+  - Mover qualquer peça aliada até a Coroa livre transforma essa peça no **Portador da Coroa**, concedendo **+1 Escudo Real** imediato, porém adicionando **+22% de tempo de recarga** aos seus movimentos (`+10%` com a doutrina *Céleres*).
+  - Enquanto mantiver a Coroa, sua facção acumula **Domínio Imperial (0% a 100%)**: **+3,5%/s** no Trono Central, **+2,5%/s** em campo aberto ou apenas **+0,6%/s** se recuar para a própria base (impedindo retranca passiva). Ao atingir **100%**, a vitória é imediata.
+  - **Contra-ataque e Recuperação**: Abater o Portador inimigo derruba a Coroa no local (com **3,5s de bloqueio** para a equipe que a perdeu), reduz o Domínio adversário em **12%** e concede **+4 XP** e **+28% de Energia de Fluxo** ao atacante.
 
-### 2. Boas-vindas no Primeiro Acesso & Tutorial Prático 1v1 (7 Etapas)
-- Janela discreta no primeiro acesso perguntando se o jogador deseja aprender (`Sim, quero aprender`, `Já sei jogar, pode continuar`, `Talvez depois`), persistida na conta (para usuários autenticados) e no navegador (`localStorage`).
-- **Tutorial prático 1v1 contra Bot Iniciante cooperativo**:
-  - **Etapa 1**: Conhecendo o tabuleiro e a interface em tempo real.
-  - **Etapa 2**: Selecionando uma peça com destaques visuais no tabuleiro.
-  - **Etapa 3**: Realizando o primeiro movimento e entendendo o tempo de recarga individual (cooldown) com feedback amigável caso clique em casa inválida.
-  - **Etapa 4**: Praticando capturas e evolução de XP/reforços.
-  - **Etapa 5**: Posicionamento estratégico e proteção do Rei.
-  - **Etapa 6**: Coletando um Fragmento Flux e ativando a habilidade especial **Surto**.
-  - **Etapa 7**: Finalizando a partida contra o bot iniciante.
-- Controles para pausar, avançar etapa, sair ou repetir o tutorial a qualquer momento.
+### 2. Controle Territorial — 3 Regiões Estratégicas
+- **⚡ Santuário de Fluxo (`x: 2..3, y: 7..8`)**: Gera **+3% de Energia de Fluxo por segundo** para a facção que ocupá-lo sem contestação inimiga.
+- **👑 Trono Imperial (`x: 7..8, y: 7..8`)**: Altar central onde a Coroa desperta; acelera o Domínio Imperial para **+3,5%/s**.
+- **🏰 Fortaleza Real (`x: 12..13, y: 7..8`)**: A cada **14 segundos** de controle incontestado, concede automaticamente **+1 Escudo Real** ao seu Rei (`♚`).
 
-### 3. Cinco Níveis de Dificuldade contra a CPU
-1. **Iniciante** *(Recomendado para novos jogadores)*: Avalia um subconjunto de peças, ignora mapas de ameaça e faz movimentos simples.
-2. **Fácil**: Reconhece capturas diretas e coleta fragmentos próximos, mas subestima defesas inimigas.
-3. **Normal**: Estratégia equilibrada, protege peças ameaçadas, disputa Fragmentos Flux e usa o Surto.
-4. **Difícil**: Antecipa ameaças, evita trocas desfavoráveis, verifica suporte de peças aliadas e pressiona o Rei adversário.
-5. **Especialista**: Análise tática de 2 lances (lookahead), avaliando contra-ataques imediatos após o movimento, escoltando o próprio Rei e coordenando o Surto ofensivamente.
+### 3. Três Habilidades Táticas de Fluxo (`0% a 100%`)
+- **`[1]` ⚡ Investida Real (45% Fluxo)**: Zera imediatamente a recarga da peça aliada selecionada (ou da peça de maior valor em recuperação) e concede **-45% de recarga** no próximo movimento.
+- **`[2]` 🛡️ Égide Real (60% Fluxo · 8s de recarga)**: Concede **+1 Escudo Real** (bloqueia 1 captura) à peça selecionada, ao Portador da Coroa ou ao Rei, além de cortar metade da recarga atual.
+- **`[3 / Espaço]` 🔥 Surto Imperial (100% Fluxo)**: Corta **52%** da recarga atual de todo o exército aliado e acelera todas as peças em **42%** durante **6 segundos**.
 
-### 4. Sistema de Conta, Perfil, Segurança e Preferências
-- Cadastro e Login com opção **"Lembrar de mim"** (sessão persistente de 30 dias armazenada com hash SHA-256 no banco de dados `data/db.json` + cookie `HttpOnly` + token Bearer).
-- Senhas armazenadas exclusivamente com hash criptográfico `scrypt` (`N=16384, r=8, p=1`, salt aleatório de 16 bytes e comparação `timingSafeEqual`).
-- **Redefinição segura de senha**: Geração de **Código de Recuperação** pessoal (`CFX-XXXX-XXXX`, armazenado apenas como hash `scrypt` no servidor) que permite redefinir a senha sem expor credenciais. *(Nota: como o projeto não depende de servidor SMTP externo obrigatório, a recuperação utiliza o Código de Recuperação criptografado gerado no cadastro/perfil).*
-- Edição de nome de usuário (com validação de disponibilidade), nome de exibição, biografia, avatar (`♟ ♞ ♝ ♜ ♛ ♚ ⚔ 🛡 👑 ⚡ 🔥 💎`) e senha.
-- Preferências sincronizadas com o backend (tema do tabuleiro, coordenadas, destaque de movimentos, pré-move na recarga, efeitos sonoros Web Audio e confirmação de saída).
+### 4. Três Doutrinas Estratégicas Pré-Partida
+- **⚔️ Vanguarda (Ofensiva)**: `-12%` de recarga após capturas e inicia com `28%` de Energia de Fluxo (`-10%` na taxa de Domínio da Coroa).
+- **🛡️ Bastião (Defensiva & Controle)**: O Rei inicia a partida com `+1 Escudo Real` e as Regiões Estratégicas rendem `+25%` mais rápido (`+10%` de recarga em movimentos sem captura de Torre/Rainha).
+- **🐎 Céleres (Mobilidade & Coroa)**: Peões, Cavalos e Rei têm `-12%` de recarga em movimentos de deslocamento e o Portador da Coroa sofre metade da penalidade de peso (`+10%`).
 
-### 5. Central de Amigos e Desafios Configuráveis
-- Categorias organizadas em tempo real:
-  - **Disponíveis Online**
-  - **Atualmente em Partida**
-  - **Offline**
-  - **Solicitações Recebidas** e **Solicitações Enviadas** (com opção de cancelar)
-- Busca de jogadores por `@username`, visualização de perfil com estatísticas, remoção e bloqueio/desbloqueio.
-- **Desafios entre amigos com configuração de partida**:
-  - Escolha de **Ritmo de Recarga** (`Padrão`, `Rápido -20%`, `Tático +25%`), **Fragmentos Flux** (`Normal`, `Abundantes`, `Sem Fragmentos`) e **Duração** (`Sem limite`, `3 min`, `5 min`), validados no servidor.
+### 5. Ritmo em 3 Fases Naturais
+1. **Fase I — Desenvolvimento (`0s–12s`)**: A Coroa permanece selada no centro enquanto os jogadores disputam o Santuário e a Fortaleza.
+2. **Fase II — Confronto (`12s–150s`)**: A Coroa desperta e abre a corrida estratégica entre Soberania Imperial e Regicídio.
+3. **Fase III — Ascensão Imperial (`150s+` ou `≥ 70%` de Domínio)**: A velocidade de Domínio da Coroa sobe em **+35%**, forçando o desfecho decisivo.
 
-### 6. Responsividade Completa (Desktop, Tablet e Mobile)
-- Navegação superior no desktop e barra de navegação inferior adaptada para toque no celular (`<= 760px`).
-- O guia do tutorial fica posicionado acima do tabuleiro, sem cobrir casas ou peças em nenhuma resolução.
-
-### 7. Xadrez Clássico
-- Partidas 8×8 com movimentação legal, xeque, xeque-mate, afogamento, roque, en passant, promoção a rainha e regra dos 50 lances.
-- Bot local com cinco níveis de dificuldade e relógio configurável.
-- Fila pública ranqueada, salas privadas com código e controles Bullet (1+0, 2+1), Blitz (3+0, 5+0), Rapid (10+0, 15+10) e Clássico (30+0, 60+0).
-- Relógio controlado pelo servidor e rating Elo independente por categoria. Partidas em salas privadas não alteram o rating.
-
-## Configuração e Deploy (Render / Koyeb / Fly.io / Railway)
-
-Variáveis de ambiente suportadas (ou via arquivo `.env`):
-
-```env
-PORT=8080
-HOST=0.0.0.0
-DATA_FILE=./data/db.json
-RECONNECT_GRACE_SECONDS=45
-```
-
-- **Build Command:** `npm install`
-- **Start Command:** `npm start`
-- **Health Check:** `/api/health` (ou `/healthz`)
+### 6. Identidade Visual, Ranking Competitivo e Conquistas
+- **Tabuleiro Ampliado & Peças Medalhão Real**: Quatro temas de tabuleiro (*Império Dourado*, *Esmeralda Clássico*, *Ardósia Noturna*, *Madeira Real*), três estilos de peças (*Medalhão Real*, *Heráldico Imperial*, *Minimalista*), interpolação suave de movimento e arco circular de recarga.
+- **Ranking Crownflux & Divisões**: Rating Elo competitivo iniciando em `1200` com 6 divisões (*Bronze, Prata, Ouro, Platina, Diamante e Mestre da Coroa*) e quadro de **7 Conquistas** reais no perfil.

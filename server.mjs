@@ -39,7 +39,9 @@ const TEAM = [
 ];
 const ALLOWED_AVATARS = ['♟', '♞', '♝', '♜', '♛', '♚', '⚔', '🛡', '👑', '⚡', '🔥', '💎'];
 const DEFAULT_PREFERENCES = {
-  boardTheme: 'classic',
+  boardTheme: 'imperial',
+  pieceStyle: 'medallion',
+  doctrine: 'vanguard',
   showCoords: true,
   highlightMoves: true,
   autoQueueMove: true,
@@ -47,6 +49,42 @@ const DEFAULT_PREFERENCES = {
   soundEffects: true,
   reducedMotion: false
 };
+
+const STRATEGIC_ZONES = [
+  { id: 'sanctuary', name: 'Santuário de Fluxo', x0: 2, y0: 7, x1: 3, y1: 8 },
+  { id: 'throne', name: 'Trono Imperial', x0: 7, y0: 7, x1: 8, y1: 8 },
+  { id: 'fortress', name: 'Fortaleza Real', x0: 12, y0: 7, x1: 13, y1: 8 }
+];
+
+const ACHIEVEMENTS_CATALOG = [
+  { id: 'first_blood', name: 'Primeira Vitória', icon: '⚔️', desc: 'Vença sua primeira partida no modo principal.' },
+  { id: 'crown_sovereign', name: 'Soberano da Coroa', icon: '👑', desc: 'Vença alcançando 100% de Domínio da Coroa.' },
+  { id: 'regicide', name: 'Regicida', icon: '♚', desc: 'Vença capturando diretamente o Rei adversário.' },
+  { id: 'tactician', name: 'Mestre do Fluxo', icon: '⚡', desc: 'Utilize habilidades táticas de Fluxo em combate.' },
+  { id: 'comeback_king', name: 'Virada Imperial', icon: '🔥', desc: 'Vença após o rival ultrapassar 50% de Domínio da Coroa.' },
+  { id: 'veteran_10', name: 'Veterano da Arena', icon: '🛡️', desc: 'Dispute 10 partidas completas no Crownflux.io.' },
+  { id: 'cpu_slayer', name: 'Desafiante Supremo', icon: '💎', desc: 'Vença a CPU na dificuldade Difícil ou Especialista.' }
+];
+
+function getCrownfluxDivision(rating = 1200) {
+  const r = Number(rating) || 1200;
+  if (r >= 1800) return { name: 'Mestre da Coroa', icon: '👑', tier: 6 };
+  if (r >= 1600) return { name: 'Diamante', icon: '💎', tier: 5 };
+  if (r >= 1450) return { name: 'Platina', icon: '⚜️', tier: 4 };
+  if (r >= 1300) return { name: 'Ouro', icon: '🏆', tier: 3 };
+  if (r >= 1150) return { name: 'Prata', icon: '🛡️', tier: 2 };
+  return { name: 'Bronze', icon: '⚔️', tier: 1 };
+}
+
+function unlockAchievement(user, achId) {
+  if (!user) return false;
+  user.achievements = Array.isArray(user.achievements) ? user.achievements : [];
+  if (!user.achievements.includes(achId)) {
+    user.achievements.push(achId);
+    return true;
+  }
+  return false;
+}
 
 let db = { users: [], friendships: [], friendRequests: [], games: [], sessions: [] };
 let saveChain = Promise.resolve();
@@ -116,8 +154,12 @@ function normalizeUsername(s) { return String(s || '').trim().replace(/^@/, '').
 function sanitizePreferences(raw, current = DEFAULT_PREFERENCES) {
   const base = { ...DEFAULT_PREFERENCES, ...(current || {}) };
   if (!raw || typeof raw !== 'object') return base;
-  const themes = ['classic', 'slate', 'wood'];
+  const themes = ['classic', 'slate', 'wood', 'imperial'];
   if (themes.includes(raw.boardTheme)) base.boardTheme = raw.boardTheme;
+  const pieceStyles = ['medallion', 'heraldic', 'minimal'];
+  if (pieceStyles.includes(raw.pieceStyle)) base.pieceStyle = raw.pieceStyle;
+  const doctrines = ['vanguard', 'bastion', 'celerity'];
+  if (doctrines.includes(raw.doctrine)) base.doctrine = raw.doctrine;
   for (const key of ['showCoords', 'highlightMoves', 'autoQueueMove', 'confirmResign', 'soundEffects', 'reducedMotion']) {
     if (typeof raw[key] === 'boolean') base[key] = raw[key];
   }
@@ -150,6 +192,8 @@ function safeUser(user, includeStats = true, includePrivate = false) {
   };
   if (includeStats) {
     const cpuStats = user.cpuStats || { games: 0, wins: 0, highestDifficultyWon: 0 };
+    const cfRating = Number(user.crownfluxRating) || 1200;
+    const division = getCrownfluxDivision(cfRating);
     result.stats = {
       games: user.games || 0,
       wins: user.wins || 0,
@@ -158,6 +202,13 @@ function safeUser(user, includeStats = true, includePrivate = false) {
       cpuGames: cpuStats.games || 0,
       cpuWins: cpuStats.wins || 0,
       highestCpuLevel: cpuStats.highestDifficultyWon || 0,
+      crownWins: user.crownWins || 0,
+      regicideWins: user.regicideWins || 0,
+      skillsUsed: user.skillsUsed || 0,
+      crownfluxRating: cfRating,
+      crownfluxDivision: division.name,
+      crownfluxDivisionIcon: division.icon,
+      achievements: Array.isArray(user.achievements) ? user.achievements : [],
       classicRatings: { bullet: 1200, blitz: 1200, rapid: 1200, classic: 1200, ...(user.classicRatings || {}) }
     };
   }
@@ -740,12 +791,35 @@ async function handleApi(req, res, url) {
     const oppScore = Math.max(0, Math.floor(Number(body.opponentScore) || 0));
 
     user.cpuStats ||= { games: 0, wins: 0, highestDifficultyWon: 0 };
+    const totalPlayed = (user.games || 0) + (user.cpuStats.games || 0) + 1;
+    if (totalPlayed >= 10) unlockAchievement(user, 'veteran_10');
+    if (Number(body.skillsUsed) > 0) {
+      user.skillsUsed = (user.skillsUsed || 0) + Number(body.skillsUsed);
+      unlockAchievement(user, 'tactician');
+    }
+    if (won && mode !== 'tutorial') {
+      unlockAchievement(user, 'first_blood');
+      if (body.winCondition === 'crown') {
+        user.crownWins = (user.crownWins || 0) + 1;
+        unlockAchievement(user, 'crown_sovereign');
+      } else if (body.winCondition === 'regicide') {
+        user.regicideWins = (user.regicideWins || 0) + 1;
+        unlockAchievement(user, 'regicide');
+      }
+      if (body.comeback) unlockAchievement(user, 'comeback_king');
+    }
     if (mode === 'cpu') {
       user.cpuStats.games = (user.cpuStats.games || 0) + 1;
       if (won) {
         user.cpuStats.wins = (user.cpuStats.wins || 0) + 1;
         if (difficulty > (user.cpuStats.highestDifficultyWon || 0)) {
           user.cpuStats.highestDifficultyWon = difficulty;
+        }
+        if (difficulty >= 4) unlockAchievement(user, 'cpu_slayer');
+        const curRating = Number(user.crownfluxRating) || 1200;
+        const botTarget = 1050 + difficulty * 110;
+        if (curRating < botTarget + 120) {
+          user.crownfluxRating = curRating + Math.max(4, Math.round((difficulty * 4)));
         }
       }
     }
@@ -943,11 +1017,12 @@ function collectOrb(game, p) {
   addEvent(game, `${TEAM[p.owner].name} coletou um Fragmento Flux.`);
 }
 
-function finishGame(game, winner, reason) {
+function finishGame(game, winner, reason, winCondition = 'regicide') {
   if (game.over) return;
   game.over = true;
   game.winner = winner;
   game.reason = reason;
+  game.winCondition = winCondition;
   game.endedAt = Date.now();
   const [a, b] = game.players.map(uid => db.users.find(u => u.id === uid));
   if (a && b) {
@@ -970,6 +1045,33 @@ function finishGame(game, winner, reason) {
       ratingChanges = [delta, -delta];
       a.classicRatings[category] = ratingA + delta;
       b.classicRatings[category] = ratingB - delta;
+    } else if (game.mode !== 'classic') {
+      const rA = Number(a.crownfluxRating) || 1200;
+      const rB = Number(b.crownfluxRating) || 1200;
+      const expA = 1 / (1 + 10 ** ((rB - rA) / 400));
+      const sA = winner === null ? 0.5 : winner === 0 ? 1 : 0;
+      const delta = Math.round(28 * (sA - expA));
+      ratingChanges = [delta, -delta];
+      a.crownfluxRating = Math.max(800, rA + delta);
+      b.crownfluxRating = Math.max(800, rB - delta);
+
+      const winnerUser = winner === 0 ? a : winner === 1 ? b : null;
+      const loserSide = winner === 0 ? 1 : 0;
+      if (winnerUser) {
+        unlockAchievement(winnerUser, 'first_blood');
+        if (winCondition === 'crown') {
+          winnerUser.crownWins = (winnerUser.crownWins || 0) + 1;
+          unlockAchievement(winnerUser, 'crown_sovereign');
+        } else if (winCondition === 'regicide') {
+          winnerUser.regicideWins = (winnerUser.regicideWins || 0) + 1;
+          unlockAchievement(winnerUser, 'regicide');
+        }
+        if ((game.teams?.[loserSide]?.maxCrownProgress || 0) >= 50) {
+          unlockAchievement(winnerUser, 'comeback_king');
+        }
+      }
+      if ((a.games || 0) + (a.cpuStats?.games || 0) >= 10) unlockAchievement(a, 'veteran_10');
+      if ((b.games || 0) + (b.cpuStats?.games || 0) >= 10) unlockAchievement(b, 'veteran_10');
     }
 
     db.games.unshift({
@@ -978,13 +1080,14 @@ function finishGame(game, winner, reason) {
       players: [a.id, b.id],
       winner,
       reason,
+      winCondition,
       duration: Math.floor(game.T),
       createdAt: nowIso(),
       scores: game.teams.map(t => t.score),
       options: game.options,
       timeControl: game.mode === 'classic' ? game.options.timeControl : undefined,
       rated: Boolean(game.rated),
-      ratingChanges: game.mode === 'classic' ? ratingChanges : undefined
+      ratingChanges
     });
     game.ratingChanges = ratingChanges;
     db.games = db.games.slice(0, 5000);
@@ -1005,19 +1108,24 @@ function serializeGame(game, side) {
     opponent: opponent ? safeUser(opponent) : { username: 'Adversário', displayName: 'Adversário', avatar: '♟' },
     T: game.T,
     mode: game.mode,
+    phase: game.phase || 'development',
     over: game.over,
     winner: game.winner,
     reason: game.reason || '',
+    winCondition: game.winCondition || '',
     options: game.options,
     classic: game.mode === 'classic',
     turn: game.mode === 'classic' ? game.turn : undefined,
     clocks: game.mode === 'classic' ? game.clocks : undefined,
     castle: game.mode === 'classic' ? game.castle : undefined,
     enPassant: game.mode === 'classic' ? game.enPassant : undefined,
-    rated: game.mode === 'classic' && game.rated,
+    rated: game.mode === 'classic' ? Boolean(game.rated) : true,
     ratingChanges: game.ratingChanges,
+    crown: game.crown ? { ...game.crown } : null,
+    zones: game.zones ? game.zones.map(z => ({ ...z })) : [],
+    decisiveMoment: game.decisiveMoment ? { ...game.decisiveMoment } : null,
     pieces: game.pieces.map(p => ({
-      id: p.id, type: p.type, owner: p.owner, x: p.x, y: p.y, ready: p.ready, cd0: p.cooldown, shield: p.shield
+      id: p.id, type: p.type, owner: p.owner, x: p.x, y: p.y, ready: p.ready, cd0: p.cooldown, shield: p.shield, chargeUntil: p.chargeUntil || 0
     })),
     orbs: game.orbs.map(o => ({ ...o })),
     teams: game.teams.map(t => ({ ...t })),
@@ -1032,22 +1140,62 @@ function publishGame(game, type = 'game:state') {
   }
 }
 
+function setDecisiveMoment(game, title, subtitle, kind = 'gold') {
+  game.decisiveMoment = { id: id(), title, subtitle, kind, at: game.T };
+}
+
 function makeGame(room) {
   const opts = sanitizeMatchOptions(room.options);
+  const playerUsers = room.players.map(uid => db.users.find(u => u.id === uid));
   const game = {
     id: id(),
     roomId: room.id,
     players: [...room.players],
     options: opts,
     T: 0,
+    phase: 'development',
     lastTick: Date.now(),
     lastBroadcast: 0,
     grid: Array.from({ length: BOARD }, () => Array(BOARD).fill(null)),
     pieces: [],
     orbs: [],
-    teams: [0, 1].map(tid => ({
-      id: tid, score: 0, xp: 0, level: 0, energy: 18, boostUntil: 0, captures: 0, kings: 0, alive: true
-    })),
+    crown: {
+      x: 7,
+      y: 7,
+      state: 'sealed',
+      unlockAt: 12,
+      holderId: null,
+      owner: -1,
+      dropCooldownOwner: -1,
+      dropCooldownUntil: 0,
+      tributeTimer: 10
+    },
+    zones: STRATEGIC_ZONES.map(z => ({ ...z, owner: -1, contested: false, fortressTimer: 14 })),
+    decisiveMoment: {
+      id: id(),
+      title: 'Fase I · Desenvolvimento',
+      subtitle: 'A Coroa Imperial despertará no Trono Central em 12 segundos!',
+      kind: 'blue',
+      at: 0
+    },
+    teams: [0, 1].map(tid => {
+      const doc = playerUsers[tid]?.preferences?.doctrine || 'vanguard';
+      return {
+        id: tid,
+        doctrine: doc,
+        score: 0,
+        xp: 0,
+        level: 0,
+        energy: doc === 'vanguard' ? 28 : doc === 'celerity' ? 8 : 18,
+        boostUntil: 0,
+        aegisCooldownUntil: 0,
+        crownProgress: 0,
+        maxCrownProgress: 0,
+        captures: 0,
+        kings: 0,
+        alive: true
+      };
+    }),
     nextPieceId: 1,
     foodTimer: 0,
     orbTimer: opts.orbs === 'abundant' ? 2.8 : 4.5,
@@ -1059,8 +1207,14 @@ function makeGame(room) {
   };
   spawnArmy(game, 0);
   spawnArmy(game, 1);
-  for (let i = 0; i < 18; i++) spawnFood(game);
-  addEvent(game, `Duelo online iniciado (${formatMatchOptionsSummary(opts)}).`);
+  for (let tid = 0; tid < 2; tid++) {
+    if (game.teams[tid].doctrine === 'bastion') {
+      const k = game.pieces.find(p => p.owner === tid && p.type === 'K');
+      if (k) k.shield = 1;
+    }
+  }
+  for (let i = 0; i < 16; i++) spawnFood(game);
+  addEvent(game, `Duelo iniciado · Disputem o Trono Central e protejam seus Reis!`);
   return game;
 }
 
@@ -2541,60 +2695,164 @@ function handleMove(ws, msg) {
     return sendError(ws, 'Movimento não permitido.', 'ILLEGAL_MOVE');
   }
   const fromX = p.x, fromY = p.y, target = game.grid[y][x];
+  const hadCapture = Boolean(target);
   if (target?.shield > 0) {
     target.shield--;
-    addEvent(game, 'Um escudo bloqueou o ataque.');
+    const bounceCd = Math.max(0.4, PIECE_COOLDOWN[p.type] * 0.7);
+    p.cooldown = bounceCd;
+    p.ready = game.T + bounceCd;
+    addEvent(game, `🛡️ A Égide Real de ${TEAM[target.owner]?.name || 'uma peça'} bloqueou o golpe!`);
+    setDecisiveMoment(game, 'Escudo Real Ativado!', 'O ataque foi absorvido pela proteção de Éter.', 'blue');
     publishGame(game);
     return;
   }
   if (target) {
     const owner = target.owner, value = PIECE_VALUE[target.type] || 1;
+    const wasCrownHolder = game.crown && game.crown.state === 'held' && game.crown.holderId === target.id;
     award(game, side, value);
     removePiece(game, target);
+    if (wasCrownHolder && owner >= 0) {
+      game.crown.state = 'free';
+      game.crown.holderId = null;
+      game.crown.owner = -1;
+      game.crown.x = x;
+      game.crown.y = y;
+      game.crown.dropCooldownOwner = owner;
+      game.crown.dropCooldownUntil = game.T + 3.5;
+      game.teams[owner].crownProgress = Math.max(0, (game.teams[owner].crownProgress || 0) - 12);
+      award(game, side, 4);
+      game.teams[side].energy = Math.min(100, game.teams[side].energy + 28);
+      addEvent(game, `⚔️ ${TEAM[side].name} derrubou o Portador da Coroa e ganhou bônus de Contra-Ataque!`);
+      setDecisiveMoment(game, 'Portador da Coroa Derrubado!', `${TEAM[side].name} executou um contra-ataque real!`, 'red');
+    }
     if (target.type === 'K' && owner >= 0) {
       game.teams[side].kings++;
       game.teams[owner].alive = false;
-      finishGame(game, side, 'O rei adversário foi capturado.');
+      finishGame(game, side, 'Regicídio: o Rei adversário foi capturado!', 'regicide');
     } else if (owner >= 0) {
-      addEvent(game, `${TEAM[side].name} capturou uma peça de ${TEAM[owner].name}.`);
+      addEvent(game, `${TEAM[side].name} capturou ${target.type} de ${TEAM[owner].name}.`);
+      if (target.type === 'Q' || target.type === 'R') {
+        setDecisiveMoment(game, 'Peça Nobre Capturada!', `${TEAM[side].name} eliminou ${target.type === 'Q' ? 'a Rainha' : 'uma Torre'} adversária.`, 'gold');
+      }
     } else {
-      addEvent(game, `${TEAM[side].name} capturou uma peça neutra.`);
+      addEvent(game, `${TEAM[side].name} capturou uma guarda neutra.`);
     }
   }
   game.grid[p.y][p.x] = null;
   game.grid[y][x] = p;
   p.x = x;
   p.y = y;
+  if (game.crown && game.crown.state === 'held' && game.crown.holderId === p.id) {
+    game.crown.x = x;
+    game.crown.y = y;
+  }
+
   const distance = Math.max(Math.abs(x - fromX), Math.abs(y - fromY));
   const paceMult = game.options?.pace === 'fast' ? 0.8 : game.options?.pace === 'tactical' ? 1.25 : 1.0;
+  const doc = game.teams[side].doctrine || 'vanguard';
   let cooldown = (PIECE_COOLDOWN[p.type] + (p.type === 'N' ? 0.25 : distance * 0.12)) * paceMult;
+
+  if (doc === 'vanguard' && hadCapture && p.type !== 'P' && p.type !== 'K') cooldown *= 0.88;
+  if (doc === 'bastion' && !hadCapture && (p.type === 'R' || p.type === 'Q')) cooldown *= 1.1;
+  if (doc === 'celerity' && !hadCapture && (p.type === 'P' || p.type === 'N' || p.type === 'K')) cooldown *= 0.88;
+  if (game.crown && game.crown.state === 'held' && game.crown.holderId === p.id) {
+    cooldown *= (doc === 'celerity' ? 1.1 : 1.22);
+  }
+  if (p.chargeUntil && p.chargeUntil > game.T) {
+    cooldown *= 0.55;
+    p.chargeUntil = 0;
+  }
   if (game.teams[side].boostUntil > game.T) cooldown *= 0.58;
+
   p.cooldown = cooldown;
   p.ready = game.T + cooldown;
-  game.lastMove = { x0: fromX, y0: fromY, x1: x, y1: y, t: game.T };
+  game.lastMove = { x0: fromX, y0: fromY, x1: x, y1: y, t: game.T, owner: side };
   if (p.type === 'P') {
     const [fx, fy] = TEAM[side].forward;
     if (x + fx < 0 || y + fy < 0 || x + fx >= BOARD || y + fy >= BOARD) {
       p.type = 'Q';
-      addEvent(game, 'Promoção: um peão virou rainha.');
+      addEvent(game, '👑 Promoção Real: um Peão alcançou a linha final e virou Rainha!');
+      setDecisiveMoment(game, 'Promoção Real!', `${TEAM[side].name} promoveu um Peão a Rainha!`, 'gold');
     }
   }
+
+  // Check if moved onto the free Crown
+  if (game.crown && game.crown.state === 'free' && game.crown.x === x && game.crown.y === y) {
+    if (game.crown.dropCooldownOwner === side && game.T < game.crown.dropCooldownUntil) {
+      addEvent(game, 'A Coroa ainda está instável para sua facção por alguns instantes.');
+    } else {
+      game.crown.state = 'held';
+      game.crown.holderId = p.id;
+      game.crown.owner = side;
+      game.crown.tributeTimer = 10;
+      p.shield = Math.max(p.shield || 0, 1);
+      addEvent(game, `👑 ${TEAM[side].name} reivindicou a Coroa Imperial e recebeu 1 Escudo Real!`);
+      setDecisiveMoment(game, 'Coroa Imperial Conquistada!', `${TEAM[side].name} assumiu a Coroa e iniciou o Domínio Imperial!`, 'gold');
+    }
+  }
+
   collectOrb(game, p);
+  publishGame(game, game.over ? 'game:ended' : 'game:state');
+}
+
+function handleSkill(ws, msg = {}) {
+  const game = gameForSocket(ws);
+  if (!game || game.mode === 'classic' || game.mode === 'tactical_draft') {
+    return sendError(ws, 'Você não está em uma partida ativa compatível.', 'NO_GAME');
+  }
+  const side = game.players.indexOf(ws.userId);
+  const team = game.teams[side];
+  const skill = ['charge', 'aegis', 'surge'].includes(msg.skill) ? msg.skill : 'surge';
+  const userRecord = db.users.find(u => u.id === ws.userId);
+
+  if (skill === 'charge') {
+    if (team.energy < 45) return sendError(ws, 'Investida Real requer 45% de Energia de Fluxo.', 'NOT_READY');
+    const targetPiece = game.pieces.find(p => p.owner === side && p.id === Number(msg.pieceId)) ||
+      game.pieces.filter(p => p.owner === side && p.ready > game.T).sort((a, b) => (PIECE_VALUE[b.type] || 1) - (PIECE_VALUE[a.type] || 1))[0] ||
+      game.pieces.find(p => p.owner === side && p.type !== 'K');
+    if (!targetPiece) return sendError(ws, 'Nenhuma peça disponível para Investida.', 'NO_TARGET');
+    team.energy = Math.max(0, team.energy - 45);
+    targetPiece.ready = game.T;
+    targetPiece.chargeUntil = game.T + 4.5;
+    addEvent(game, `⚔️ ${TEAM[side].name} usou Investida Real em ${targetPiece.type}!`);
+  } else if (skill === 'aegis') {
+    if (team.energy < 60) return sendError(ws, 'Égide Real requer 60% de Energia de Fluxo.', 'NOT_READY');
+    if ((team.aegisCooldownUntil || 0) > game.T) {
+      return sendError(ws, 'Égide Real ainda está em recarga.', 'COOLDOWN');
+    }
+    const targetPiece = game.pieces.find(p => p.owner === side && p.id === Number(msg.pieceId)) ||
+      (game.crown?.owner === side ? game.pieces.find(p => p.id === game.crown.holderId) : null) ||
+      game.pieces.find(p => p.owner === side && p.type === 'K');
+    if (!targetPiece) return sendError(ws, 'Nenhuma peça disponível para Égide Real.', 'NO_TARGET');
+    team.energy = Math.max(0, team.energy - 60);
+    team.aegisCooldownUntil = game.T + 8;
+    targetPiece.shield = 1;
+    if (targetPiece.ready > game.T) {
+      targetPiece.ready = game.T + (targetPiece.ready - game.T) * 0.5;
+    }
+    addEvent(game, `🛡️ ${TEAM[side].name} protegeu ${targetPiece.type} com Égide Real!`);
+    setDecisiveMoment(game, 'Égide Real Invocada!', `${TEAM[side].name} blindou sua peça contra o próximo ataque.`, 'blue');
+  } else {
+    if (team.energy < 100) return sendError(ws, 'Surto Imperial requer 100% de Energia de Fluxo.', 'NOT_READY');
+    team.energy = 0;
+    const duration = team.doctrine === 'celerity' ? 5 : 6;
+    team.boostUntil = game.T + duration;
+    for (const p of game.pieces) {
+      if (p.owner === side && p.ready > game.T) p.ready = game.T + (p.ready - game.T) * 0.48;
+    }
+    addEvent(game, `⚡ ${TEAM[side].name} ativou Surto Imperial por ${duration} segundos!`);
+    setDecisiveMoment(game, 'Surto Imperial Ativado!', `O exército de ${TEAM[side].name} está sobrecarregado!`, 'gold');
+  }
+
+  if (userRecord) {
+    userRecord.skillsUsed = (userRecord.skillsUsed || 0) + 1;
+    unlockAchievement(userRecord, 'tactician');
+  }
   publishGame(game);
 }
 
 function handleBoost(ws) {
-  const game = gameForSocket(ws);
-  if (!game) return sendError(ws, 'Você não está em uma partida ativa.', 'NO_GAME');
-  const side = game.players.indexOf(ws.userId), team = game.teams[side];
-  if (team.energy < 100) return sendError(ws, 'Sua energia ainda não chegou a 100%.', 'NOT_READY');
-  team.energy = 0;
-  team.boostUntil = game.T + 6;
-  for (const p of game.pieces) {
-    if (p.owner === side && p.ready > game.T) p.ready = game.T + (p.ready - game.T) * 0.48;
-  }
-  addEvent(game, `${TEAM[side].name} ativou Surto por 6 segundos.`);
-  publishGame(game);
+  return handleSkill(ws, { skill: 'surge' });
 }
 
 function startRematch(ws) {
@@ -2909,6 +3167,9 @@ async function handleSocketMessage(ws, msg) {
     case 'game:boost':
       handleBoost(ws);
       break;
+    case 'game:skill':
+      handleSkill(ws, msg);
+      break;
     case 'game:resign': {
       const game = gameForSocket(ws);
       if (!game) return sendError(ws, 'Você não está em uma partida.');
@@ -3070,7 +3331,7 @@ function tickGames() {
     game.foodTimer -= dt;
     if (game.foodTimer <= 0) {
       game.foodTimer = 1.1;
-      if (game.pieces.filter(p => p.owner === -1).length < 34) spawnFood(game);
+      if (game.pieces.filter(p => p.owner === -1).length < 30) spawnFood(game);
     }
     if (game.options?.orbs !== 'none') {
       game.orbTimer -= dt;
@@ -3080,11 +3341,104 @@ function tickGames() {
         spawnOrb(game);
       }
     }
+
+    // Match Phase Evolution (Development -> Confrontation -> Ascension)
+    if (game.crown) {
+      if (game.crown.state === 'sealed' && game.T >= game.crown.unlockAt) {
+        game.crown.state = 'free';
+        game.phase = 'confrontation';
+        addEvent(game, '👑 A Coroa Imperial despertou no Trono Central! Reivindique-a!');
+        setDecisiveMoment(game, 'A Coroa Despertou!', 'Conquiste o Trono Central para iniciar o Domínio Imperial.', 'gold');
+        const occupant = game.grid[game.crown.y]?.[game.crown.x];
+        if (occupant && occupant.owner >= 0) {
+          game.crown.state = 'held';
+          game.crown.holderId = occupant.id;
+          game.crown.owner = occupant.owner;
+          occupant.shield = Math.max(occupant.shield || 0, 1);
+          addEvent(game, `👑 ${TEAM[occupant.owner].name} já ocupava o Trono e tomou a Coroa!`);
+        }
+      }
+
+      if (game.phase !== 'ascension' && (game.T >= 150 || game.teams.some(t => (t.crownProgress || 0) >= 70))) {
+        game.phase = 'ascension';
+        addEvent(game, '🔥 Fase III · Ascensão Imperial! O Domínio da Coroa foi acelerado em +35%!');
+        setDecisiveMoment(game, 'Fase III · Ascensão Imperial!', 'A disputa entrou no clímax: Domínio da Coroa acelerado em +35%!', 'red');
+      }
+
+      if (game.crown.state === 'held') {
+        const holder = game.pieces.find(p => p.id === game.crown.holderId && p.owner === game.crown.owner);
+        if (!holder) {
+          game.crown.state = 'free';
+          game.crown.holderId = null;
+          game.crown.owner = -1;
+        } else {
+          game.crown.x = holder.x;
+          game.crown.y = holder.y;
+          const owner = holder.owner;
+          const team = game.teams[owner];
+          const inThrone = holder.x >= 7 && holder.x <= 8 && holder.y >= 7 && holder.y <= 8;
+          const inDeepBase = (owner === 0 && holder.y >= 13) || (owner === 1 && holder.y <= 2);
+          let rate = inDeepBase ? 0.6 : inThrone ? 3.5 : 2.5;
+          if (team.doctrine === 'vanguard') rate *= 0.9;
+          if (game.phase === 'ascension') rate *= 1.35;
+          team.crownProgress = Math.min(100, (team.crownProgress || 0) + rate * dt);
+          team.maxCrownProgress = Math.max(team.maxCrownProgress || 0, team.crownProgress);
+
+          game.crown.tributeTimer = (game.crown.tributeTimer || 10) - dt;
+          if (game.crown.tributeTimer <= 0) {
+            game.crown.tributeTimer = 10;
+            award(game, owner, 2);
+            team.energy = Math.min(100, team.energy + 14);
+          }
+
+          if (team.crownProgress >= 100) {
+            finishGame(game, owner, 'Soberania Imperial: alcançou 100% de Domínio da Coroa!', 'crown');
+            publishGame(game, 'game:ended');
+            continue;
+          }
+        }
+      }
+    }
+
+    // Strategic Zones Evaluation (Sanctuary, Throne, Fortress)
+    if (game.zones) {
+      for (const z of game.zones) {
+        const ownersPresent = new Set();
+        for (let zy = z.y0; zy <= z.y1; zy++) {
+          for (let zx = z.x0; zx <= z.x1; zx++) {
+            const occ = game.grid[zy]?.[zx];
+            if (occ && occ.owner >= 0) ownersPresent.add(occ.owner);
+          }
+        }
+        z.contested = ownersPresent.size > 1;
+        z.owner = ownersPresent.size === 1 ? [...ownersPresent][0] : -1;
+        if (z.owner >= 0) {
+          const ctrlTeam = game.teams[z.owner];
+          const zoneMult = ctrlTeam?.doctrine === 'bastion' ? 1.25 : 1.0;
+          if (z.id === 'sanctuary') {
+            ctrlTeam.energy = Math.min(100, ctrlTeam.energy + 3.0 * zoneMult * dt);
+          } else if (z.id === 'fortress') {
+            z.fortressTimer = (z.fortressTimer ?? 14) - dt * zoneMult;
+            if (z.fortressTimer <= 0) {
+              z.fortressTimer = 14;
+              const king = game.pieces.find(p => p.owner === z.owner && p.type === 'K');
+              if (king && !king.shield) {
+                king.shield = 1;
+                addEvent(game, `🛡️ A Fortaleza Real concedeu 1 Escudo ao Rei de ${TEAM[z.owner].name}!`);
+              }
+            }
+          }
+        }
+      }
+    }
+
     if (game.options?.timeLimit > 0 && game.T >= game.options.timeLimit) {
-      const s0 = game.teams[0].score;
-      const s1 = game.teams[1].score;
+      const c0 = game.teams[0].crownProgress || 0;
+      const c1 = game.teams[1].crownProgress || 0;
+      const s0 = game.teams[0].score + Math.round(c0 * 0.25);
+      const s1 = game.teams[1].score + Math.round(c1 * 0.25);
       const winner = s0 > s1 ? 0 : s1 > s0 ? 1 : null;
-      finishGame(game, winner, 'Tempo regulamentar encerrado.');
+      finishGame(game, winner, 'Tempo regulamentar encerrado.', 'time');
       publishGame(game, 'game:ended');
       continue;
     }
