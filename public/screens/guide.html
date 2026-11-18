@@ -4,7 +4,7 @@
       <div class="page-header">
         <div>
           <h1>Como jogar Crownflux.io</h1>
-          <p>Aprenda as regras reais do jogo com exemplos interativos ou pratique no tutorial guiado.</p>
+          <p>Domine a disputa pela Coroa Imperial, o controle territorial, as habilidades de Fluxo e os modos competitivos.</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="primary" id="guideStartTutorialBtn" type="button">🎓 Iniciar Tutorial Prático 1v1</button>
@@ -13,32 +13,40 @@
       </div>
 
       <div class="guide-tabs" role="tablist">
-        <button class="guide-tab active" data-gtab="overview" type="button">1. Objetivo & Vitória</button>
-        <button class="guide-tab" data-gtab="pieces" type="button">2. Tabuleiro & Peças (Interativo)</button>
-        <button class="guide-tab" data-gtab="captures" type="button">3. Capturas & Evolução</button>
-        <button class="guide-tab" data-gtab="flux" type="button">4. Fragmentos Flux & Surto</button>
-        <button class="guide-tab" data-gtab="modes" type="button">5. Modos & Partidas Online</button>
+        <button class="guide-tab active" data-gtab="overview" type="button">1. A Coroa & Vitória</button>
+        <button class="guide-tab" data-gtab="pieces" type="button">2. Tabuleiro & Peças (Simulador)</button>
+        <button class="guide-tab" data-gtab="captures" type="button">3. Regiões & Evolução</button>
+        <button class="guide-tab" data-gtab="flux" type="button">4. Habilidades de Fluxo & Doutrinas</button>
+        <button class="guide-tab" data-gtab="modes" type="button">5. Modos & Ranking</button>
         <button class="guide-tab" data-gtab="tactical" type="button">6. Cerco Tático (Cartas)</button>
       </div>
 
-      <!-- Tab 1: Overview -->
+      <!-- Tab 1: Overview & The Crown -->
       <div class="guide-section active" id="gtab-overview">
         <div class="guide-grid">
           <div class="guide-block">
-            <h3>👑 Qual é o objetivo do jogo?</h3>
-            <p>Em <b>Crownflux.io</b>, o objetivo principal é <b>proteger o seu Rei (♚) e capturar o Rei adversário</b>.</p>
-            <p>Ao contrário do xadrez tradicional, <b>não existem turnos</b>: todas as facções movem suas peças em tempo real no mesmo tabuleiro 16×16.</p>
-          </div>
-          <div class="guide-block">
-            <h3>⏱️ Tempo de Recuperação (Cooldown)</h3>
-            <p>Quando uma peça se move, ela entra em um breve <b>tempo de recuperação</b> (indicado por uma sombra vertical que esvazia sobre a peça).</p>
-            <p>Enquanto uma peça descansa, você pode <b>mover qualquer outra peça livre</b> do seu exército imediatamente!</p>
-          </div>
-          <div class="guide-block">
-            <h3>🏆 Regras para Vencer</h3>
+            <h3>👑 Duas Formas de Vencer: Regicídio ou Soberania da Coroa</h3>
+            <p>Em <b>Crownflux.io</b>, não existem turnos fixos no modo principal: ambos os exércitos movem suas peças em tempo real no tabuleiro 16×16.</p>
             <ul>
-              <li><b>Duelos 1v1 (CPU, Local e Online):</b> A partida termina imediatamente quando um jogador captura o <b>Rei (♚)</b> adversário (ou quem tiver maior pontuação caso haja tempo limite configurado).</li>
-              <li><b>Arena de 4 Facções:</b> Quando você captura o Rei de uma facção rival, <b>todo o exército sobrevivente daquele rival é convertido para a sua cor!</b> Se o seu próprio Rei for capturado, sua partida termina.</li>
+              <li><b>1. Regicídio (Ataque Direto):</b> Capture o <b>Rei (♚)</b> adversário para vencer imediatamente.</li>
+              <li><b>2. Soberania da Coroa (Domínio Imperial):</b> Conquiste a <b>Coroa Imperial (👑)</b> no Trono Central e mantenha-a até atingir <b>100% de Domínio</b>!</li>
+            </ul>
+          </div>
+          <div class="guide-block">
+            <h3>⚖️ Risco, Proteção e Contra-Ataque da Coroa</h3>
+            <p>Nos primeiros <b>12 segundos</b> (<i>Fase I · Desenvolvimento</i>), a Coroa permanece selada no centro enquanto os exércitos se posicionam. Quando ela desperta:</p>
+            <ul>
+              <li>A peça que pisar na Coroa torna-se o <b>Portador da Coroa</b> e recebe <b>1 Escudo Real</b> imediato.</li>
+              <li><b>Custo estratégico:</b> Carregar a Coroa aumenta em <b>+22% o tempo de recarga</b> daquela peça. Além disso, recuar para o fundo da própria base reduz drasticamente o avanço de Domínio — é preciso manter presença ativa!</li>
+              <li><b>Contra-ataque:</b> Derrubar o Portador da Coroa inimigo faz a Coroa cair, reduz em <b>12%</b> o Domínio do rival e concede a você <b>+4 XP e +28% de Energia de Fluxo</b>!</li>
+            </ul>
+          </div>
+          <div class="guide-block">
+            <h3>🔥 As 3 Fases da Partida</h3>
+            <ul>
+              <li><b>Fase I — Desenvolvimento (0:00 a 0:12):</b> Posicione peças, capture guardas neutras e ocupe as regiões estratégicas.</li>
+              <li><b>Fase II — Confronto pela Coroa (0:12 a 2:30):</b> A Coroa desperta no Trono Central; disputas abertas por território e escolta do Portador.</li>
+              <li><b>Fase III — Ascensão Imperial (2:30+ ou 70% de Domínio):</b> O Domínio da Coroa acelera em <b>+35%</b>, impedindo impasses e forçando o confronto decisivo!</li>
             </ul>
           </div>
         </div>
@@ -48,8 +56,8 @@
       <div class="guide-section" id="gtab-pieces">
         <div class="piece-lab">
           <div>
-            <h3 style="margin:0 0 6px">Simulador Interativo de Movimentos</h3>
-            <p class="muted" style="margin:0 0 12px">Clique em uma peça abaixo e depois toque nas casas marcadas do mini-tabuleiro para testar como ela se move e o tempo real de recuperação.</p>
+            <h3 style="margin:0 0 6px">Simulador Interativo de Peças</h3>
+            <p class="muted" style="margin:0 0 12px">Clique em uma peça abaixo e depois toque nas casas marcadas do mini-tabuleiro para testar seus movimentos, valor e tempo de recarga.</p>
             <div class="piece-picker" id="guidePiecePicker">
               <button class="piece-btn active" data-piece="P" type="button">♟ Peão</button>
               <button class="piece-btn" data-piece="N" type="button">♞ Cavalo</button>
@@ -74,72 +82,74 @@
         </div>
       </div>
 
-      <!-- Tab 3: Captures & Evolution -->
+      <!-- Tab 3: Strategic Regions & Evolution -->
       <div class="guide-section" id="gtab-captures">
         <div class="guide-grid">
           <div class="guide-block">
-            <h3>⚔️ Peças Neutras vs. Inimigas</h3>
-            <p>Espalhadas pelo tabuleiro 16×16 existem <b>peças neutras cinzas</b> que não atacam ninguém. Capturá-las é a maneira mais segura de ganhar seus primeiros pontos de XP e energia nos segundos iniciais da partida.</p>
-            <p>Peças de outra cor pertencem aos exércitos rivais: quando você move uma peça sua para a casa delas, você as captura.</p>
-          </div>
-          <div class="guide-block">
-            <h3>📈 Níveis e Reforços Automáticos</h3>
-            <p>Cada captura soma pontos ao seu placar e <b>XP</b> à sua barra de evolução (necessário: <code>4 + Nível × 3</code> XP).</p>
-            <p>Sempre que a barra de XP enche, você sobe de nível e <b>uma nova peça aliada surge automaticamente</b> ao redor do seu Rei, seguindo a progressão: Peões → Cavalos → Bispos → Torres → Rainhas!</p>
-          </div>
-          <div class="guide-block">
-            <h3>📊 Tabela Real de Pontos e XP</h3>
+            <h3>🗺️ As 3 Regiões Estratégicas do Tabuleiro</h3>
+            <p>Na faixa central do tabuleiro existem 3 regiões que podem ser dominadas mantendo pelo menos uma peça sua nelas sem peças inimigas contestando:</p>
             <ul>
-              <li><b>♟ Peão:</b> +1 ponto / +1 XP (+9% de Surto)</li>
-              <li><b>♞ Cavalo:</b> +3 pontos / +3 XP (+27% de Surto)</li>
-              <li><b>♝ Bispo:</b> +3 pontos / +3 XP (+27% de Surto)</li>
-              <li><b>♜ Torre:</b> +5 pontos / +5 XP (+45% de Surto)</li>
-              <li><b>♛ Rainha:</b> +9 pontos / +9 XP (+81% de Surto)</li>
-              <li><b>♚ Rei:</b> +10 pontos (Vitória em 1v1 ou conversão na Arena)</li>
+              <li><b>✦ Santuário de Fluxo (Oeste · x: 2–3, y: 7–8):</b> Gera <b>+3% de Energia de Fluxo por segundo</b> para abastecer suas habilidades táticas.</li>
+              <li><b>👑 Trono Imperial (Centro · x: 7–8, y: 7–8):</b> Onde a Coroa desperta. Manter o Portador da Coroa no Trono acelera o Domínio para <b>+3.5%/s</b>!</li>
+              <li><b>🛡️ Fortaleza Real (Leste · x: 12–13, y: 7–8):</b> A cada 14 segundos de domínio, concede <b>1 Escudo Real</b> automático ao seu Rei!</li>
+            </ul>
+          </div>
+          <div class="guide-block">
+            <h3>📈 Evolução e Reforços Automáticos</h3>
+            <p>Cada captura soma pontos e <b>XP</b> à sua evolução (necessário: <code>4 + Nível × 3</code> XP).</p>
+            <p>Ao subir de nível, <b>uma nova peça aliada nasce automaticamente</b> perto do seu Rei: Peões → Cavalos → Bispos → Torres → Rainhas!</p>
+          </div>
+          <div class="guide-block">
+            <h3>📊 Tabela de Recompensas por Captura</h3>
+            <ul>
+              <li><b>♟ Peão:</b> +1 ponto / +1 XP (+9% Fluxo)</li>
+              <li><b>♞ Cavalo / ♝ Bispo:</b> +3 pontos / +3 XP (+27% Fluxo)</li>
+              <li><b>♜ Torre:</b> +5 pontos / +5 XP (+45% Fluxo)</li>
+              <li><b>♛ Rainha:</b> +9 pontos / +9 XP (+81% Fluxo)</li>
+              <li><b>👑 Derrubar Portador da Coroa:</b> +4 XP extras, +28% Fluxo e -12% Domínio inimigo</li>
             </ul>
           </div>
         </div>
       </div>
 
-      <!-- Tab 4: Flux Orbs & Surge -->
+      <!-- Tab 4: 3 Flux Skills & Doctrines -->
       <div class="guide-section" id="gtab-flux">
         <div class="guide-grid">
           <div class="guide-block">
-            <h3>💎 O que são os Fragmentos Flux?</h3>
-            <p>Periodicamente surgem até 5 cristais em formato de losango pelo tabuleiro chamados <b>Fragmentos Flux</b>.</p>
-            <p>Basta mover qualquer peça sua para a casa de um Fragmento para coletá-lo instantaneamente. Ele concede:</p>
+            <h3>⚡ As 3 Habilidades Táticas de Fluxo</h3>
+            <p>Você acumula <b>Energia de Fluxo (0% a 100%)</b> capturando peças, coletando <b>Fragmentos Flux (+24%)</b> ou controlando o Santuário. Escolha como gastar:</p>
             <ul>
-              <li><b>+3 pontos e +3 XP</b> imediatos para sua evolução.</li>
-              <li><b>+24% de energia</b> extra para a barra de Surto (além dos +27% do ganho de XP, somando <b>+51% de carga</b> de uma só vez!).</li>
+              <li><b>[1] ⚔️ Investida Real (45% Fluxo):</b> Zera instantaneamente a recarga da peça selecionada e reduz em 45% a recarga do próximo movimento dela.</li>
+              <li><b>[2] 🛡️ Égide Real (60% Fluxo):</b> Concede <b>1 Escudo de Éter</b> (absorve 1 captura) à peça selecionada ou ao seu Rei / Portador da Coroa.</li>
+              <li><b>[3 / Espaço] ⚡ Surto Imperial (100% Fluxo):</b> Corta pela metade as recargas ativas e acelera todo o seu exército em <b>42% por 6 segundos</b>!</li>
             </ul>
           </div>
           <div class="guide-block">
-            <h3>⚡ Como funciona a habilidade Surto?</h3>
-            <p>Quando sua barra de energia chega a <b>100%</b>, o botão <b>⚡ ATIVAR SURTO</b> (ou a tecla <b>Espaço</b>) fica disponível.</p>
-            <p>Ao ativar o Surto:</p>
+            <h3>🏛️ As 3 Doutrinas Estratégicas</h3>
+            <p>Antes da partida, você escolhe sua Doutrina Real, cada uma com vantagem e contrapartida equilibradas:</p>
             <ul>
-              <li>O tempo restante de todas as suas peças que estão recarregando cai imediatamente pela metade.</li>
-              <li>Durante <b>6 segundos</b>, todas as suas peças recarregam <b>42% mais rápido</b> após cada movimento.</li>
-              <li>Use o Surto para lançar um ataque decisivo contra o Rei adversário ou escapar de um cerco!</li>
+              <li><b>⚔️ Vanguarda (Ofensiva):</b> Recarga -12% após capturas e começa com 28% de Fluxo, mas Domínio da Coroa é 10% mais lento.</li>
+              <li><b>🛡️ Bastião (Defensiva & Controle):</b> Seu Rei começa com 1 Escudo Real e as Regiões rendem +25%, mas Torre e Rainha têm +10% de recarga sem captura.</li>
+              <li><b>🐎 Céleres (Mobilidade & Coroa):</b> Peões, Cavalos e Rei são 12% mais rápidos e sofrem metade da penalidade ao carregar a Coroa, mas começa com 8% de Fluxo.</li>
             </ul>
           </div>
         </div>
       </div>
 
-      <!-- Tab 5: Game Modes & Online -->
+      <!-- Tab 5: Game Modes & Ranking -->
       <div class="guide-section" id="gtab-modes">
         <div class="guide-grid">
           <div class="guide-block">
+            <h3>🏆 Ranking Competitivo & Conquistas</h3>
+            <p>Suas partidas valem pontos no <b>Rating Crownflux</b> (iniciando em 1200) e evoluem sua patente desde <b>Bronze</b>, <b>Prata</b>, <b>Ouro</b>, <b>Platina</b> e <b>Diamante</b> até <b>Mestre da Coroa (1800+)</b>, além de desbloquear 7 Conquistas no seu Perfil.</p>
+          </div>
+          <div class="guide-block">
             <h3>🤖 Desafie a CPU (5 Dificuldades)</h3>
-            <p>Ideal para treinar e evoluir no seu ritmo. Você pode escolher entre <b>Iniciante</b>, <b>Fácil</b>, <b>Normal</b>, <b>Difícil</b> e <b>Especialista</b>. Cada nível muda a inteligência tática do bot.</p>
+            <p>Treine contra 5 níveis de IA (<i>Iniciante, Fácil, Normal, Difícil e Especialista</i>). Nos níveis mais altos, a CPU disputa a Coroa Imperial, controla regiões e utiliza Investida, Égide e Surto!</p>
           </div>
           <div class="guide-block">
-            <h3>⚔️ Arena (4 Facções) & Duelo Local</h3>
-            <p>Na <b>Arena</b>, você enfrenta três facções controladas pelo computador ao mesmo tempo; capturar um Rei converte o exército dele para você. No <b>Duelo Local</b>, duas pessoas jogam no mesmo celular, tablet ou computador.</p>
-          </div>
-          <div class="guide-block">
-            <h3>🌐 Partidas Online & Amigos</h3>
-            <p>Com uma conta gratuita, você pode entrar na <b>Fila Pública 1v1</b>, criar uma <b>Sala Privada</b> com código de 6 letras ou adicionar amigos na aba <b>Amigos</b> para enviar desafios personalizados (escolhendo ritmo, frequência de fragmentos e tempo).</p>
+            <h3>🌐 Multiplayer Online & Amigos</h3>
+            <p>Jogue na <b>Fila Pública 1v1</b>, crie <b>Salas Privadas</b> ou desafie amigos diretamente na Central de Amigos.</p>
           </div>
         </div>
       </div>

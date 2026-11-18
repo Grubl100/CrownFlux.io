@@ -3,8 +3,29 @@
     <div class="play-layout">
       <section class="arena-panel">
         <div class="board-top">
-          <span id="modeTag">ARENA · 4 FACÇÕES</span>
+          <div class="board-top-left">
+            <span id="modeTag">ARENA · 4 FACÇÕES</span>
+            <span class="phase-pill" id="phaseTag">FASE I · DESENVOLVIMENTO</span>
+          </div>
           <span id="statusTag"><i class="status-dot"></i><span id="statusText">AGUARDANDO</span></span>
+        </div>
+
+        <!-- Crown & Territory Status Bar (Main Mode) -->
+        <div id="crownStatusBar" class="crown-status-bar">
+          <div class="crown-bar-side">
+            <span class="crown-side-label"><i class="dot" style="background:#6f9daf"></i><span id="crownLeftName">Você</span></span>
+            <div class="crown-Dom-track"><div class="crown-dom-fill blue" id="crownDomFill0" style="width:0%"></div></div>
+            <strong class="crown-dom-pct" id="crownDomText0">0%</strong>
+          </div>
+          <div class="crown-center-badge" id="crownCenterBadge" title="Disputa pela Coroa Imperial no Trono Central">
+            <span class="crown-glyph">👑</span>
+            <span id="crownStateText">Coroa Selada (12s)</span>
+          </div>
+          <div class="crown-bar-side right">
+            <strong class="crown-dom-pct" id="crownDomText1">0%</strong>
+            <div class="crown-Dom-track"><div class="crown-dom-fill ruby" id="crownDomFill1" style="width:0%"></div></div>
+            <span class="crown-side-label"><span id="crownRightName">Rival Rubi</span><i class="dot" style="background:#bd7778"></i></span>
+          </div>
         </div>
 
         <!-- Tutorial Guide Banner (Appears outside the canvas so it never obscures pieces) -->
@@ -28,59 +49,91 @@
         <div id="wrap">
           <canvas id="cv" aria-label="Tabuleiro de Crownflux.io"></canvas>
 
+          <!-- Floating Decisive Moment Banner (Non-blocking) -->
+          <div id="decisiveMomentBanner" class="decisive-banner hidden" aria-live="polite">
+            <div class="decisive-icon" id="decisiveIcon">👑</div>
+            <div class="decisive-body">
+              <strong id="decisiveTitle">Coroa Imperial Despertou!</strong>
+              <span id="decisiveSub">Dispute o Trono Central para iniciar o Domínio Imperial.</span>
+            </div>
+          </div>
+
           <!-- Overlay: Main Mode Picker -->
           <div id="start" class="overlay">
             <div class="modal">
-              <div class="eyebrow">Estratégia em tempo real e xadrez clássico</div>
+              <div class="eyebrow">Reinos, Estratégia & Disputa pela Coroa</div>
               <h1>CROWN<em>FLUX</em>.IO</h1>
-              <p class="tagline">Escolha entre batalhas estratégicas em tempo real ou partidas de xadrez clássico.</p>
+              <p class="tagline">Domine o Trono Central, conquiste a Coroa Imperial ou lidere o ataque direto contra o Rei adversário.</p>
               <div class="mode-grid">
-                <button class="mode-card" data-mode="classic" type="button" style="grid-column:1 / -1">
-                  <span class="mode-icon">♟</span>
-                  <span>
-                    <span class="mode-name">Xadrez Clássico</span>
-                    <span class="mode-sub">Regras oficiais, bot ajustável, partidas ranqueadas e relógios</span>
-                  </span>
-                </button>
                 <button class="mode-card active" data-mode="arena" type="button">
                   <span class="mode-icon">⚔️</span>
                   <span>
-                    <span class="mode-name">Arena 4 Facções</span>
-                    <span class="mode-sub">4 exércitos disputando o mesmo tabuleiro</span>
+                    <span class="mode-name">Guerra da Coroa (Arena)</span>
+                    <span class="mode-sub">4 facções, regiões estratégicas e conversão real</span>
                   </span>
                 </button>
                 <button class="mode-card" data-mode="cpu" type="button">
-                  <span class="mode-icon">♟</span>
+                  <span class="mode-icon">👑</span>
                   <span>
-                    <span class="mode-name">Desafie a CPU</span>
-                    <span class="mode-sub">Duelo 1v1 com 5 níveis de dificuldade</span>
+                    <span class="mode-name">Desafie a CPU (1v1)</span>
+                    <span class="mode-sub">Disputa pela Coroa e Regicídio em 5 dificuldades</span>
                   </span>
                 </button>
                 <button class="mode-card" data-mode="online" type="button">
                   <span class="mode-icon">🌐</span>
                   <span>
-                    <span class="mode-name">Duelo Online</span>
-                    <span class="mode-sub">Jogue contra outras pessoas ou amigos</span>
+                    <span class="mode-name">Duelo Online (1v1)</span>
+                    <span class="mode-sub">Partidas ranqueadas pela Coroa ou salas com amigos</span>
                   </span>
                 </button>
                 <button class="mode-card" data-mode="duel" type="button">
-                  <span class="mode-icon">👑</span>
+                  <span class="mode-icon">🛡️</span>
                   <span>
-                    <span class="mode-name">Duelo Local</span>
-                    <span class="mode-sub">2 jogadores no mesmo dispositivo</span>
+                    <span class="mode-name">Duelo Local (1v1)</span>
+                    <span class="mode-sub">2 jogadores frente a frente no mesmo dispositivo</span>
                   </span>
                 </button>
-                <button class="mode-card" data-mode="tactical_draft" type="button" style="grid-column: 1 / -1;">
+                <button class="mode-card" data-mode="classic" type="button">
+                  <span class="mode-icon">♟</span>
+                  <span>
+                    <span class="mode-name">Xadrez Clássico 8×8</span>
+                    <span class="mode-sub">Regras oficiais FIDE, bot e relógio ranqueado</span>
+                  </span>
+                </button>
+                <button class="mode-card" data-mode="tactical_draft" type="button">
                   <span class="mode-icon">🃏</span>
                   <span>
-                    <span class="mode-name">Cerco Tático (Cartas & Turnos)</span>
-                    <span class="mode-sub">Grid tático 12×12, 3 PA por turno, Draft de cartas e disputa pela Coroa</span>
+                    <span class="mode-name">Cerco Tático (Cartas)</span>
+                    <span class="mode-sub">Duelo por turnos 12×12 com 3 PA e Draft de cartas</span>
                   </span>
                 </button>
               </div>
-              <div id="modeDesc" class="mode-desc">Quatro exércitos disputam o mesmo tabuleiro. Capture peças, evolua e transforme o rei rival em seu maior troféu.</div>
+
+              <!-- Pre-match Strategic Doctrine Selector -->
+              <div class="doctrine-selector" id="doctrineSelectorBox">
+                <div class="doctrine-head">
+                  <span>Escolha sua Doutrina Estratégica:</span>
+                  <strong id="doctrineSummaryLabel">⚔️ Vanguarda · Ofensiva</strong>
+                </div>
+                <div class="doctrine-pills">
+                  <button class="doctrine-pill active" data-doctrine="vanguard" type="button" title="Recarga -12% após capturas e +10% Fluxo inicial (Domínio da Coroa -10%)">
+                    <span>⚔️ Vanguarda</span>
+                    <small>Recarga rápida ao capturar</small>
+                  </button>
+                  <button class="doctrine-pill" data-doctrine="bastion" type="button" title="Rei começa com Escudo Real e Regiões geram +25% (Peças pesadas +10% recarga)">
+                    <span>🛡️ Bastião</span>
+                    <small>Escudo no Rei & Controle</small>
+                  </button>
+                  <button class="doctrine-pill" data-doctrine="celerity" type="button" title="Peões, Cavalos e Rei 12% mais velozes e menor peso da Coroa (Começa com 8% Fluxo)">
+                    <span>🐎 Céleres</span>
+                    <small>Mobilidade & Portador ágil</small>
+                  </button>
+                </div>
+              </div>
+
+              <div id="modeDesc" class="mode-desc">Quatro exércitos disputam o Trono Central, os Santuários e a Coroa Imperial. Capture peças, domine o território ou derrube os Reis rivais!</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-                <button id="go" class="primary" type="button">ENTRAR NA ARENA →</button>
+                <button id="go" class="primary" type="button">ENTRAR NA BATALHA →</button>
                 <button id="startTutorialFromMenuBtn" class="secondary" type="button">🎓 Tutorial Prático (1v1)</button>
               </div>
             </div>
@@ -200,14 +253,14 @@
         </div>
 
         <div class="footer-hint" id="footerHint">
-          Toque em uma peça da sua cor e depois na casa de destino. <b>ESC</b> cancela a seleção · <b>ESPAÇO</b> ativa o Surto em 100%.
+          Toque em uma peça e depois no destino. <b>[1]</b> Investida (45%) · <b>[2]</b> Égide Real (60%) · <b>[3 / ESPAÇO]</b> Surto Imperial (100%) · <b>ESC</b> cancela.
         </div>
       </section>
 
       <!-- HUD Lateral Permanente -->
       <aside id="hud" aria-label="Painel lateral da partida">
         <section class="hud-section" id="scoreCard">
-          <div class="section-head"><span>Informações da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
+          <div class="section-head"><span>Comando da Partida</span><span id="playersLabel">4 JOGADORES</span></div>
           <div class="turn-banner-box my-turn" id="turnBannerBox">
             <span class="turn-owner-label">
               <span class="dot" id="turnOwnerDot" style="width:8px;height:8px;border-radius:50%;background:#6f9daf;display:inline-block"></span>
@@ -216,6 +269,23 @@
             <span class="turn-timer-pill" id="currentMoveTimer" title="Cronômetro da jogada atual">0.0s</span>
           </div>
           <div id="lb"></div>
+
+          <!-- Strategic Regions Control Summary -->
+          <div class="zones-hud-strip" id="zonesHudStrip">
+            <div class="zone-chip" id="zoneChipSanctuary" title="Santuário de Fluxo (Oeste): +3% Energia/s">
+              <span>✦ Santuário</span>
+              <strong id="zoneOwnerSanctuary">Neutro</strong>
+            </div>
+            <div class="zone-chip" id="zoneChipThrone" title="Trono Imperial (Centro): Domínio da Coroa acelerado">
+              <span>👑 Trono</span>
+              <strong id="zoneOwnerThrone">Neutro</strong>
+            </div>
+            <div class="zone-chip" id="zoneChipFortress" title="Fortaleza Real (Leste): Escudo periódico ao Rei">
+              <span>🛡️ Fortaleza</span>
+              <strong id="zoneOwnerFortress">Neutro</strong>
+            </div>
+          </div>
+
           <div class="move-meta-box">
             <div class="stat-line"><span>Jogada anterior:</span><strong id="lastMoveTimeText">—</strong></div>
             <div class="stat-line" id="hudTutProgressRow" style="display:none"><span>Progresso do tutorial:</span><strong id="hudTutProgressText" style="color:var(--gold)">Etapa 1 de 8</strong></div>
@@ -236,17 +306,30 @@
         </section>
 
         <section class="hud-section" id="progressCard">
-          <div class="section-head"><span id="progressTitle">Sua Evolução</span><span id="tm">0:00</span></div>
+          <div class="section-head"><span id="progressTitle">Evolução & Recursos</span><span id="tm">0:00</span></div>
           <div class="stat-line"><span id="lvl">Nível 0</span><strong id="xpText">0 / 4 XP</strong></div>
           <div class="xp-bar"><div id="xp" class="xp-fill"></div></div>
           <div class="muted" id="nx">Próximo reforço: Peão</div>
-          <div class="stat-line" style="margin-top:9px"><span id="energyLabel">Habilidade Surto</span><strong id="energyText">0%</strong></div>
+
+          <div class="stat-line" style="margin-top:8px"><span id="energyLabel">Energia de Fluxo</span><strong id="energyText">0%</strong></div>
           <div class="energy-bar"><div id="energy" class="energy-fill"></div></div>
-          <button id="boost" class="ability-btn" type="button" disabled>SURTO · 0%</button>
+
+          <!-- 3 Tactical Flux Skills -->
+          <div class="flux-skills-grid" id="fluxSkillsGrid">
+            <button id="skillChargeBtn" class="skill-btn" type="button" disabled title="Atalho [1] · Custo: 45% Fluxo · Zera a recarga da peça selecionada e acelera seu próximo avanço em 45%">
+              <span class="sk-top"><b>[1] ⚔️ Investida</b><em>45%</em></span>
+              <small>Prontidão e avanço</small>
+            </button>
+            <button id="skillAegisBtn" class="skill-btn" type="button" disabled title="Atalho [2] · Custo: 60% Fluxo · Concede 1 Escudo Real à peça selecionada (ou ao seu Rei / Portador da Coroa)">
+              <span class="sk-top"><b>[2] 🛡️ Égide Real</b><em>60%</em></span>
+              <small>Escudo protetor</small>
+            </button>
+          </div>
+          <button id="boost" class="ability-btn" type="button" disabled title="Atalho [3] ou ESPAÇO · Custo: 100% Fluxo · Acelera todo o seu exército por 6 segundos">⚡ SURTO IMPERIAL · 0%</button>
         </section>
 
         <section class="hud-section">
-          <div class="section-head"><span>Registro da Batalha</span><span>AO VIVO</span></div>
+          <div class="section-head"><span>Crônica da Batalha</span><span>AO VIVO</span></div>
           <div id="feed"></div>
         </section>
 
