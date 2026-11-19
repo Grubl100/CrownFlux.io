@@ -81,6 +81,12 @@ export default function ResultsPage() {
               </strong>
             </div>
           )}
+          {Number.isFinite(matchResult.ratingAfter) && (
+            <div className="stat-box">
+              <span>Rating Final</span>
+              <strong>{matchResult.ratingAfter}</strong>
+            </div>
+          )}
         </div>
 
         {Array.isArray(matchResult.newlyUnlocked) && matchResult.newlyUnlocked.length > 0 && (

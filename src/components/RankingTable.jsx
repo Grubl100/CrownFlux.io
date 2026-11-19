@@ -21,7 +21,9 @@ export default function RankingTable({ entries, mode, currentUsername, loading }
             <th>#</th>
             <th>Jogador</th>
             {mode === 'duel' && <th>Divisão</th>}
+            {mode === 'classic' && <th>Classe</th>}
             <th>Pontuação</th>
+            {mode === 'classic' && <th>Pico</th>}
             <th>V / D {mode !== 'tactical' ? '/ E' : ''}</th>
             <th>Taxa</th>
             {mode === 'duel' && <th>Coroa / Regicídio</th>}
@@ -53,9 +55,20 @@ export default function RankingTable({ entries, mode, currentUsername, loading }
                     </span>
                   </td>
                 )}
+                {mode === 'classic' && (
+                  <td>
+                    <span className="division-chip">
+                      {entry.divisionIcon || '♟'} {entry.division || 'Novo'}
+                    </span>
+                  </td>
+                )}
                 <td className="rating-col">
                   <strong>{entry.rating}</strong>
+                  {mode === 'classic' && entry.provisional && (
+                    <small className="muted" style={{ display: 'block' }}>Provisório</small>
+                  )}
                 </td>
+                {mode === 'classic' && <td><strong>{entry.peak}</strong></td>}
                 <td>
                   <span className="wl-text">
                     <b className="win-num">{entry.wins}V</b> / <b className="loss-num">{entry.losses}D</b>

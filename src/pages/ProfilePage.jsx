@@ -286,6 +286,10 @@ export default function ProfilePage() {
             <div key={cat} className="stat-box">
               <span>{cat.toUpperCase()}</span>
               <strong>{s.classicRatings?.[cat] || 1200}</strong>
+              <small className="muted">
+                Pico {s.classicRatingStats?.[cat]?.peak || s.classicRatings?.[cat] || 1200}
+                {(s.classicRatingStats?.[cat]?.games || 0) < 30 ? ' · Provisório' : ''}
+              </small>
             </div>
           ))}
         </div>

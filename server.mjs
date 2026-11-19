@@ -89,6 +89,33 @@ function getCrownfluxDivision(rating = 1200) {
   return { name: 'Bronze', icon: '⚔️', tier: 1 };
 }
 
+function getClassicDivision(rating = 1200) {
+  const r = Number(rating) || 1200;
+  if (r >= 2200) return { name: 'Super Mestre', icon: '♛' };
+  if (r >= 2000) return { name: 'Mestre', icon: '♚' };
+  if (r >= 1800) return { name: 'Classe A', icon: '♜' };
+  if (r >= 1600) return { name: 'Classe B', icon: '♝' };
+  if (r >= 1400) return { name: 'Classe C', icon: '♞' };
+  if (r >= 1200) return { name: 'Classe D', icon: '♟' };
+  if (r >= 1000) return { name: 'Principiante', icon: '♙' };
+  return { name: 'Novo', icon: '♙' };
+}
+
+function getClassicKFactor(rating, games) {
+  if (games < 30) return 40;
+  if (rating >= 2400) return 10;
+  return 20;
+}
+
+function getClassicRatingStats(user, category) {
+  const ratings = user?.classicRatings || {};
+  const stats = user?.classicRatingStats?.[category] || {};
+  return {
+    games: Math.max(0, Number(stats.games) || 0),
+    peak: Math.max(100, Number(stats.peak) || Number(ratings[category]) || 1200)
+  };
+}
+
 function unlockAchievement(user, achId) {
   if (!user) return false;
   user.achievements = Array.isArray(user.achievements) ? user.achievements : [];
@@ -233,7 +260,11 @@ function safeUser(user, includeStats = true, includePrivate = false) {
       crownfluxDivision: division.name,
       crownfluxDivisionIcon: division.icon,
       achievements: Array.isArray(user.achievements) ? user.achievements : [],
-      classicRatings: { bullet: 1200, blitz: 1200, rapid: 1200, classic: 1200, ...(user.classicRatings || {}) }
+      classicRatings: { bullet: 1200, blitz: 1200, rapid: 1200, classic: 1200, ...(user.classicRatings || {}) },
+      classicRatingStats: Object.fromEntries(['bullet', 'blitz', 'rapid', 'classic'].map(category => [
+        category,
+        getClassicRatingStats(user, category)
+      ]))
     };
   }
   if (includePrivate) {
@@ -953,7 +984,12 @@ async function handleApi(req, res, url) {
     if (mode === 'classic') {
       entries = db.users.map(u => {
         const rating = Number(u.classicRatings?.[category]) || 1200;
-        const stats = tallyModeStats(u.id, g => g.mode === 'classic');
+        const stats = tallyModeStats(u.id, g =>
+          g.mode === 'classic'
+          && g.rated
+          && g.options?.category === category);
+        const ratingStats = getClassicRatingStats(u, category);
+        const division = getClassicDivision(rating);
         return {
           id: u.id,
           username: u.username,
@@ -964,7 +1000,11 @@ async function handleApi(req, res, url) {
           losses: stats.losses,
           draws: stats.draws,
           games: stats.total,
-          winRate: stats.winRate
+          winRate: stats.winRate,
+          peak: ratingStats.peak,
+          provisional: ratingStats.games < 30,
+          division: division.name,
+          divisionIcon: division.icon
         };
       }).sort((a, b) => b.rating - a.rating || b.wins - a.wins || a.username.localeCompare(b.username));
     } else if (mode === 'tactical') {
@@ -1189,18 +1229,43 @@ function finishGame(game, winner, reason, winCondition = 'regicide') {
     else { a.draws = (a.draws || 0) + 1; b.draws = (b.draws || 0) + 1; }
 
     let ratingChanges = [0, 0];
+    let ratingBefore = [null, null];
+    let ratingAfter = [null, null];
     if (game.mode === 'classic' && game.rated) {
       const category = game.options.category;
       a.classicRatings ||= {};
       b.classicRatings ||= {};
+      a.classicRatingStats ||= {};
+      b.classicRatingStats ||= {};
+      a.classicRatingStats[category] ||= { games: 0, peak: 1200 };
+      b.classicRatingStats[category] ||= { games: 0, peak: 1200 };
       const ratingA = Number(a.classicRatings[category]) || 1200;
       const ratingB = Number(b.classicRatings[category]) || 1200;
       const expectedA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
+      const expectedB = 1 / (1 + 10 ** ((ratingA - ratingB) / 400));
       const scoreA = winner === null ? 0.5 : winner === 0 ? 1 : 0;
-      const delta = Math.round(32 * (scoreA - expectedA));
-      ratingChanges = [delta, -delta];
-      a.classicRatings[category] = ratingA + delta;
-      b.classicRatings[category] = ratingB - delta;
+      const scoreB = 1 - scoreA;
+      const gamesA = Number(a.classicRatingStats[category].games) || 0;
+      const gamesB = Number(b.classicRatingStats[category].games) || 0;
+      const deltaA = Math.round(getClassicKFactor(ratingA, gamesA) * (scoreA - expectedA));
+      const deltaB = Math.round(getClassicKFactor(ratingB, gamesB) * (scoreB - expectedB));
+      ratingChanges = [deltaA, deltaB];
+      ratingBefore = [ratingA, ratingB];
+      a.classicRatings[category] = Math.max(100, ratingA + deltaA);
+      b.classicRatings[category] = Math.max(100, ratingB + deltaB);
+      ratingAfter = [a.classicRatings[category], b.classicRatings[category]];
+      a.classicRatingStats[category].games = gamesA + 1;
+      b.classicRatingStats[category].games = gamesB + 1;
+      a.classicRatingStats[category].peak = Math.max(
+        100,
+        Number(a.classicRatingStats[category].peak) || ratingA,
+        a.classicRatings[category]
+      );
+      b.classicRatingStats[category].peak = Math.max(
+        100,
+        Number(b.classicRatingStats[category].peak) || ratingB,
+        b.classicRatings[category]
+      );
     } else if (game.mode !== 'classic') {
       const rA = Number(a.crownfluxRating) || 1200;
       const rB = Number(b.crownfluxRating) || 1200;
@@ -1243,7 +1308,9 @@ function finishGame(game, winner, reason, winCondition = 'regicide') {
       options: game.options,
       timeControl: game.mode === 'classic' ? game.options.timeControl : undefined,
       rated: Boolean(game.rated),
-      ratingChanges
+      ratingChanges,
+      ratingBefore,
+      ratingAfter
     });
     game.ratingChanges = ratingChanges;
     db.games = db.games.slice(0, 5000);

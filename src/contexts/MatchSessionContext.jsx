@@ -195,6 +195,8 @@ export function MatchSessionProvider({ children }) {
               oppCrown: Math.round(theirs.crownProgress || 0),
               opponentName: oppName,
               ratingChange: st.ratingChanges?.[side],
+              ratingBefore: st.ratingBefore?.[side],
+              ratingAfter: st.ratingAfter?.[side],
               rated: Boolean(st.rated),
               optionsLabel: st.options?.label || '',
               rematchStatus: 'idle',
