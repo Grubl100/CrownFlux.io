@@ -24,7 +24,47 @@ export default function SettingsPage() {
 
       <div className="submode-panels">
         <section className="panel">
-          <h3>Personalização Visual (Cosmética)</h3>
+          <h3>Aparência & Tema Global</h3>
+          <div className="theme-cards-grid" style={{ marginBottom: 16 }}>
+            {[
+              {
+                id: 'blue',
+                name: 'Azul Clássico',
+                badge: 'Padrão',
+                desc: 'Identidade visual azul-ardósia original do Crownflux.io.',
+                swatches: ['#12171d', '#1d2630', '#7da3b5', '#cfaf72'],
+              },
+              {
+                id: 'emerald',
+                name: 'Verde e Dourado',
+                badge: 'Alternativo',
+                desc: 'Paleta esmeralda escura com acentos dourados.',
+                swatches: ['#141816', '#202723', '#6db38b', '#cfaf72'],
+              },
+            ].map((t) => {
+              const active = (prefs.uiTheme || 'blue') === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`theme-preview-card${active ? ' active' : ''}`}
+                  onClick={() => update({ uiTheme: t.id })}
+                >
+                  <div className="theme-swatches">
+                    {t.swatches.map((hex) => (
+                      <span key={hex} style={{ background: hex }} />
+                    ))}
+                  </div>
+                  <div className="theme-card-head">
+                    <strong>{t.name}</strong>
+                    <span className="pill">{t.badge}</span>
+                  </div>
+                  <small className="muted">{t.desc}</small>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="form-stack">
             <label>
               <span>Tema do Tabuleiro</span>
@@ -62,6 +102,7 @@ export default function SettingsPage() {
               ['highlightMoves', 'Destacar movimentos possíveis e último lance'],
               ['autoQueueMove', 'Agendar movimento automático durante a recarga'],
               ['soundEffects', 'Ativar efeitos sonoros (Web Audio)'],
+              ['lowTimeSound', 'Alerta sonoro discreto nos últimos 10 segundos do relógio'],
               ['reducedMotion', 'Animações reduzidas'],
               ['confirmResign', 'Confirmar antes de desistir ou sair da partida'],
             ].map(([key, label]) => (

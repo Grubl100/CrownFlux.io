@@ -10,6 +10,7 @@ import MainLayout from '../layouts/MainLayout.jsx';
 import MatchLayout from '../layouts/MatchLayout.jsx';
 import ResultsLayout from '../layouts/ResultsLayout.jsx';
 import ClassicPage from '../pages/ClassicPage.jsx';
+import ChessAnalysisPage from '../pages/ChessAnalysisPage.jsx';
 import DuelPage from '../pages/DuelPage.jsx';
 import {
   Duel1v1Page,
@@ -51,6 +52,7 @@ export default function AppRouter() {
                   <Route path="/modes/duelo/tutorial" element={<DuelTutorialPage />} />
                   <Route path="/modes/tactical" element={<TacticalPage />} />
                   <Route path="/modes/classic" element={<ClassicPage />} />
+                  <Route path="/analysis/:matchId" element={<ChessAnalysisPage />} />
                   <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/ranking" element={<RankingPage />} />
                   <Route path="/profile" element={<ProfilePage />} />

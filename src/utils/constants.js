@@ -19,6 +19,7 @@ export const GROW = ['P', 'P', 'N', 'B', 'R', 'N', 'B', 'R', 'Q', 'Q'];
 export const AVATARS = ['♟', '♞', '♝', '♜', '♛', '♚', '⚔', '🛡', '👑', '⚡', '🔥', '💎'];
 
 export const DEFAULT_PREFERENCES = {
+  uiTheme: 'blue',
   boardTheme: 'imperial',
   pieceStyle: 'medallion',
   doctrine: 'vanguard',
@@ -27,6 +28,7 @@ export const DEFAULT_PREFERENCES = {
   autoQueueMove: true,
   confirmResign: true,
   soundEffects: true,
+  lowTimeSound: true,
   reducedMotion: false,
 };
 
@@ -74,23 +76,63 @@ export const ACHIEVEMENTS_CATALOG = [
 ];
 
 export const CPU_LEVELS = [
-  { level: 1, name: 'Iniciante', interval: 1.85, desc: 'Ideal para aprender com calma: movimentos simples, sem previsão de ameaças e reações lentas.', challenge: 'Excelente para treinar', recommended: true },
+  { level: 1, name: 'Iniciante', interval: 1.75, desc: 'Ideal para aprender com calma: movimentos simples, sem previsão de ameaças e reações lentas.', challenge: 'Ideal para aprender', recommended: true },
   { level: 2, name: 'Fácil', interval: 1.35, desc: 'Reconhece capturas diretas, fragmentos próximos e a Coroa livre, mas subestima ameaças.', challenge: 'Desafio leve' },
-  { level: 3, name: 'Normal', interval: 0.95, desc: 'Estratégia equilibrada: protege peças importantes, disputa territórios e usa Surto.', challenge: 'Equilibrado' },
-  { level: 4, name: 'Difícil', interval: 0.65, desc: 'Antecipa ameaças, protege o portador com Égide Real e pressiona o Rei adversário.', challenge: 'Alta intensidade' },
-  { level: 5, name: 'Especialista', interval: 0.42, desc: 'Simulação tática de 2 lances, evita armadilhas e coordena Investida, Égide e Surto.', challenge: 'Máximo desafio' },
+  { level: 3, name: 'Intermediário', interval: 0.98, desc: 'Estratégia equilibrada: protege peças importantes, disputa territórios e administra recursos.', challenge: 'Equilibrado' },
+  { level: 4, name: 'Difícil', interval: 0.72, desc: 'Antecipa ameaças, protege o portador com Égide Real e pressiona o Rei adversário.', challenge: 'Alta intensidade' },
+  { level: 5, name: 'Muito difícil', interval: 0.52, desc: 'Simulação tática de 2 lances, evita armadilhas e coordena Investida, Égide e Surto.', challenge: 'Desafio máximo' },
+];
+
+export const CLASSIC_CATEGORIES = [
+  { id: 'bullet', name: 'Bullet', icon: '⚡', desc: 'Partidas ultrarrápidas' },
+  { id: 'blitz', name: 'Blitz', icon: '🔥', desc: 'Ritmo dinâmico e tático' },
+  { id: 'rapid', name: 'Rapid', icon: '⏱️', desc: 'Cálculo equilibrado' },
+  { id: 'classic', name: 'Clássico', icon: '🏛️', desc: 'Estratégia profunda' },
+  { id: 'custom', name: 'Personalizado', icon: '⚙️', desc: 'Defina tempo e incremento' },
 ];
 
 export const CLASSIC_CONTROLS = {
-  bullet1: { category: 'bullet', label: 'Bullet · 1+0', seconds: 60, increment: 0 },
-  bullet2: { category: 'bullet', label: 'Bullet · 2+1', seconds: 120, increment: 1 },
-  blitz3: { category: 'blitz', label: 'Blitz · 3+0', seconds: 180, increment: 0 },
-  blitz5: { category: 'blitz', label: 'Blitz · 5+0', seconds: 300, increment: 0 },
-  rapid10: { category: 'rapid', label: 'Rapid · 10+0', seconds: 600, increment: 0 },
-  rapid15: { category: 'rapid', label: 'Rapid · 15+10', seconds: 900, increment: 10 },
-  classic30: { category: 'classic', label: 'Clássico · 30+0', seconds: 1800, increment: 0 },
-  classic60: { category: 'classic', label: 'Clássico · 60+0', seconds: 3600, increment: 0 },
+  bullet1: { category: 'bullet', label: 'Bullet · 1+0', shortLabel: '1+0', seconds: 60, increment: 0, ranked: true },
+  bullet1_1: { category: 'bullet', label: 'Bullet · 1+1', shortLabel: '1+1', seconds: 60, increment: 1, ranked: true },
+  bullet2: { category: 'bullet', label: 'Bullet · 2+0', shortLabel: '2+0', seconds: 120, increment: 0, ranked: true },
+  bullet2_1: { category: 'bullet', label: 'Bullet · 2+1', shortLabel: '2+1', seconds: 120, increment: 1, ranked: true },
+  blitz3: { category: 'blitz', label: 'Blitz · 3+0', shortLabel: '3+0', seconds: 180, increment: 0, ranked: true },
+  blitz3_2: { category: 'blitz', label: 'Blitz · 3+2', shortLabel: '3+2', seconds: 180, increment: 2, ranked: true },
+  blitz5: { category: 'blitz', label: 'Blitz · 5+0', shortLabel: '5+0', seconds: 300, increment: 0, ranked: true },
+  blitz5_3: { category: 'blitz', label: 'Blitz · 5+3', shortLabel: '5+3', seconds: 300, increment: 3, ranked: true },
+  rapid10: { category: 'rapid', label: 'Rapid · 10+0', shortLabel: '10+0', seconds: 600, increment: 0, ranked: true },
+  rapid10_5: { category: 'rapid', label: 'Rapid · 10+5', shortLabel: '10+5', seconds: 600, increment: 5, ranked: true },
+  rapid15: { category: 'rapid', label: 'Rapid · 15+10', shortLabel: '15+10', seconds: 900, increment: 10, ranked: true },
+  rapid25: { category: 'rapid', label: 'Rapid · 25+0', shortLabel: '25+0', seconds: 1500, increment: 0, ranked: true },
+  classic30: { category: 'classic', label: 'Clássico · 30+0', shortLabel: '30+0', seconds: 1800, increment: 0, ranked: true },
+  classic30_20: { category: 'classic', label: 'Clássico · 30+20', shortLabel: '30+20', seconds: 1800, increment: 20, ranked: true },
+  classic60: { category: 'classic', label: 'Clássico · 60+0', shortLabel: '60+0', seconds: 3600, increment: 0, ranked: true },
+  classic90_30: { category: 'classic', label: 'Clássico · 90+30', shortLabel: '90+30', seconds: 5400, increment: 30, ranked: true },
 };
+
+export function resolveClassicControl(timeControl, customTime = null) {
+  if (timeControl && CLASSIC_CONTROLS[timeControl]) {
+    return { key: timeControl, ...CLASSIC_CONTROLS[timeControl] };
+  }
+  if (timeControl === 'custom' && customTime) {
+    const minutes = Math.max(1, Math.min(180, Math.round(Number(customTime.minutes) || 10)));
+    const increment = Math.max(0, Math.min(60, Math.round(Number(customTime.increment) || 0)));
+    const seconds = minutes * 60;
+    const estTotal = seconds + increment * 40;
+    const category = estTotal < 180 ? 'bullet' : estTotal < 480 ? 'blitz' : estTotal < 1500 ? 'rapid' : 'classic';
+    return {
+      key: 'custom',
+      category,
+      label: `Personalizado · ${minutes}+${increment}`,
+      shortLabel: `${minutes}+${increment}`,
+      seconds,
+      increment,
+      ranked: false,
+      custom: true,
+    };
+  }
+  return { key: 'blitz3', ...CLASSIC_CONTROLS.blitz3 };
+}
 
 export const PIECE_RULE_SUMMARY = {
   P: 'O Peão (♟) avança 1 casa para frente (se vazia) e captura 1 casa na diagonal frontal.',

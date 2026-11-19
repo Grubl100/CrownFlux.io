@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BotDifficultySelector from '../components/BotDifficultySelector.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMatchSession } from '../contexts/MatchSessionContext.jsx';
 import { useToast } from '../contexts/ToastContext.jsx';
@@ -10,6 +11,7 @@ export default function TacticalPage() {
   const { sendSocket } = useMatchSession();
   const { showToast } = useToast();
   const [roomCode, setRoomCode] = useState('');
+  const [botDifficulty, setBotDifficulty] = useState(3);
 
   const requireAuth = () => {
     if (!user) {
@@ -113,19 +115,22 @@ export default function TacticalPage() {
         <article className="option-card">
           <div className="option-card-head">
             <span className="option-icon">🤖</span>
-            <span className="cf-mode-badge">TREINO VS IA</span>
+            <span className="cf-mode-badge">5 DIFICULDADES · IA TÁTICA</span>
           </div>
           <h2>Contra CrownBot (CPU)</h2>
           <p className="muted">
-            Enfrente o CrownBot em partida completa com Draft a cada 3 rodadas e disputa pela Coroa. Resultado registrado no histórico.
+            Enfrente o CrownBot em partida completa com Draft a cada 3 rodadas, Névoa de Guerra justa e planejamento real de cartas.
           </p>
+          <div style={{ marginTop: 12 }}>
+            <BotDifficultySelector value={botDifficulty} onChange={setBotDifficulty} mode="tactical" compact />
+          </div>
           <div className="option-card-foot" style={{ marginTop: 14 }}>
             <button
               type="button"
               className="primary full-btn"
               onClick={() => {
                 if (!requireAuth()) return;
-                sendSocket('tactical:startCpu');
+                sendSocket('tactical:startCpu', { difficulty: botDifficulty });
               }}
             >
               Jogar vs CrownBot →

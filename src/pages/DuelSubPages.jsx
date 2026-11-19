@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BotDifficultySelector from '../components/BotDifficultySelector.jsx';
 import DoctrineSelector from '../components/DoctrineSelector.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMatchSession } from '../contexts/MatchSessionContext.jsx';
 import { useToast } from '../contexts/ToastContext.jsx';
-import { CPU_LEVELS } from '../utils/constants.js';
 
 export function Duel1v1Page() {
   const navigate = useNavigate();
@@ -156,39 +156,12 @@ export function DuelCpuPage() {
 
       <DoctrineSelector value={doctrine} onChange={setDoctrine} compact />
 
-      <div className="cpu-levels-list">
-        {CPU_LEVELS.map((item) => (
-          <div
-            key={item.level}
-            className={`diff-item${difficulty === item.level ? ' selected' : ''}`}
-            onClick={() => setDifficulty(item.level)}
-          >
-            <div className="diff-main">
-              <div className="diff-title-row">
-                <span className="diff-name">{item.level}. {item.name}</span>
-                <div className="diff-meter">
-                  {Array.from({ length: 5 }, (_, idx) => (
-                    <i key={idx} className={`diff-bar${idx < item.level ? ' on' : ''}${idx < item.level && item.level >= 4 ? ' hard' : ''}`} />
-                  ))}
-                </div>
-                {item.recommended && <span className="rec-tag">Recomendado para iniciantes</span>}
-              </div>
-              <div className="diff-desc">{item.desc}</div>
-              <small style={{ color: 'var(--gold)' }}>{item.challenge}</small>
-            </div>
-            <button
-              type="button"
-              className={difficulty === item.level ? 'primary' : 'secondary'}
-              onClick={(e) => {
-                e.stopPropagation();
-                launchCpu(item.level);
-              }}
-            >
-              Jogar
-            </button>
-          </div>
-        ))}
-      </div>
+      <BotDifficultySelector
+        value={difficulty}
+        onChange={setDifficulty}
+        mode="duel"
+        onPlayLevel={(lv) => launchCpu(lv)}
+      />
     </div>
   );
 }
@@ -196,6 +169,7 @@ export function DuelCpuPage() {
 export function Duel4PlayersPage() {
   const navigate = useNavigate();
   const { startOfflineMatch } = useMatchSession();
+  const [difficulty, setDifficulty] = useState(3);
 
   return (
     <div className="page-container mode-detail-page">
@@ -209,25 +183,29 @@ export function Duel4PlayersPage() {
         <span className="eyebrow">Modalidade Alternativa · Arena 4 Facções</span>
         <h1>🛡️ Arena para 4 Jogadores</h1>
         <p className="muted">
-          Confronto caótico entre 4 exércitos (Azul, Rubi, Ouro e Violeta) preservando integralmente as regras clássicas da Arena.
+          Confronto caótico entre 4 exércitos (Azul, Rubi, Ouro e Violeta) preservando integralmente as regras clássicas da Arena com IA multi-adversário.
         </p>
       </header>
 
-      <div className="panel" style={{ maxWidth: 680 }}>
+      <div className="panel" style={{ maxWidth: 740, marginBottom: 16 }}>
         <h3>Regras preservadas da Arena 4P</h3>
         <ul className="rules-list" style={{ margin: '12px 0 18px' }}>
-          <li>Você comanda a facção <strong>Azul</strong> contra 3 facções controladas pela IA.</li>
+          <li>Você comanda a facção <strong>Azul</strong> contra 3 facções controladas por IA específica de Arena (Rubi, Ouro e Violeta).</li>
           <li>Capturar o Rei inimigo converte todo o exército derrotado para o vencedor.</li>
           <li>Facções eliminadas reaparecem após 7 segundos caso haja espaço livre.</li>
           <li>Habilidade única <strong>Surto</strong> liberada em 100% de energia (sem as mecânicas exclusivas do 1v1).</li>
         </ul>
-        <button
-          type="button"
-          className="primary"
-          onClick={() => startOfflineMatch('offline_arena', { mode: 'arena' })}
-        >
-          ENTRAR NA ARENA 4 JOGADORES →
-        </button>
+        <h4 style={{ marginBottom: 10 }}>Nível de Inteligência das 3 Facções Rivais</h4>
+        <BotDifficultySelector value={difficulty} onChange={setDifficulty} mode="arena" compact />
+        <div style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => startOfflineMatch('offline_arena', { mode: 'arena', cpuDifficulty: difficulty })}
+          >
+            ENTRAR NA ARENA 4 JOGADORES →
+          </button>
+        </div>
       </div>
     </div>
   );

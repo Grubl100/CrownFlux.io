@@ -95,9 +95,18 @@ export default function ResultsPage() {
         )}
 
         <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 24 }}>
+          {matchResult.isClassic && (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => navigate(`/analysis/${matchResult.matchId}`)}
+            >
+              📊 Analisar Partida
+            </button>
+          )}
           <button
             type="button"
-            className="primary"
+            className={matchResult.isClassic ? 'secondary' : 'primary'}
             disabled={matchResult.rematchStatus === 'waiting'}
             onClick={handlePlayAgain}
           >
@@ -112,10 +121,10 @@ export default function ResultsPage() {
             className="secondary"
             onClick={() => {
               clearMatchSession();
-              navigate('/modes');
+              navigate(matchResult.isClassic ? '/modes/classic' : '/modes');
             }}
           >
-            Voltar à Central de Modos
+            {matchResult.isClassic ? 'Voltar ao Xadrez Clássico' : 'Voltar à Central de Modos'}
           </button>
         </div>
       </div>

@@ -29,6 +29,8 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     }
+    document.documentElement.dataset.uiTheme = merged.uiTheme || 'blue';
+    document.body.dataset.uiTheme = merged.uiTheme || 'blue';
     document.body.dataset.boardTheme = merged.boardTheme || 'imperial';
     document.body.classList.toggle('reduced-motion', Boolean(merged.reducedMotion));
     return merged;

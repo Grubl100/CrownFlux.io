@@ -22,6 +22,8 @@ export function playTone(kind, enabled = true) {
       hit: [150, 80, 0.24, 'sawtooth', 0.07],
       card: [340, 640, 0.16, 'triangle', 0.07],
       deny: [220, 180, 0.09, 'square', 0.03],
+      check: [520, 440, 0.12, 'triangle', 0.05],
+      lowtime: [330, 294, 0.14, 'sine', 0.04],
     };
     const [f0, f1, dur, type, vol] = profiles[kind] || profiles.move;
     osc.type = type;

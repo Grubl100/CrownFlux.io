@@ -5,6 +5,13 @@ import { promises as fs } from 'node:fs';
 import fsSync from 'node:fs';
 import crypto from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
+import {
+  chooseTacticalAction,
+  chooseTacticalDraftCard,
+  clampTacticalDifficulty,
+  getTacticalThinkDelay,
+  recordTacticalBotPosition,
+} from './server-ai/tacticalAI.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 try {
@@ -42,6 +49,7 @@ const TEAM = [
 ];
 const ALLOWED_AVATARS = ['♟', '♞', '♝', '♜', '♛', '♚', '⚔', '🛡', '👑', '⚡', '🔥', '💎'];
 const DEFAULT_PREFERENCES = {
+  uiTheme: 'blue',
   boardTheme: 'imperial',
   pieceStyle: 'medallion',
   doctrine: 'vanguard',
@@ -50,6 +58,7 @@ const DEFAULT_PREFERENCES = {
   autoQueueMove: true,
   confirmResign: true,
   soundEffects: true,
+  lowTimeSound: true,
   reducedMotion: false
 };
 
@@ -158,13 +167,15 @@ function normalizeUsername(s) { return String(s || '').trim().replace(/^@/, '').
 function sanitizePreferences(raw, current = DEFAULT_PREFERENCES) {
   const base = { ...DEFAULT_PREFERENCES, ...(current || {}) };
   if (!raw || typeof raw !== 'object') return base;
+  const uiThemes = ['blue', 'emerald'];
+  if (uiThemes.includes(raw.uiTheme)) base.uiTheme = raw.uiTheme;
   const themes = ['classic', 'slate', 'wood', 'imperial'];
   if (themes.includes(raw.boardTheme)) base.boardTheme = raw.boardTheme;
   const pieceStyles = ['medallion', 'heraldic', 'minimal'];
   if (pieceStyles.includes(raw.pieceStyle)) base.pieceStyle = raw.pieceStyle;
   const doctrines = ['vanguard', 'bastion', 'celerity'];
   if (doctrines.includes(raw.doctrine)) base.doctrine = raw.doctrine;
-  for (const key of ['showCoords', 'highlightMoves', 'autoQueueMove', 'confirmResign', 'soundEffects', 'reducedMotion']) {
+  for (const key of ['showCoords', 'highlightMoves', 'autoQueueMove', 'confirmResign', 'soundEffects', 'lowTimeSound', 'reducedMotion']) {
     if (typeof raw[key] === 'boolean') base[key] = raw[key];
   }
   return base;
@@ -465,6 +476,8 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.txt': 'text/plain; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.webp': 'image/webp',
@@ -484,16 +497,52 @@ function sanitizeMatchOptions(raw = {}) {
   const mode = modeValues.includes(raw?.mode) ? raw.mode : 'realtime';
   const controls = {
     bullet1: { category: 'bullet', seconds: 60, increment: 0, label: 'Bullet · 1+0' },
-    bullet2: { category: 'bullet', seconds: 120, increment: 1, label: 'Bullet · 2+1' },
+    bullet1_1: { category: 'bullet', seconds: 60, increment: 1, label: 'Bullet · 1+1' },
+    bullet2: { category: 'bullet', seconds: 120, increment: 0, label: 'Bullet · 2+0' },
+    bullet2_1: { category: 'bullet', seconds: 120, increment: 1, label: 'Bullet · 2+1' },
     blitz3: { category: 'blitz', seconds: 180, increment: 0, label: 'Blitz · 3+0' },
+    blitz3_2: { category: 'blitz', seconds: 180, increment: 2, label: 'Blitz · 3+2' },
     blitz5: { category: 'blitz', seconds: 300, increment: 0, label: 'Blitz · 5+0' },
+    blitz5_3: { category: 'blitz', seconds: 300, increment: 3, label: 'Blitz · 5+3' },
     rapid10: { category: 'rapid', seconds: 600, increment: 0, label: 'Rapid · 10+0' },
+    rapid10_5: { category: 'rapid', seconds: 600, increment: 5, label: 'Rapid · 10+5' },
     rapid15: { category: 'rapid', seconds: 900, increment: 10, label: 'Rapid · 15+10' },
+    rapid25: { category: 'rapid', seconds: 1500, increment: 0, label: 'Rapid · 25+0' },
     classic30: { category: 'classic', seconds: 1800, increment: 0, label: 'Clássico · 30+0' },
-    classic60: { category: 'classic', seconds: 3600, increment: 0, label: 'Clássico · 60+0' }
+    classic30_20: { category: 'classic', seconds: 1800, increment: 20, label: 'Clássico · 30+20' },
+    classic60: { category: 'classic', seconds: 3600, increment: 0, label: 'Clássico · 60+0' },
+    classic90_30: { category: 'classic', seconds: 5400, increment: 30, label: 'Clássico · 90+30' }
   };
+  if (raw?.timeControl === 'custom' && raw?.customTime) {
+    const minutes = Math.max(1, Math.min(180, Math.round(Number(raw.customTime.minutes) || 10)));
+    const increment = Math.max(0, Math.min(60, Math.round(Number(raw.customTime.increment) || 0)));
+    const seconds = minutes * 60;
+    const estTotal = seconds + increment * 40;
+    const category = estTotal < 180 ? 'bullet' : estTotal < 480 ? 'blitz' : estTotal < 1500 ? 'rapid' : 'classic';
+    return {
+      pace,
+      orbs,
+      timeLimit,
+      mode,
+      timeControl: 'custom',
+      custom: true,
+      category,
+      seconds,
+      increment,
+      label: `Personalizado · ${minutes}+${increment}`,
+      difficulty: clampTacticalDifficulty(raw?.difficulty || 3)
+    };
+  }
   const timeControl = Object.hasOwn(controls, raw?.timeControl) ? raw.timeControl : 'blitz3';
-  return { pace, orbs, timeLimit, mode, timeControl, ...controls[timeControl] };
+  return {
+    pace,
+    orbs,
+    timeLimit,
+    mode,
+    timeControl,
+    ...controls[timeControl],
+    difficulty: clampTacticalDifficulty(raw?.difficulty || 3)
+  };
 }
 
 function formatMatchOptionsSummary(opts = {}) {
@@ -836,7 +885,7 @@ async function handleApi(req, res, url) {
       user.tutorialPromptState = 'completed';
     }
 
-    const diffNames = { 1: 'Iniciante', 2: 'Fácil', 3: 'Normal', 4: 'Difícil', 5: 'Especialista' };
+    const diffNames = { 1: 'Iniciante', 2: 'Fácil', 3: 'Intermediário', 4: 'Difícil', 5: 'Muito difícil' };
     const opponentName = mode === 'classic_cpu'
       ? `Bot de Xadrez (${diffNames[difficulty] || 'Normal'})`
       : mode === 'classic_local'
@@ -1217,6 +1266,7 @@ function serializeGame(game, side) {
     clocks: game.mode === 'classic' ? game.clocks : undefined,
     castle: game.mode === 'classic' ? game.castle : undefined,
     enPassant: game.mode === 'classic' ? game.enPassant : undefined,
+    moveHistory: game.mode === 'classic' ? (game.moveHistory || []) : undefined,
     rated: game.mode === 'classic' ? Boolean(game.rated) : true,
     ratingChanges: game.ratingChanges,
     crown: game.crown ? { ...game.crown } : null,
@@ -1328,7 +1378,7 @@ function makeClassicGame(room) {
     nextPieceId: 1, events: [], lastMove: null, over: false, winner: null,
     turn: 0, clocks: [options.seconds, options.seconds], clockAt: Date.now(),
     castle: [{ king: true, queen: true }, { king: true, queen: true }],
-    enPassant: null, halfMoves: 0, repetition: new Map(), disconnects: new Map()
+    enPassant: null, halfMoves: 0, moveHistory: [], repetition: new Map(), disconnects: new Map()
   };
   const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
   for (let x = 0; x < 8; x++) {
@@ -1456,16 +1506,37 @@ function classicCanMate(game, side) {
   return material.length >= 2 && game.pieces.some(p => p.owner !== side && p.type !== 'K');
 }
 
-function applyClassicMove(game, p, x, y) {
+function applyClassicMove(game, p, x, y, promotion = 'Q') {
+  const FILES = 'abcdefgh';
   const side = game.turn, fromX = p.x, fromY = p.y, target = game.grid[y][x];
+  const origType = p.type;
   const pawnMove = p.type === 'P';
   const epCapture = p.type === 'P' && x !== fromX && !target;
   const captured = target || (epCapture ? game.grid[y + (side === 0 ? 1 : -1)][x] : null);
+  const isCastleKing = origType === 'K' && x - fromX === 2;
+  const isCastleQueen = origType === 'K' && fromX - x === 2;
+
+  // Desambiguação SAN antes de mover
+  let disambig = '';
+  if (origType !== 'P' && origType !== 'K') {
+    const others = game.pieces.filter(
+      o => o !== p && o.owner === side && o.type === origType &&
+        classicLegalMoves(game, o).some(([mx, my]) => mx === x && my === y)
+    );
+    if (others.length > 0) {
+      const sameFile = others.some(o => o.x === fromX);
+      const sameRank = others.some(o => o.y === fromY);
+      if (!sameFile) disambig = FILES[fromX];
+      else if (!sameRank) disambig = String(8 - fromY);
+      else disambig = `${FILES[fromX]}${8 - fromY}`;
+    }
+  }
+
   if (captured) removePiece(game, captured);
   game.grid[fromY][fromX] = null;
   p.x = x; p.y = y;
   game.grid[y][x] = p;
-  if (p.type === 'K' && Math.abs(x - fromX) === 2) {
+  if (isCastleKing || isCastleQueen) {
     const rookX = x === 6 ? 7 : 0, rook = game.grid[y][rookX];
     game.grid[y][rookX] = null; rook.x = x === 6 ? 5 : 3; game.grid[y][rook.x] = rook;
   }
@@ -1480,21 +1551,58 @@ function applyClassicMove(game, p, x, y) {
   }
   game.enPassant = p.type === 'P' && Math.abs(y - fromY) === 2
     ? { x, y: (fromY + y) / 2 } : null;
-  if (p.type === 'P' && (y === 0 || y === 7)) p.type = 'Q';
+  const promoChoice = ['Q', 'R', 'B', 'N'].includes(String(promotion || '').toUpperCase())
+    ? String(promotion).toUpperCase()
+    : 'Q';
+  let promotedTo = null;
+  if (p.type === 'P' && (y === 0 || y === 7)) {
+    p.type = promoChoice;
+    promotedTo = promoChoice;
+  }
   game.halfMoves = pawnMove || captured ? 0 : game.halfMoves + 1;
   game.clocks[side] += game.options.increment;
   game.turn = 1 - side;
-  game.lastMove = { x0: fromX, y0: fromY, x1: x, y1: y, t: game.T };
+  game.lastMove = { x0: fromX, y0: fromY, x1: x, y1: y, t: game.T, promotion: promotedTo };
   game.clockAt = Date.now();
-  addEvent(game, captured ? `${TEAM[side].name} capturou uma peça.` : `${TEAM[side].name} moveu.`);
 
   const key = classicPositionKey(game);
   game.repetition.set(key, (game.repetition.get(key) || 0) + 1);
   const nextMoves = game.pieces.filter(piece => piece.owner === game.turn)
     .some(piece => classicLegalMoves(game, piece).length > 0);
-  const inCheck = classicAttacked(game,
-    game.pieces.find(piece => piece.owner === game.turn && piece.type === 'K').x,
-    game.pieces.find(piece => piece.owner === game.turn && piece.type === 'K').y, side);
+  const nextKing = game.pieces.find(piece => piece.owner === game.turn && piece.type === 'K');
+  const inCheck = nextKing && classicAttacked(game, nextKing.x, nextKing.y, side);
+
+  let san = '';
+  if (isCastleKing) san = 'O-O';
+  else if (isCastleQueen) san = 'O-O-O';
+  else {
+    const destSq = `${FILES[x]}${8 - y}`;
+    if (origType === 'P') san = `${captured ? `${FILES[fromX]}x` : ''}${destSq}${promotedTo ? `=${promotedTo}` : ''}`;
+    else san = `${origType}${disambig}${captured ? 'x' : ''}${destSq}`;
+  }
+  if (!nextMoves && inCheck) san += '#';
+  else if (inCheck) san += '+';
+
+  const uci = `${FILES[fromX]}${8 - fromY}${FILES[x]}${8 - y}${promotedTo ? promotedTo.toLowerCase() : ''}`;
+  game.moveHistory ||= [];
+  game.moveHistory.push({
+    ply: game.moveHistory.length + 1,
+    side,
+    san,
+    uci,
+    fromX,
+    fromY,
+    toX: x,
+    toY: y,
+    piece: origType,
+    captured: captured?.type || null,
+    promotion: promotedTo,
+    inCheck: Boolean(inCheck),
+    isMate: Boolean(!nextMoves && inCheck),
+    clockAfter: Number(game.clocks[side].toFixed(1)),
+  });
+  addEvent(game, `${side === 0 ? 'Brancas' : 'Pretas'}: ${san}`);
+
   if (!nextMoves) finishGame(game, inCheck ? side : null, inCheck ? 'Xeque-mate.' : 'Afogamento: empate.');
   else if (classicInsufficientMaterial(game)) finishGame(game, null, 'Material insuficiente: empate.');
   else if (game.halfMoves >= 100) finishGame(game, null, 'Regra dos 50 lances: empate.');
@@ -2364,11 +2472,12 @@ class BotController {
   scheduleTurn(game, botSide) {
     if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen) return;
     this.clear(game.id);
+    const difficulty = clampTacticalDifficulty(game.options?.difficulty || 3);
     const step = () => {
       if (game.over || game.phase !== 'turn' || game.activeSide !== botSide || game.tutorialFrozen || game.autoEnding) return;
-      const acted = this.executeSingleAction(game, botSide);
+      const acted = this.executeSingleAction(game, botSide, difficulty);
       if (acted && !game.over && game.hasAnyValidAction(botSide)) {
-        this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(900, 1500)));
+        this.pendingTimers.set(game.id, setTimeout(step, getTacticalThinkDelay(difficulty)));
       } else if (!game.over && game.phase === 'turn' && game.activeSide === botSide && !game.autoEnding) {
         if (!game.hasAnyValidAction(botSide)) {
           scheduleAutoEndTurn(game, botSide);
@@ -2384,102 +2493,52 @@ class BotController {
               publishTactical(game, 'tactical:state');
               this.maybeAct(game);
             }
-          }, this.humanDelay(700, 1200)));
+          }, this.humanDelay(550, 950)));
         }
       }
     };
-    this.pendingTimers.set(game.id, setTimeout(step, this.humanDelay(800, 1400)));
+    this.pendingTimers.set(game.id, setTimeout(step, getTacticalThinkDelay(difficulty)));
   }
 
-  executeSingleAction(game, botSide) {
+  executeSingleAction(game, botSide, difficulty = 3) {
     const team = game.teams[botSide];
-    const unit = game.units[botSide];
-    const enemySide = 1 - botSide;
-    const enemyUnit = game.units[enemySide];
-    if (team.ap <= 0) return false;
+    if (!team || team.ap <= 0) return false;
 
-    // 0. Usa Sobrecarga de Estamina se tiver pouca energia e puder agir
-    const overcharge = team.hand.find(c => c.id === 'stamina_overcharge');
-    if (overcharge && team.ap <= 1) {
-      const res = game.playCard(botSide, overcharge.uid);
+    const action = chooseTacticalAction(game, botSide, difficulty);
+    if (!action) return false;
+
+    if (action.type === 'attack') {
+      const res = game.attackUnit(botSide, action.x, action.y);
       if (res.ok) {
-        publishTactical(game, 'tactical:state');
+        publishTactical(game, 'tactical:cardEffect', {
+          effect: 'melee_attack',
+          hitSide: 1 - botSide,
+          crownOutcome: res.crownOutcome,
+          crownProtectedBlocked: res.crownProtectedBlocked
+        });
         return true;
       }
+      return false;
     }
 
-    // 1. Se o inimigo tem a Coroa, prioriza combate direto / cartas ofensivas (respeitando proteção)
-    if (game.crown.holder === enemySide) {
-      if (game.crown.protectionTurns === 0 && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) === 1 && team.ap >= 1) {
-        const res = game.attackUnit(botSide, enemyUnit.x, enemyUnit.y);
-        if (res.ok) {
-          publishTactical(game, 'tactical:cardEffect', { effect: 'melee_attack', hitSide: enemySide, crownOutcome: res.crownOutcome, crownProtectedBlocked: res.crownProtectedBlocked });
-          return true;
-        }
-      }
-      const push = team.hand.find(c => c.id === 'kinetic_push' && team.ap >= c.cost);
-      if (push && game.crown.protectionTurns === 0 && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= push.range) {
-        const res = game.playCard(botSide, push.uid);
-        if (res.ok) {
-          publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: enemySide });
-          return true;
-        }
-      }
-      const siphon = team.hand.find(c => c.id === 'flux_siphon' && team.ap >= c.cost);
-      if (siphon) {
-        const res = game.playCard(botSide, siphon.uid);
-        if (res.ok) {
-          publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: enemySide });
-          return true;
-        }
-      }
-      const chase = this.findNextStep(game, unit.x, unit.y, enemyUnit.x, enemyUnit.y);
-      if (chase && team.ap >= 1) {
-        const res = game.moveUnit(botSide, chase.x, chase.y);
-        if (res.ok) {
-          publishTactical(game, 'tactical:state');
-          return true;
-        }
-      }
-    }
-
-    // 2. Se a Coroa está livre, calcula menor caminho e anda até ela (ou usa Teleporte Curto)
-    if (game.crown.holder === null) {
-      const distToCrown = game.manhattan(unit.x, unit.y, game.crown.x, game.crown.y);
-      const tp = team.hand.find(c => c.id === 'short_teleport' && team.ap >= c.cost);
-      if (tp && distToCrown === 2 && !game.hasWall(game.crown.x, game.crown.y) && !game.unitAt(game.crown.x, game.crown.y)) {
-        const res = game.playCard(botSide, tp.uid, { x: game.crown.x, y: game.crown.y });
-        if (res.ok) {
-          publishTactical(game, 'tactical:state');
-          return true;
-        }
-      }
-      const next = this.findNextStep(game, unit.x, unit.y, game.crown.x, game.crown.y);
-      if (next && team.ap >= 1) {
-        const res = game.moveUnit(botSide, next.x, next.y);
-        if (res.ok) {
-          publishTactical(game, 'tactical:state');
-          return true;
-        }
-      }
-    }
-
-    // 3. Caso contrário, aproxima-se do oponente ou ergue Parede de Fluxo
-    const wallCard = team.hand.find(c => c.id === 'flux_wall' && team.ap >= c.cost);
-    if (wallCard && game.manhattan(unit.x, unit.y, enemyUnit.x, enemyUnit.y) <= wallCard.range) {
-      const wx = Math.round((unit.x + enemyUnit.x) / 2);
-      const wy = Math.round((unit.y + enemyUnit.y) / 2);
-      const res = game.playCard(botSide, wallCard.uid, { x: wx, y: wy });
+    if (action.type === 'card' && action.card) {
+      const res = game.playCard(botSide, action.card.uid, action.target || {});
       if (res.ok) {
-        publishTactical(game, 'tactical:state');
+        recordTacticalBotPosition(game, botSide);
+        if (res.hitEnemy !== null && res.hitEnemy !== undefined) {
+          publishTactical(game, 'tactical:cardEffect', { effect: res.card.id, hitSide: res.hitEnemy });
+        } else {
+          publishTactical(game, 'tactical:state');
+        }
         return true;
       }
+      return false;
     }
 
-    const stepToEnemy = this.findNextStep(game, unit.x, unit.y, enemyUnit.x, enemyUnit.y);
-    if (stepToEnemy && team.ap >= 1) {
-      const res = game.moveUnit(botSide, stepToEnemy.x, stepToEnemy.y);
+    if (action.type === 'move') {
+      const res = game.moveUnit(botSide, action.x, action.y);
       if (res.ok) {
+        recordTacticalBotPosition(game, botSide);
         publishTactical(game, 'tactical:state');
         return true;
       }
@@ -2489,16 +2548,15 @@ class BotController {
 
   scheduleDraft(game, botSide) {
     if (game.over || game.phase !== 'draft' || game.teams[botSide].draftPicked) return;
-    // Delay de 3 a 5 segundos simulando escolha humana no Draft
+    const difficulty = clampTacticalDifficulty(game.options?.difficulty || 3);
     setTimeout(() => {
       if (game.over || game.phase !== 'draft' || game.teams[botSide].draftPicked || game.tutorialFrozen) return;
-      const opts = game.teams[botSide].draftOptions;
-      if (opts.length === 0) return;
-      const pick = opts[Math.floor(Math.random() * opts.length)];
+      const pick = chooseTacticalDraftCard(game, botSide, difficulty);
+      if (!pick) return;
       game.pickDraftCard(botSide, pick.uid);
       publishTactical(game, 'tactical:state');
       this.maybeAct(game);
-    }, this.humanDelay(3000, 5000));
+    }, this.humanDelay(1800, 3200));
   }
 
   maybeAct(game) {
@@ -2781,7 +2839,7 @@ function handleMove(ws, msg) {
       !classicLegalMoves(game, p).some(([a, b]) => a === x && b === y)) {
       return sendError(ws, 'Movimento ilegal no xadrez clássico.', 'ILLEGAL_MOVE');
     }
-    applyClassicMove(game, p, x, y);
+    applyClassicMove(game, p, x, y, msg.promotion);
     return;
   }
   const p = game.pieces.find(piece => piece.id === Number(msg.pieceId));
@@ -3205,6 +3263,9 @@ async function handleSocketMessage(ws, msg) {
       if (findGameFor(ws.userId)) return sendError(ws, 'Você já está em uma partida.');
       if (msg.options?.mode === 'classic') {
         const options = sanitizeMatchOptions({ ...msg.options, mode: 'classic' });
+        if (options.custom) {
+          return sendError(ws, 'Controles de tempo personalizados estão disponíveis apenas em Salas Privadas, Contra Bot ou Duelo Local.', 'CUSTOM_NOT_RANKED');
+        }
         const mine = classicQueue.find(entry => entry.uid === ws.userId);
         if (mine) classicQueue.splice(classicQueue.indexOf(mine), 1);
         const opponentIndex = classicQueue.findIndex(entry =>
@@ -3379,8 +3440,9 @@ async function handleSocketMessage(ws, msg) {
     }
     case 'tactical:startCpu': {
       if (findGameFor(ws.userId)) return sendError(ws, 'Você já está em uma partida.');
+      const difficulty = clampTacticalDifficulty(msg.difficulty || 3);
       const botUid = `bot:cpu:${id().slice(0, 6)}`;
-      const room = createRoom([ws.userId, botUid], 'cpu', { mode: 'tactical_draft' });
+      const room = createRoom([ws.userId, botUid], 'cpu', { mode: 'tactical_draft', difficulty });
       const game = activeGames.get(room.gameId);
       if (game) botController.maybeAct(game);
       break;
@@ -3604,7 +3666,7 @@ const server = http.createServer(async (req, res) => {
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === '/') pathname = '/index.html';
   const ext = path.extname(pathname);
-  const allowedExts = new Set(['.html', '.css', '.js', '.mjs', '.json', '.svg', '.png', '.webp', '.woff2', '.woff', '.ico']);
+  const allowedExts = new Set(['.html', '.css', '.js', '.mjs', '.json', '.wasm', '.txt', '.svg', '.png', '.webp', '.woff2', '.woff', '.ico']);
 
   // SPA fallback: browser routes without file extensions (e.g. /modes, /modes/duelo, /ranking, /game/123)
   if (!ext) {

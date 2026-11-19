@@ -14,6 +14,8 @@ import {
   VAL,
 } from '../utils/constants.js';
 import { cheb, rand } from '../utils/format.js';
+import { ARENA_AI_PROFILES, DUEL_AI_PROFILES, clampDifficulty } from '../ai/aiConfig.js';
+import { GameAIManager } from '../ai/GameAIManager.js';
 
 export function teamDisplayName(mode, i, onlineOpponentName = 'Adversário') {
   if (mode === 'duel' && i === 1) return 'Rubi';
@@ -704,10 +706,8 @@ function botThink(S, i, emit) {
     ps = S.pieces.filter((p) => p.o === i);
   }
   if (!ps.length) return;
-  const enemies = S.pieces.filter((p) => p.o !== i);
-  const me = 1 << i;
-  const level = S.mode === 'tutorial' ? 1 : S.mode === 'cpu' ? S.cpuDifficulty : 3;
 
+  // Tutorial mantém comportamento estritamente didático
   if (S.mode === 'tutorial') {
     if (S.tutorial.paused || S.turnOwner !== 1) return;
     let bestMove = null;
@@ -732,167 +732,11 @@ function botThink(S, i, emit) {
     return;
   }
 
-  if (level === 1) {
-    const sample = ps.filter(() => Math.random() < 0.55);
-    const candidates = sample.length ? sample : [ps[rand(ps.length)]];
-    let bestMove = null;
-    let bs = -1e9;
-    for (const p of candidates) {
-      for (const [a, b] of getDuelMoves(S, p)) {
-        const q = S.grid[b][a];
-        let score = Math.random() * 6;
-        if (q && q.o < 0) score += VAL[q.t] * 4;
-        else if (q && q.o >= 0 && Math.random() < 0.45) score += VAL[q.t] * 5;
-        if (p.t === 'P') score += 1.5;
-        if (score > bs) {
-          bs = score;
-          bestMove = [p, a, b];
-        }
-      }
-    }
-    if (bestMove) doDuelMove(S, bestMove[0], bestMove[1], bestMove[2], emit);
-    return;
-  }
-
-  if (level === 2) {
-    let bestMove = null;
-    let bs = -1e9;
-    for (const p of ps) {
-      for (const [a, b] of getDuelMoves(S, p)) {
-        const q = S.grid[b][a];
-        let score = Math.random() * 3.5;
-        if (q) score += q.t === 'K' ? 180 : VAL[q.t] * 8;
-        if (S.crown && S.crown.state === 'free' && S.crown.x === a && S.crown.y === b) score += 45;
-        if ((S.att[b][a] & ~me) !== 0) score -= VAL[p.t] * 2.2;
-        if (S.orbs.some((o) => o.x === a && o.y === b)) score += 9;
-        if (score > bs) {
-          bs = score;
-          bestMove = [p, a, b];
-        }
-      }
-    }
-    if (bestMove) doDuelMove(S, bestMove[0], bestMove[1], bestMove[2], emit);
-    return;
-  }
-
-  const enemyKing = S.pieces.find((p) => p.o === 0 && p.t === 'K');
-  const myKing = S.pieces.find((p) => p.o === i && p.t === 'K');
-  const crownHolder = S.crown?.state === 'held' ? S.pieces.find((p) => p.id === S.crown.holderId) : null;
-
-  if (level >= 3) {
-    if (S.f[i].energy >= 100) {
-      const rec = S.pieces.filter((p) => p.o === i && p.ready > S.T).length;
-      if (level === 3 && Math.random() < 0.35) activateDuelSkill(S, i, 'surge', null, emit);
-      else if (level >= 4 && (rec >= 2 || (enemyKing && S.pieces.some((p) => p.o === i && cheb(p.x, p.y, enemyKing.x, enemyKing.y) <= 4)))) {
-        activateDuelSkill(S, i, 'surge', null, emit);
-      }
-    } else if (S.is1v1Rules && level >= 4 && S.f[i].energy >= 60 && S.T >= (S.f[i].aegisCooldownUntil || 0)) {
-      const carrierDanger = crownHolder && crownHolder.o === i && crownHolder.shield === 0 && (S.att[crownHolder.y][crownHolder.x] & ~me) !== 0;
-      const kingDanger = myKing && myKing.shield === 0 && (S.att[myKing.y][myKing.x] & ~me) !== 0;
-      if (carrierDanger || kingDanger) activateDuelSkill(S, i, 'aegis', carrierDanger ? crownHolder : myKing, emit);
-    } else if (S.is1v1Rules && level === 5 && S.f[i].energy >= 72) {
-      const heavyRec = S.pieces.find((p) => p.o === i && (p.t === 'Q' || p.t === 'R' || p.t === 'N') && p.ready - S.T > 0.7);
-      if (heavyRec) activateDuelSkill(S, i, 'charge', heavyRec, emit);
-    }
-  }
-
-  let bestMove = null;
-  let bs = -1e9;
-  for (const p of ps) {
-    const ms = getDuelMoves(S, p);
-    if (!ms.length) continue;
-    let target = null;
-    let td = 1e9;
-    for (const e of enemies) {
-      const isEnemyCarrier = crownHolder && crownHolder.id === e.id;
-      const d = cheb(p.x, p.y, e.x, e.y) - (e.o >= 0 ? 1.3 : 0) + (e.t === 'K' ? -2.5 : 0) + (isEnemyCarrier ? -3.2 : 0);
-      if (d < td) {
-        td = d;
-        target = e;
-      }
-    }
-    const isMyCarrier = crownHolder && crownHolder.id === p.id;
-    const pv = VAL[p.t] * (p.t === 'K' ? 3.0 : isMyCarrier ? 2.4 : 1);
-    const inDanger = (S.att[p.y][p.x] & ~me) !== 0;
-    const d0 = target ? cheb(p.x, p.y, target.x, target.y) : 0;
-
-    for (const [a, b] of ms) {
-      const q = S.grid[b][a];
-      let score = level === 5 ? Math.random() * 0.35 : level === 4 ? Math.random() * 0.8 : Math.random() * 1.6;
-      if (q) {
-        if (q.t === 'K' && q.o >= 0) score += 500;
-        else if (crownHolder && q.id === crownHolder.id) score += 210;
-        else score += (VAL[q.t] + 0.5) * (q.o >= 0 ? 11.5 : 8.5);
-      }
-
-      if (S.crown) {
-        const dropLocked = S.crown.dropCooldownOwner === i && S.T < S.crown.dropCooldownUntil;
-        if (S.crown.state === 'free' && !dropLocked && p.t !== 'K') {
-          if (a === S.crown.x && b === S.crown.y) score += 92;
-          else score += (cheb(p.x, p.y, S.crown.x, S.crown.y) - cheb(a, b, S.crown.x, S.crown.y)) * 4.2;
-        } else if (S.crown.state === 'sealed' && p.t !== 'K') {
-          score += (cheb(p.x, p.y, 7.5, 7.5) - cheb(a, b, 7.5, 7.5)) * 1.8;
-        } else if (isMyCarrier) {
-          if (a >= 6 && a <= 9 && b >= 6 && b <= 9) score += 9.5;
-          if (b <= 2 || b >= 13) score -= 18;
-        }
-      }
-
-      if (S.zones?.length && p.t !== 'K') {
-        for (const z of S.zones) {
-          if (a >= z.x0 && a <= z.x1 && b >= z.y0 && b <= z.y1 && z.owner !== i) score += level >= 4 ? 6.5 : 4.0;
-        }
-      }
-
-      const destAttacked = (S.att[b][a] & ~me) !== 0;
-      const destDefended = (S.att[b][a] & me) !== 0;
-      if (destAttacked) {
-        score -= pv * (level >= 4 ? (destDefended ? 5.2 : 8.5) : 6.5);
-        if (isMyCarrier) score -= 45;
-      } else if (destDefended && level >= 4) score += 1.8;
-
-      if (inDanger && !destAttacked) score += pv * (level >= 4 ? 5.0 : 3.3);
-      if (target) score += (d0 - cheb(a, b, target.x, target.y)) * (p.t === 'P' ? 1.8 : 1.2);
-      if (p.t === 'K' && destAttacked) score -= 40;
-      if (S.orbs.some((o) => o.x === a && o.y === b)) score += level >= 4 ? 18 : 13;
-
-      if (level >= 4) {
-        if (enemyKing) score += Math.max(0, 8 - cheb(a, b, enemyKing.x, enemyKing.y)) * (p.t === 'Q' || p.t === 'R' || p.t === 'N' ? 1.4 : 0.6);
-        if (myKing && (S.att[myKing.y][myKing.x] & ~me) !== 0 && p.t !== 'K' && cheb(a, b, myKing.x, myKing.y) <= 2) score += 9;
-      }
-
-      if (level === 5) {
-        const origX = p.x;
-        const origY = p.y;
-        const prevTarget = S.grid[b][a];
-        S.grid[origY][origX] = null;
-        S.grid[b][a] = p;
-        p.x = a;
-        p.y = b;
-        for (const [nx, ny] of getDuelMoves(S, p, true)) {
-          const threatened = S.grid[ny][nx];
-          if (threatened && threatened.o === 0) score += threatened.t === 'K' ? 22 : VAL[threatened.t] * 1.9;
-        }
-        const readyEnemy = S.pieces.some(
-          (ep) => ep.o === 0 && ep !== prevTarget && ep.ready <= S.T + 0.25 && getDuelMoves(S, ep, true).some(([ex, ey]) => ex === a && ey === b)
-        );
-        if (readyEnemy) {
-          const gainVal = prevTarget ? VAL[prevTarget.t] : 0;
-          if (pv > gainVal) score -= (pv - gainVal) * 11;
-        }
-        p.x = origX;
-        p.y = origY;
-        S.grid[origY][origX] = p;
-        S.grid[b][a] = prevTarget;
-      }
-
-      if (score > bs) {
-        bs = score;
-        bestMove = [p, a, b];
-      }
-    }
-  }
-  if (bestMove && bs > -35) doDuelMove(S, bestMove[0], bestMove[1], bestMove[2], emit);
+  GameAIManager.stepDuel(S, i, {
+    getDuelMoves,
+    doDuelMove: (st, piece, a, b) => doDuelMove(st, piece, a, b, emit),
+    activateDuelSkill: (st, tid, skill, target) => activateDuelSkill(st, tid, skill, target, emit),
+  });
 }
 
 export function stepDuelState(S, dt, emit) {
@@ -1031,10 +875,11 @@ export function stepDuelState(S, dt, emit) {
       } else {
         botThink(S, i, emit);
         calcAtt(S);
+        const lv = clampDifficulty(S.cpuDifficulty);
         const baseInt = S.mode === 'cpu'
-          ? CPU_LEVELS.find((c) => c.level === S.cpuDifficulty)?.interval || 0.9
-          : Math.max(0.38, 0.95 - lvlBoost);
-        f.next = S.T + baseInt * (0.78 + Math.random() * 0.44);
+          ? (DUEL_AI_PROFILES[lv]?.interval || 0.98)
+          : Math.max(0.42, (ARENA_AI_PROFILES[lv]?.interval || 0.9) - lvlBoost * 0.5);
+        f.next = S.T + baseInt * (0.82 + Math.random() * 0.36);
       }
     }
   }
