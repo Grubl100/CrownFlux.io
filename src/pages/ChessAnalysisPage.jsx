@@ -327,7 +327,7 @@ export default function ChessAnalysisPage() {
         x1: coords.bx,
         y1: coords.by,
         color: 'rgba(235, 179, 68, 0.85)',
-        dashed: true,
+        dashed: false,
       };
     }
     setAnnotateTick((t) => t + 1);
@@ -353,7 +353,7 @@ export default function ChessAnalysisPage() {
       else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: 'rgba(235, 179, 68, 0.42)' });
     } else {
       const idx = annotationsRef.current.arrows.findIndex(
-        (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
+        (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && !a.dashed
       );
       if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
       else {
@@ -363,7 +363,7 @@ export default function ChessAnalysisPage() {
           x1: coords.bx,
           y1: coords.by,
           color: 'rgba(235, 179, 68, 0.85)',
-          dashed: true,
+          dashed: false,
         });
       }
     }

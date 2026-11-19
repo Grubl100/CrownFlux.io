@@ -627,7 +627,7 @@ export default function ClassicMatchView({ match }) {
           x1: coords.bx,
           y1: coords.by,
           color: st.colorObj.arrow,
-          dashed: true,
+          dashed: false,
         };
         annotationsRef.current.invalidTarget = null;
       } else {
@@ -660,7 +660,7 @@ export default function ClassicMatchView({ match }) {
         else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: st.colorObj.sq });
       } else {
         const idx = annotationsRef.current.arrows.findIndex(
-          (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
+          (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && !a.dashed
         );
         if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
         else {
@@ -670,7 +670,7 @@ export default function ClassicMatchView({ match }) {
             x1: coords.bx,
             y1: coords.by,
             color: st.colorObj.arrow,
-            dashed: true,
+            dashed: false,
           });
         }
       }
