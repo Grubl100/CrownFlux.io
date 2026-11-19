@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import {
+  CLASS_MAP,
+  MOVE_CLASSIFICATIONS,
+  buildFullAnalysisReport,
+  evalToExpectedPoints,
+} from '../ai/chessAnalysisEngine.js';
 import { ChessEngineWorker } from '../ai/chessEngineWorker.js';
 import ChessEvaluationGraph from '../components/chess/ChessEvaluationGraph.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -20,35 +26,11 @@ import {
 
 const FILES = 'abcdefgh';
 
-function evalToWinProb(ev) {
-  if (!ev) return 50;
-  if (ev.mate !== null && ev.mate !== undefined) {
-    return ev.mate > 0 ? 100 : 0;
-  }
-  const cp = Number(ev.scoreCp) || 0;
-  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
-}
-
-function classifyMove(winLoss, isEngineBest) {
-  if (isEngineBest || winLoss <= 1.2) return 'best';
-  if (winLoss <= 3.5) return 'excellent';
-  if (winLoss <= 7.5) return 'good';
-  if (winLoss <= 13.5) return 'inaccuracy';
-  if (winLoss <= 22.5) return 'mistake';
-  return 'blunder';
-}
-
-const CLASS_META = {
-  best: { label: 'Melhor lance', badge: '★', color: '#6db38b' },
-  excellent: { label: 'Excelente', badge: '!', color: '#7cc2a8' },
-  good: { label: 'Bom', badge: '✓', color: '#8ab4c9' },
-  inaccuracy: { label: 'Imprecisão', badge: '?!', color: '#e6ca5c' },
-  mistake: { label: 'Erro', badge: '?', color: '#e39648' },
-  blunder: { label: 'Erro grave', badge: '??', color: '#e05a5a' },
-};
-
 function formatEvalLabel(ev) {
   if (!ev) return '0.0';
+  if (ev.terminalWinner === 0) return '1-0';
+  if (ev.terminalWinner === 1) return '0-1';
+  if (ev.terminalDraw) return '0.0';
   if (ev.mate !== null && ev.mate !== undefined) {
     return ev.mate > 0 ? `#${ev.mate}` : `-#${Math.abs(ev.mate)}`;
   }
@@ -89,13 +71,12 @@ export default function ChessAnalysisPage() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [playSpeedMs, setPlaySpeedMs] = useState(900);
 
-  // Estado da análise Stockfish
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState('quick'); // quick | complete
   const [progress, setProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState('');
   const [analysisData, setAnalysisData] = useState(() => loadClassicAnalysisCache(matchId));
 
-  // Exploração de variação isolada (não altera a partida original)
   const [variationState, setVariationState] = useState(null);
   const [variationEval, setVariationEval] = useState(null);
 
@@ -105,7 +86,6 @@ export default function ChessAnalysisPage() {
   const engineRef = useRef(null);
   const cancelRef = useRef(false);
 
-  // Limpa worker ao desmontar
   useEffect(() => {
     return () => {
       cancelRef.current = true;
@@ -114,7 +94,6 @@ export default function ChessAnalysisPage() {
     };
   }, []);
 
-  // Reprodução automática
   useEffect(() => {
     if (!autoPlay) return undefined;
     if (currentPly >= snapshots.length - 1) {
@@ -127,7 +106,6 @@ export default function ChessAnalysisPage() {
     return () => clearTimeout(timer);
   }, [autoPlay, currentPly, snapshots.length, playSpeedMs]);
 
-  // Atalhos de teclado para navegação
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -153,12 +131,16 @@ export default function ChessAnalysisPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [snapshots.length]);
 
-  const runAnalysis = useCallback(async () => {
+  const runAnalysis = useCallback(async (mode = 'quick') => {
     if (!snapshots.length || analyzing) return;
     cancelRef.current = false;
+    setAnalysisMode(mode);
     setAnalyzing(true);
     setAnalysisError('');
     setProgress(0);
+
+    const depth = mode === 'complete' ? 14 : 10;
+    const movetime = mode === 'complete' ? 360 : 180;
 
     try {
       if (!engineRef.current) engineRef.current = new ChessEngineWorker();
@@ -167,11 +149,26 @@ export default function ChessAnalysisPage() {
       const rawEvals = [];
       for (let i = 0; i < snapshots.length; i++) {
         if (cancelRef.current) break;
-        const ev = await engineRef.current.evaluateForAnalysis(snapshots[i].fen, {
-          depth: 10,
-          movetime: 200,
-        });
-        rawEvals.push({ ply: i, ...ev });
+        const snap = snapshots[i];
+
+        // Trata corretamente posições terminais (xeque-mate ou empate) sem depender de bestmove (none)
+        if (Number.isInteger(snap.checkmatedKingOwner)) {
+          const winner = 1 - snap.checkmatedKingOwner;
+          rawEvals.push({
+            ply: i,
+            bestMove: null,
+            pv: [],
+            depth,
+            scoreCp: null,
+            mate: 0,
+            terminalWinner: winner,
+            terminalDraw: false,
+            secondBest: null,
+          });
+        } else {
+          const ev = await engineRef.current.evaluateForAnalysis(snap.fen, { depth, movetime, multiPv: 2 });
+          rawEvals.push({ ply: i, ...ev, terminalWinner: null, terminalDraw: false });
+        }
         setProgress(Math.round(((i + 1) / snapshots.length) * 100));
       }
 
@@ -180,69 +177,9 @@ export default function ChessAnalysisPage() {
         return;
       }
 
-      // Classifica cada lance (ply 1..N) comparando avaliação antes e depois
-      const evaluations = rawEvals.map((ev, idx) => {
-        if (idx === 0) return { ...ev, classification: null, winLoss: 0, bestBefore: ev.bestMove, pvBefore: ev.pv };
-        const prev = rawEvals[idx - 1];
-        const move = snapshots[idx].move;
-        const moverSide = move?.side ?? (idx - 1) % 2;
-        const wpBeforeWhite = evalToWinProb(prev);
-        const wpAfterWhite = evalToWinProb(ev);
-        const wpBeforeMover = moverSide === 0 ? wpBeforeWhite : 100 - wpBeforeWhite;
-        const wpAfterMover = moverSide === 0 ? wpAfterWhite : 100 - wpAfterWhite;
-        const winLoss = Math.max(0, wpBeforeMover - wpAfterMover);
-        const isBest = Boolean(prev.bestMove && move?.uci && prev.bestMove === move.uci);
-        const classification = classifyMove(winLoss, isBest);
-        return {
-          ...ev,
-          classification,
-          winLoss: Number(winLoss.toFixed(1)),
-          bestBefore: prev.bestMove,
-          pvBefore: prev.pv || [],
-          moverSide,
-        };
-      });
-
-      // Estatísticas e precisão 0-100 consistente (fórmula baseada em perda média de probabilidade de vitória)
-      const calcSideStats = (side) => {
-        const sideMoves = evaluations.filter((e) => e.ply > 0 && e.moverSide === side);
-        if (!sideMoves.length) {
-          return { accuracy: 100, best: 0, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 };
-        }
-        const counts = { best: 0, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 };
-        let accSum = 0;
-        for (const m of sideMoves) {
-          if (counts[m.classification] !== undefined) counts[m.classification]++;
-          const moveAcc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * m.winLoss) - 3.1669));
-          accSum += moveAcc;
-        }
-        return { accuracy: Math.round(accSum / sideMoves.length), ...counts };
-      };
-
-      const decisiveMoments = evaluations
-        .filter((e) => e.ply > 0 && (e.classification === 'blunder' || e.classification === 'mistake'))
-        .sort((a, b) => b.winLoss - a.winLoss)
-        .slice(0, 5)
-        .map((e) => ({
-          ply: e.ply,
-          san: snapshots[e.ply]?.move?.san || '',
-          side: e.moverSide,
-          classification: e.classification,
-          winLoss: e.winLoss,
-          bestBefore: e.bestBefore,
-        }));
-
-      const result = {
-        evaluations,
-        whiteStats: calcSideStats(0),
-        blackStats: calcSideStats(1),
-        decisiveMoments,
-        engineName: 'Stockfish 19 Lite WASM',
-        analyzedAt: new Date().toISOString(),
-      };
-
-      setAnalysisData(result);
-      saveClassicAnalysisCache(matchId, result);
+      const report = buildFullAnalysisReport(snapshots, rawEvals, 'Stockfish 19 Lite WASM', mode);
+      setAnalysisData(report);
+      saveClassicAnalysisCache(matchId, report);
     } catch (err) {
       setAnalysisError(err?.message || 'Não foi possível concluir a análise com o motor Stockfish.');
     } finally {
@@ -256,7 +193,6 @@ export default function ChessAnalysisPage() {
     setAnalyzing(false);
   };
 
-  // Renderiza o tabuleiro (linha principal ou variação isolada)
   const renderBoard = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !snapshots.length) return;
@@ -309,7 +245,6 @@ export default function ChessAnalysisPage() {
     return () => window.removeEventListener('resize', renderBoard);
   }, [renderBoard]);
 
-  // Permite testar lances alternativos em variação isolada sem alterar a partida original
   const handleBoardClick = async (e) => {
     const canvas = canvasRef.current;
     if (!canvas || !snapshots.length) return;
@@ -322,7 +257,6 @@ export default function ChessAnalysisPage() {
     setAutoPlay(false);
     let S = variationState;
     if (!S) {
-      // Cria cópia isolada a partir do ply atual
       S = createClassicState({ mode: 'classic_local', timeControl: 'classic30' });
       for (let i = 0; i < currentPly; i++) {
         const uci = uciMoves[i];
@@ -348,7 +282,7 @@ export default function ChessAnalysisPage() {
       if (!analyzing) {
         try {
           if (!engineRef.current) engineRef.current = new ChessEngineWorker();
-          const ev = await engineRef.current.evaluateForAnalysis(stateToFen(S), { depth: 10, movetime: 180 });
+          const ev = await engineRef.current.evaluateForAnalysis(stateToFen(S), { depth: 10, movetime: 180, multiPv: 1 });
           setVariationEval(ev);
         } catch {
           // ignore
@@ -383,9 +317,9 @@ export default function ChessAnalysisPage() {
   }
 
   const curEval = variationState ? variationEval : analysisData?.evaluations?.[currentPly];
-  const evalPct = Math.max(4, Math.min(96, evalToWinProb(curEval)));
+  const evalPct = Math.max(4, Math.min(96, evalToExpectedPoints(curEval)));
   const currentMoveInfo = snapshots[currentPly]?.move;
-  const currentClass = curEval?.classification ? CLASS_META[curEval.classification] : null;
+  const currentClass = curEval?.classification ? CLASS_MAP[curEval.classification] : null;
 
   return (
     <div className="page-container analysis-page">
@@ -411,10 +345,13 @@ export default function ChessAnalysisPage() {
       </div>
 
       <header className="mode-page-hero" style={{ marginBottom: 16 }}>
-        <span className="eyebrow">Análise Pós-Partida · Stockfish 19 Lite WASM</span>
+        <span className="eyebrow">Revisão de Partida · Stockfish 19 Lite WASM</span>
         <h1>{record.white || 'Brancas'} × {record.black || 'Pretas'}</h1>
         <p className="muted">
           {record.clockControlLabel || 'Xadrez Clássico'} · Resultado: <strong>{record.resultLabel || record.reason}</strong> · {uciMoves.length} meios-lances
+          {analysisData && (
+            <> · Modo: <strong>{analysisData.analysisMode === 'complete' ? 'Análise Completa (Prof. 14)' : 'Análise Rápida (Prof. 10)'}</strong></>
+          )}
         </p>
       </header>
 
@@ -485,49 +422,76 @@ export default function ChessAnalysisPage() {
 
         <aside className="analysis-side-col">
           <div className="panel">
-            <div className="hud-card-head">
+            <div className="hud-card-head" style={{ flexWrap: 'wrap', gap: 8 }}>
               <h3>Motor Stockfish 19</h3>
               {analyzing ? (
                 <button type="button" className="mini-btn danger" onClick={cancelAnalysis}>
                   Cancelar ({progress}%)
                 </button>
               ) : (
-                <button type="button" className="primary" style={{ padding: '7px 14px', fontSize: 13 }} onClick={runAnalysis}>
-                  {analysisData ? 'Reanalisar' : 'Analisar com Stockfish'}
-                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="secondary" style={{ padding: '6px 11px', fontSize: 12 }} onClick={() => runAnalysis('quick')}>
+                    Análise Rápida
+                  </button>
+                  <button type="button" className="primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => runAnalysis('complete')}>
+                    Análise Completa
+                  </button>
+                </div>
               )}
             </div>
 
             {analyzing && (
-              <div className="progress-track" style={{ marginTop: 10 }}>
-                <div className="progress-fill" style={{ width: `${progress}%` }} />
+              <div style={{ marginTop: 10 }}>
+                <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+                  Analisando ({analysisMode === 'complete' ? 'Completa · Prof. 14' : 'Rápida · Prof. 10'}): {progress}%
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${progress}%` }} />
+                </div>
               </div>
             )}
 
             {analysisError && <p className="muted" style={{ color: 'var(--red)', marginTop: 8 }}>{analysisError}</p>}
 
             {analysisData && (
-              <div className="accuracy-grid" style={{ marginTop: 12 }}>
-                <div className="accuracy-card">
-                  <span className="muted">Precisão Brancas</span>
-                  <strong>{analysisData.whiteStats.accuracy}%</strong>
-                  <small>
-                    ★ {analysisData.whiteStats.best} · ?! {analysisData.whiteStats.inaccuracy} · ? {analysisData.whiteStats.mistake} · ?? {analysisData.whiteStats.blunder}
-                  </small>
+              <>
+                <div className="accuracy-grid" style={{ marginTop: 12 }}>
+                  <div className="accuracy-card">
+                    <span className="muted">Precisão Brancas</span>
+                    <strong>{analysisData.whiteStats.accuracy}%</strong>
+                    <small>{analysisData.whiteStats.totalMoves} lances analisados</small>
+                  </div>
+                  <div className="accuracy-card">
+                    <span className="muted">Precisão Pretas</span>
+                    <strong>{analysisData.blackStats.accuracy}%</strong>
+                    <small>{analysisData.blackStats.totalMoves} lances analisados</small>
+                  </div>
                 </div>
-                <div className="accuracy-card">
-                  <span className="muted">Precisão Pretas</span>
-                  <strong>{analysisData.blackStats.accuracy}%</strong>
-                  <small>
-                    ★ {analysisData.blackStats.best} · ?! {analysisData.blackStats.inaccuracy} · ? {analysisData.blackStats.mistake} · ?? {analysisData.blackStats.blunder}
-                  </small>
+
+                {/* Tabela completa com todas as 10 classificações (inclusive 0) */}
+                <div className="classification-summary-table" style={{ marginTop: 12 }}>
+                  <div className="cls-sum-head">
+                    <span>Classificação</span>
+                    <span>Brancas</span>
+                    <span>Pretas</span>
+                  </div>
+                  {MOVE_CLASSIFICATIONS.map((cat) => (
+                    <div key={cat.id} className="cls-sum-row">
+                      <span className="cls-sum-label">
+                        <i className="cls-badge-dot" style={{ background: cat.color }}>{cat.badge}</i>
+                        {cat.label}
+                      </span>
+                      <strong>{analysisData.whiteStats?.counts?.[cat.id] ?? 0}</strong>
+                      <strong>{analysisData.blackStats?.counts?.[cat.id] ?? 0}</strong>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              </>
             )}
 
             {currentMoveInfo && (
               <div className="ply-detail-box" style={{ marginTop: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <strong>
                     Lance {Math.ceil(currentPly / 2)}{currentMoveInfo.side === 0 ? '.' : '...'} {currentMoveInfo.san}
                   </strong>
@@ -539,7 +503,7 @@ export default function ChessAnalysisPage() {
                 </div>
                 {curEval?.bestBefore && curEval.bestBefore !== currentMoveInfo.uci && (
                   <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                    Melhor alternativa sugerida pelo motor: <strong>{curEval.bestBefore}</strong>
+                    Melhor alternativa: <strong>{curEval.bestBefore}</strong>
                     {curEval.pvBefore?.length > 1 ? ` · Linha: ${curEval.pvBefore.slice(0, 5).join(' ')}` : ''}
                   </p>
                 )}
@@ -565,8 +529,8 @@ export default function ChessAnalysisPage() {
                     <span>
                       {Math.ceil(m.ply / 2)}{m.side === 0 ? '.' : '...'} <strong>{m.san}</strong>
                     </span>
-                    <span style={{ color: CLASS_META[m.classification]?.color }}>
-                      {CLASS_META[m.classification]?.label} (-{m.winLoss}%)
+                    <span style={{ color: CLASS_MAP[m.classification]?.color, fontWeight: 700 }}>
+                      {CLASS_MAP[m.classification]?.badge} {CLASS_MAP[m.classification]?.label}
                     </span>
                   </button>
                 ))}
@@ -594,8 +558,8 @@ export default function ChessAnalysisPage() {
                     >
                       <span>{wSnap?.move?.san || ''}</span>
                       {wEval?.classification && (
-                        <i style={{ color: CLASS_META[wEval.classification]?.color }}>
-                          {CLASS_META[wEval.classification]?.badge}
+                        <i style={{ color: CLASS_MAP[wEval.classification]?.color }}>
+                          {CLASS_MAP[wEval.classification]?.badge}
                         </i>
                       )}
                     </button>
@@ -607,8 +571,8 @@ export default function ChessAnalysisPage() {
                     >
                       <span>{bSnap?.move?.san || ''}</span>
                       {bEval?.classification && (
-                        <i style={{ color: CLASS_META[bEval.classification]?.color }}>
-                          {CLASS_META[bEval.classification]?.badge}
+                        <i style={{ color: CLASS_MAP[bEval.classification]?.color }}>
+                          {CLASS_MAP[bEval.classification]?.badge}
                         </i>
                       )}
                     </button>

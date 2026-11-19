@@ -10,6 +10,58 @@ import {
 
 const FILES = 'abcdefgh';
 
+export const PREMOVE_COST_SECONDS = 0.1; // 100ms de custo configurável por premove
+
+export function getClassicPremoveTargets(S, p) {
+  if (!S || !p) return [];
+  const res = [];
+  const { x, y, t, o } = p;
+  const add = (a, b) => {
+    if (a >= 0 && b >= 0 && a < 8 && b < 8 && !(a === x && b === y)) res.push([a, b]);
+  };
+  if (t === 'P') {
+    const dir = o === 0 ? -1 : 1;
+    const start = o === 0 ? 6 : 1;
+    add(x, y + dir);
+    if (y === start) add(x, y + dir * 2);
+    add(x - 1, y + dir);
+    add(x + 1, y + dir);
+  } else if (t === 'N') {
+    for (const [dx, dy] of KN) add(x + dx, y + dy);
+  } else if (t === 'B' || t === 'R' || t === 'Q') {
+    const dirs = t === 'B' ? DIAG : t === 'R' ? ORTH : ORTH.concat(DIAG);
+    for (const [dx, dy] of dirs) {
+      let a = x + dx;
+      let b = y + dy;
+      while (a >= 0 && b >= 0 && a < 8 && b < 8) {
+        add(a, b);
+        a += dx;
+        b += dy;
+      }
+    }
+  } else if (t === 'K') {
+    for (const [dx, dy] of ORTH.concat(DIAG)) add(x + dx, y + dy);
+    const row = o === 0 ? 7 : 0;
+    if (x === 4 && y === row) {
+      add(6, row);
+      add(2, row);
+    }
+  }
+  return res;
+}
+
+export function getAllLegalUciMoves(S, side = S.turnOwner) {
+  const out = [];
+  for (const p of S.pieces) {
+    if (p.o !== side) continue;
+    for (const [tx, ty] of getClassicMoves(S, p)) {
+      const promo = p.t === 'P' && (ty === 0 || ty === 7) ? 'q' : '';
+      out.push(`${FILES[p.x]}${8 - p.y}${FILES[tx]}${8 - ty}${promo}`);
+    }
+  }
+  return out;
+}
+
 export function createClassicState({
   mode = 'classic_cpu',
   timeControl = 'blitz3',

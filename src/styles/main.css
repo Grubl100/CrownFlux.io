@@ -3317,3 +3317,211 @@ select:focus {
     min-width: 80px;
   }
 }
+
+
+/* =========================================================
+   RODADA 2 — CONTROLES DE TEMPO EM DESTAQUE, PAINEL DIREITO,
+   TABELA 10 CLASSIFICAÇÕES, PREMOVES & PRÉVIA DE PEÇAS
+   ========================================================= */
+
+/* Destaque forte dos Controles de Tempo em AMBOS os temas (Azul e Verde/Dourado) */
+.tc-selector-box {
+  background: var(--surface-deep);
+  border: 1.5px solid var(--highlight-border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+}
+
+.tc-cat-tab {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  padding: 11px 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+.tc-cat-tab:hover {
+  border-color: var(--highlight-border);
+  background: var(--panel-2);
+}
+
+.tc-cat-tab.active {
+  background: linear-gradient(180deg, var(--primary-bg-1) 0%, var(--primary-bg-2) 100%);
+  border-color: var(--primary-border);
+  color: var(--primary-text);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.tc-cat-tab.active .tc-cat-title,
+.tc-cat-tab.active .tc-cat-elo {
+  color: var(--primary-text);
+  font-weight: 800;
+}
+
+.tc-preset-card {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  padding: 14px 12px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+.tc-preset-card:hover {
+  border-color: var(--highlight-border);
+  background: var(--panel-2);
+}
+
+.tc-preset-card.active {
+  background: linear-gradient(180deg, var(--primary-bg-1) 0%, var(--primary-bg-2) 100%);
+  border-color: var(--primary-border);
+  color: var(--primary-text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34), 0 0 0 2px var(--primary-border) inset;
+  transform: translateY(-1px);
+}
+
+.tc-preset-card.active .tc-preset-main,
+.tc-preset-card.active .tc-preset-sub {
+  color: var(--primary-text);
+}
+
+.tc-preset-main {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+/* Painel direito reformulado do Xadrez Clássico (mais próximo e preenchido) */
+.classic-pro-grid {
+  max-width: 1080px;
+  margin: 0 auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.classic-right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 320px;
+}
+
+.classic-history-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.classic-san-large {
+  min-height: 300px;
+  max-height: 430px;
+  font-size: 14px;
+}
+
+.classic-san-large .san-move-btn {
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.classic-action-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.classic-action-btns button {
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.draw-offer-banner {
+  background: var(--highlight-bg-active);
+  border: 1.5px solid var(--highlight-border);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.premove-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(176, 98, 232, 0.2);
+  border: 1px solid rgba(210, 145, 255, 0.55);
+  color: #f0dbff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* Tabela completa de 10 classificações na Análise Pós-Partida */
+.classification-summary-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.cls-sum-head,
+.cls-sum-row {
+  display: grid;
+  grid-template-columns: 1fr 56px 56px;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.cls-sum-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+  margin-bottom: 3px;
+}
+
+.cls-sum-head span:not(:first-child),
+.cls-sum-row strong {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cls-sum-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.cls-badge-dot {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 6px;
+  color: #0e141a;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+/* Pré-visualização de estilos de peças em Configurações */
+.piece-preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.piece-preview-canvas {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  max-width: 100%;
+  height: auto;
+  align-self: flex-start;
+}

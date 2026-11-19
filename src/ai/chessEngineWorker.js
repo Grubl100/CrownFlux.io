@@ -120,49 +120,80 @@ export class ChessEngineWorker {
     });
   }
 
-  async getBotMove(fen, difficulty = 3) {
+  async getBotMove(fen, difficulty = 3, { searchTimeMs = null, legalUciMoves = [] } = {}) {
     const level = clampDifficulty(difficulty);
     const cfg = CHESS_STOCKFISH_PROFILES[level] || CHESS_STOCKFISH_PROFILES[3];
+    const movetime = searchTimeMs ? Math.min(cfg.movetime, searchTimeMs) : cfg.movetime;
+
     const res = await this.search(fen, {
       depth: cfg.depth,
-      movetime: cfg.movetime,
+      movetime,
       skillLevel: cfg.skillLevel,
       limitStrength: cfg.limitStrength,
       uciElo: cfg.uciElo,
       multiPv: cfg.multiPv,
     });
 
-    // Nos níveis 1 e 2, seleciona ocasionalmente uma linha secundária legal do MultiPV
-    // para simular erros humanos coerentes sem jamais fazer lances ilegais.
-    if (cfg.pickTopN > 1 && res.lines.length > 1 && Math.random() < cfg.blunderChance) {
-      const pool = res.lines.slice(1, Math.min(cfg.pickTopN, res.lines.length));
-      if (pool.length) {
-        const picked = pool[Math.floor(Math.random() * pool.length)];
-        if (picked?.pv?.[0]) {
-          return { ...res, bestMove: picked.pv[0] };
-        }
+    // Níveis 1-2: seleção calibrada de erros humanos coerentes entre candidatos legais
+    // (evita que o Iniciante jogue como motor de 1320+ Elo mesmo com Skill Level 0).
+    if (cfg.weakMoveChance > 0 && legalUciMoves.length > 2 && Math.random() < cfg.weakMoveChance) {
+      const topSet = new Set(res.lines.slice(0, 2).map((l) => l.pv?.[0]).filter(Boolean));
+      const nonTop = legalUciMoves.filter((u) => !topSet.has(u));
+      if (nonTop.length) {
+        const chosen = nonTop[Math.floor(Math.random() * nonTop.length)];
+        return { ...res, bestMove: chosen };
+      }
+    }
+
+    if (cfg.suboptimalChance > 0 && res.lines.length > 1 && Math.random() < cfg.suboptimalChance) {
+      const bestCp = res.lines[0]?.scoreCp ?? 0;
+      const viable = res.lines.slice(1).filter((l) => {
+        if (!l.pv?.[0]) return false;
+        if (l.mate !== null && l.mate < 0 && level >= 2) return false; // Fácil evita entregar mate em 1 direto
+        const drop = bestCp - (l.scoreCp ?? bestCp);
+        return drop <= (cfg.maxCpDrop || 300);
+      });
+      if (viable.length) {
+        const picked = viable[Math.floor(Math.random() * viable.length)];
+        return { ...res, bestMove: picked.pv[0] };
       }
     }
     return res;
   }
 
   // Avalia uma posição normalizando a pontuação sempre da perspectiva das Brancas (+ = Brancas melhor)
-  async evaluateForAnalysis(fen, { depth = 11, movetime = 260 } = {}) {
+  async evaluateForAnalysis(fen, { depth = 11, movetime = 260, multiPv = 2 } = {}) {
     const res = await this.search(fen, {
       depth,
       movetime,
       skillLevel: 20,
       limitStrength: false,
-      multiPv: 1,
+      multiPv,
     });
     const sideToMove = fen.split(' ')[1] === 'b' ? 1 : 0;
     const sign = sideToMove === 0 ? 1 : -1;
-    return {
-      bestMove: res.bestMove,
+    const normalizeLine = (l) => ({
+      move: l.pv?.[0] || null,
+      pv: l.pv || [],
+      depth: l.depth || res.depth,
+      scoreCp: l.scoreCp !== null && l.scoreCp !== undefined ? l.scoreCp * sign : null,
+      mate: l.mate !== null && l.mate !== undefined ? l.mate * sign : null,
+    });
+    const lines = (res.lines || []).map(normalizeLine);
+    const top = lines[0] || {
+      move: res.bestMove,
       pv: res.pv || [],
       depth: res.depth,
       scoreCp: res.scoreCp !== null ? res.scoreCp * sign : null,
       mate: res.mate !== null ? res.mate * sign : null,
+    };
+    return {
+      bestMove: top.move || res.bestMove,
+      pv: top.pv,
+      depth: top.depth,
+      scoreCp: top.scoreCp,
+      mate: top.mate,
+      secondBest: lines[1] || null,
     };
   }
 

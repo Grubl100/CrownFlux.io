@@ -106,11 +106,62 @@ export const ARENA_AI_PROFILES = {
   5: { interval: 0.5, noise: 0.1, multiThreatWeight: 1.6, convertWeight: 1.6, surgeUse: 1.0, lookahead: 2 },
 };
 
-// Parâmetros UCI reais do Stockfish 19 Lite WASM (calibrados por testes)
+// Parâmetros UCI calibrados do Stockfish 19 Lite WASM + seleção controlada nos níveis iniciais.
+// Nível 1 (Iniciante) é genuinamente acessível; Nível 5 (Muito difícil) utiliza força máxima.
 export const CHESS_STOCKFISH_PROFILES = {
-  1: { skillLevel: 0, limitStrength: true, uciElo: 1320, depth: 2, movetime: 90, multiPv: 4, pickTopN: 4, blunderChance: 0.34 },
-  2: { skillLevel: 3, limitStrength: true, uciElo: 1350, depth: 4, movetime: 140, multiPv: 3, pickTopN: 2, blunderChance: 0.16 },
-  3: { skillLevel: 7, limitStrength: true, uciElo: 1650, depth: 7, movetime: 260, multiPv: 1, pickTopN: 1, blunderChance: 0.0 },
-  4: { skillLevel: 13, limitStrength: true, uciElo: 2100, depth: 11, movetime: 480, multiPv: 1, pickTopN: 1, blunderChance: 0.0 },
-  5: { skillLevel: 20, limitStrength: false, uciElo: null, depth: 15, movetime: 850, multiPv: 1, pickTopN: 1, blunderChance: 0.0 },
+  1: {
+    skillLevel: 0,
+    limitStrength: true,
+    uciElo: 1320,
+    depth: 1,
+    movetime: 70,
+    multiPv: 5,
+    suboptimalChance: 0.62,
+    weakMoveChance: 0.34, // Permite erros táticos humanos coerentes (sempre lances legais)
+    maxCpDrop: 480,
+  },
+  2: {
+    skillLevel: 1,
+    limitStrength: true,
+    uciElo: 1320,
+    depth: 2,
+    movetime: 110,
+    multiPv: 5,
+    suboptimalChance: 0.44,
+    weakMoveChance: 0.14,
+    maxCpDrop: 240,
+  },
+  3: {
+    skillLevel: 6,
+    limitStrength: true,
+    uciElo: 1480,
+    depth: 6,
+    movetime: 250,
+    multiPv: 2,
+    suboptimalChance: 0.16,
+    weakMoveChance: 0.0,
+    maxCpDrop: 95,
+  },
+  4: {
+    skillLevel: 13,
+    limitStrength: true,
+    uciElo: 1980,
+    depth: 10,
+    movetime: 480,
+    multiPv: 1,
+    suboptimalChance: 0.0,
+    weakMoveChance: 0.0,
+    maxCpDrop: 0,
+  },
+  5: {
+    skillLevel: 20,
+    limitStrength: false,
+    uciElo: null,
+    depth: 15,
+    movetime: 900,
+    multiPv: 1,
+    suboptimalChance: 0.0,
+    weakMoveChance: 0.0,
+    maxCpDrop: 0,
+  },
 };

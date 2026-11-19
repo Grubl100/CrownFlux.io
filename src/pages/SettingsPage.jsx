@@ -1,12 +1,18 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMatchSession } from '../contexts/MatchSessionContext.jsx';
 import { useToast } from '../contexts/ToastContext.jsx';
+import { drawPieceStylePreview } from '../game/classicRenderer.js';
 
 export default function SettingsPage() {
   const { user, prefs, savePreferences } = useAuth();
   const { sendSocket } = useMatchSession();
   const { showToast } = useToast();
+  const previewCanvasRef = useRef(null);
+
+  useEffect(() => {
+    drawPieceStylePreview(previewCanvasRef.current, prefs.pieceStyle || 'medallion', prefs.boardTheme || 'imperial');
+  }, [prefs.pieceStyle, prefs.boardTheme]);
 
   const update = (patch) => {
     savePreferences(patch);
@@ -78,11 +84,15 @@ export default function SettingsPage() {
             <label>
               <span>Estilo das Peças</span>
               <select value={prefs.pieceStyle} onChange={(e) => update({ pieceStyle: e.target.value })}>
-                <option value="medallion">Medalhão Real</option>
-                <option value="heraldic">Heráldico Imperial</option>
-                <option value="minimal">Minimalista</option>
+                <option value="medallion">Medalhão Real (Disco Polido)</option>
+                <option value="heraldic">Heráldico Imperial (Brasão Octogonal)</option>
+                <option value="minimal">Clássico Limpo (Peças Tradicionais)</option>
               </select>
             </label>
+            <div className="piece-preview-box">
+              <span className="muted" style={{ fontSize: 12 }}>Pré-visualização ao vivo (Brancas em cima · Pretas embaixo):</span>
+              <canvas ref={previewCanvasRef} className="piece-preview-canvas" aria-label="Prévia dos estilos de peças" />
+            </div>
             <label>
               <span>Doutrina Padrão (Duelo 1v1)</span>
               <select value={prefs.doctrine} onChange={(e) => update({ doctrine: e.target.value })}>

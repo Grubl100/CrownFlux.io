@@ -35,6 +35,7 @@ const DATA_FILE = path.resolve(process.env.DATA_FILE || path.join(__dirname, 'da
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
 const RECONNECT_GRACE_MS = Math.max(15, Number(process.env.RECONNECT_GRACE_SECONDS || 45)) * 1000;
+const PREMOVE_COST_SECONDS = Math.max(0.05, Number(process.env.PREMOVE_COST_MS || 100) / 1000);
 
 const BOARD = 16;
 const PIECE_VALUE = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 10 };
@@ -1267,6 +1268,8 @@ function serializeGame(game, side) {
     castle: game.mode === 'classic' ? game.castle : undefined,
     enPassant: game.mode === 'classic' ? game.enPassant : undefined,
     moveHistory: game.mode === 'classic' ? (game.moveHistory || []) : undefined,
+    drawOfferFrom: game.mode === 'classic' ? (game.drawOfferFrom ?? null) : undefined,
+    myPremove: game.mode === 'classic' ? (game.premoves?.[side] || null) : undefined,
     rated: game.mode === 'classic' ? Boolean(game.rated) : true,
     ratingChanges: game.ratingChanges,
     crown: game.crown ? { ...game.crown } : null,
@@ -1378,7 +1381,8 @@ function makeClassicGame(room) {
     nextPieceId: 1, events: [], lastMove: null, over: false, winner: null,
     turn: 0, clocks: [options.seconds, options.seconds], clockAt: Date.now(),
     castle: [{ king: true, queen: true }, { king: true, queen: true }],
-    enPassant: null, halfMoves: 0, moveHistory: [], repetition: new Map(), disconnects: new Map()
+    enPassant: null, halfMoves: 0, moveHistory: [], premoves: [null, null], drawOfferFrom: null,
+    repetition: new Map(), disconnects: new Map()
   };
   const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
   for (let x = 0; x < 8; x++) {
@@ -1603,11 +1607,50 @@ function applyClassicMove(game, p, x, y, promotion = 'Q') {
   });
   addEvent(game, `${side === 0 ? 'Brancas' : 'Pretas'}: ${san}`);
 
+  // Qualquer lance executado limpa oferta de empate pendente
+  game.drawOfferFrom = null;
+
   if (!nextMoves) finishGame(game, inCheck ? side : null, inCheck ? 'Xeque-mate.' : 'Afogamento: empate.');
   else if (classicInsufficientMaterial(game)) finishGame(game, null, 'Material insuficiente: empate.');
   else if (game.halfMoves >= 100) finishGame(game, null, 'Regra dos 50 lances: empate.');
   else if (game.repetition.get(key) >= 3) finishGame(game, null, 'Repetição tripla: empate.');
   publishGame(game, game.over ? 'game:ended' : 'game:state');
+
+  // Execução autoritativa de Premove no servidor (custo configurável de 100ms)
+  if (!game.over && game.premoves && game.premoves[game.turn]) {
+    const nextSide = game.turn;
+    const pm = game.premoves[nextSide];
+    game.premoves[nextSide] = null; // Garante que nunca execute duas vezes
+
+    if (game.clocks[nextSide] <= PREMOVE_COST_SECONDS) {
+      game.clocks[nextSide] = 0;
+      const timeoutWinner = classicCanMate(game, 1 - nextSide) ? 1 - nextSide : null;
+      finishGame(
+        game,
+        timeoutWinner,
+        timeoutWinner === null
+          ? 'Tempo esgotado sem material para mate: empate.'
+          : 'Tempo esgotado ao executar premove.'
+      );
+      publishGame(game, 'game:ended');
+      return;
+    }
+
+    const pmPiece = game.pieces.find(piece => piece.id === pm.pieceId && piece.owner === nextSide);
+    const isLegalPremove =
+      pmPiece &&
+      classicLegalMoves(game, pmPiece).some(([mx, my]) => mx === pm.x && my === pm.y);
+
+    if (isLegalPremove) {
+      game.clocks[nextSide] = Math.max(0, game.clocks[nextSide] - PREMOVE_COST_SECONDS);
+      applyClassicMove(game, pmPiece, pm.x, pm.y, pm.promotion || 'Q');
+    } else {
+      sendUser(game.players[nextSide], 'game:premove-cancelled', {
+        reason: 'Premove cancelado: o movimento deixou de ser legal.'
+      });
+      publishGame(game, 'game:state');
+    }
+  }
 }
 
 const TACTICAL_BOARD = 12;
@@ -3345,6 +3388,65 @@ async function handleSocketMessage(ws, msg) {
     case 'game:move':
       handleMove(ws, msg);
       break;
+    case 'game:premove': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'classic' || game.over) return;
+      const side = game.players.indexOf(ws.userId);
+      if (side < 0 || side === game.turn) return;
+      const piece = game.pieces.find(p => p.id === Number(msg.pieceId) && p.owner === side);
+      const x = Number(msg.x), y = Number(msg.y);
+      if (!piece || !Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= 8 || y >= 8) return;
+      const promo = ['Q', 'R', 'B', 'N'].includes(String(msg.promotion || '').toUpperCase())
+        ? String(msg.promotion).toUpperCase()
+        : 'Q';
+      game.premoves ||= [null, null];
+      game.premoves[side] = { pieceId: piece.id, fromX: piece.x, fromY: piece.y, x, y, promotion: promo };
+      publishGame(game, 'game:state');
+      break;
+    }
+    case 'game:premove-cancel': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'classic' || game.over) return;
+      const side = game.players.indexOf(ws.userId);
+      if (side < 0) return;
+      if (game.premoves) game.premoves[side] = null;
+      publishGame(game, 'game:state');
+      break;
+    }
+    case 'game:draw-offer': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'classic' || game.over) return sendError(ws, 'Oferta de empate disponível apenas em Xadrez Clássico ativo.');
+      const side = game.players.indexOf(ws.userId);
+      if (side < 0) return;
+      if (game.drawOfferFrom === side) return sendError(ws, 'Você já enviou uma oferta de empate.');
+      if (game.drawOfferFrom === 1 - side) {
+        // Oponente já havia oferecido empate -> aceita automaticamente
+        game.drawOfferFrom = null;
+        finishGame(game, null, 'Empate por acordo mútuo.');
+        publishGame(game, 'game:ended');
+        return;
+      }
+      game.drawOfferFrom = side;
+      const fromUser = db.users.find(u => u.id === ws.userId);
+      sendUser(game.players[1 - side], 'game:draw-offered', { from: safeUser(fromUser) });
+      publishGame(game, 'game:state');
+      break;
+    }
+    case 'game:draw-respond': {
+      const game = gameForSocket(ws);
+      if (!game || game.mode !== 'classic' || game.over) return;
+      const side = game.players.indexOf(ws.userId);
+      if (side < 0 || game.drawOfferFrom !== 1 - side) return;
+      game.drawOfferFrom = null;
+      if (msg.accept === true) {
+        finishGame(game, null, 'Empate por acordo mútuo.');
+        publishGame(game, 'game:ended');
+      } else {
+        sendUser(game.players[1 - side], 'game:draw-declined', {});
+        publishGame(game, 'game:state');
+      }
+      break;
+    }
     case 'game:boost':
       handleBoost(ws);
       break;

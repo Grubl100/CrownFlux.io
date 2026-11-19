@@ -252,6 +252,15 @@ export function MatchSessionProvider({ children }) {
           setActiveMatch((prev) => (prev ? { ...prev, rematchStatus: 'idle', rematchRequestFrom: null } : prev));
           setMatchResult(null);
           break;
+        case 'game:draw-offered':
+          showToast(`🤝 ${msg.from?.displayName || msg.from?.username || 'Seu adversário'} ofereceu empate!`);
+          break;
+        case 'game:draw-declined':
+          showToast('Oferta de empate recusada.');
+          break;
+        case 'game:premove-cancelled':
+          if (msg.reason) showToast(msg.reason, 'warn');
+          break;
         default:
           break;
       }

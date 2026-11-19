@@ -54,13 +54,165 @@ function drawArrow(ctx, x0, y0, x1, y1, cell, flipped, color = 'rgba(235, 179, 6
   ctx.restore();
 }
 
+function drawOctagonPath(ctx, cx, cy, r) {
+  const step = Math.PI / 4;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = step * i + Math.PI / 8;
+    const px = cx + Math.cos(a) * r;
+    const py = cy + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+// Renderiza uma peça de Xadrez Clássico com cores corretas (Brancas = claras, Pretas = escuras)
+// e suporte real aos 3 estilos: 'minimal' (Clássico Limpo), 'medallion' (Medalhão Real), 'heraldic' (Heráldico Imperial).
+export function drawStyledChessPiece(ctx, pieceType, owner, cx, cy, cell, style = 'medallion', scale = 1) {
+  const isWhite = owner === 0;
+  const glyph = GLYPH[pieceType] || '♟';
+  const rad = cell * 0.41 * scale;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (style === 'minimal') {
+    // Clássico Limpo: peça tradicional diretamente sobre a casa, sem disco
+    const fontSize = Math.floor(cell * 0.8 * scale);
+    ctx.font = `700 ${fontSize}px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif`;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = Math.max(2, cell * 0.06);
+    ctx.shadowOffsetY = cell * 0.03;
+
+    if (isWhite) {
+      ctx.lineWidth = Math.max(2.6, cell * 0.068);
+      ctx.strokeStyle = '#182028';
+      ctx.strokeText(glyph, cx, cy + cell * 0.02);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(glyph, cx, cy + cell * 0.02);
+    } else {
+      ctx.lineWidth = Math.max(2.2, cell * 0.055);
+      ctx.strokeStyle = '#dce6ef';
+      ctx.strokeText(glyph, cx, cy + cell * 0.02);
+      ctx.fillStyle = '#141920';
+      ctx.fillText(glyph, cx, cy + cell * 0.02);
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (style === 'heraldic') {
+    // Heráldico Imperial: brasão octogonal com borda dupla real
+    ctx.fillStyle = 'rgba(8, 12, 16, 0.38)';
+    drawOctagonPath(ctx, cx, cy + cell * 0.04, rad);
+    ctx.fill();
+
+    ctx.fillStyle = isWhite ? '#f7f3e6' : '#181f27';
+    ctx.strokeStyle = isWhite ? '#b79b64' : '#7da3b5';
+    ctx.lineWidth = Math.max(2, cell * 0.045);
+    drawOctagonPath(ctx, cx, cy, rad);
+    ctx.fill();
+    ctx.stroke();
+
+    // Borda interna heráldica
+    ctx.strokeStyle = isWhite ? 'rgba(26, 34, 42, 0.25)' : 'rgba(220, 232, 242, 0.28)';
+    ctx.lineWidth = 1;
+    drawOctagonPath(ctx, cx, cy, rad * 0.82);
+    ctx.stroke();
+
+    ctx.font = `700 ${Math.floor(cell * 0.64 * scale)}px Georgia,"Segoe UI Symbol","DejaVu Sans",serif`;
+    if (isWhite) {
+      ctx.lineWidth = Math.max(2.4, cell * 0.058);
+      ctx.strokeStyle = '#1c232b';
+      ctx.strokeText(glyph, cx, cy + cell * 0.02);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(glyph, cx, cy + cell * 0.02);
+    } else {
+      ctx.lineWidth = Math.max(1.8, cell * 0.045);
+      ctx.strokeStyle = '#d4e2ee';
+      ctx.strokeText(glyph, cx, cy + cell * 0.02);
+      ctx.fillStyle = '#10151b';
+      ctx.fillText(glyph, cx, cy + cell * 0.02);
+    }
+    ctx.restore();
+    return;
+  }
+
+  // Padrão: 'medallion' (Medalhão Real) — disco circular polido com alto contraste entre Brancas e Pretas
+  ctx.fillStyle = 'rgba(8, 12, 16, 0.36)';
+  ctx.beginPath();
+  ctx.arc(cx, cy + cell * 0.04, rad, 0, Math.PI * 2);
+  ctx.fill();
+
+  const grad = ctx.createRadialGradient(cx - rad * 0.28, cy - rad * 0.28, rad * 0.1, cx, cy, rad);
+  if (isWhite) {
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(1, '#dfd8c7');
+  } else {
+    grad.addColorStop(0, '#323d4a');
+    grad.addColorStop(1, '#141920');
+  }
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = isWhite ? '#7c8791' : '#8aa6b8';
+  ctx.lineWidth = Math.max(1.8, cell * 0.04);
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = `700 ${Math.floor(cell * 0.66 * scale)}px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif`;
+  if (isWhite) {
+    ctx.lineWidth = Math.max(2.6, cell * 0.062);
+    ctx.strokeStyle = '#1b222c';
+    ctx.strokeText(glyph, cx, cy + cell * 0.02);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(glyph, cx, cy + cell * 0.02);
+  } else {
+    ctx.lineWidth = Math.max(1.8, cell * 0.046);
+    ctx.strokeStyle = '#dce8f2';
+    ctx.strokeText(glyph, cx, cy + cell * 0.02);
+    ctx.fillStyle = '#0e1319';
+    ctx.fillText(glyph, cx, cy + cell * 0.02);
+  }
+  ctx.restore();
+}
+
+export function drawPieceStylePreview(canvas, pieceStyle = 'medallion', boardTheme = 'imperial') {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const theme = getThemeColors(boardTheme);
+  const cols = 6;
+  const rows = 2;
+  const cell = 44;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.style.width = `${cols * cell}px`;
+  canvas.style.height = `${rows * cell}px`;
+  canvas.width = Math.floor(cols * cell * dpr);
+  canvas.height = Math.floor(rows * cell * dpr);
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const order = ['K', 'Q', 'R', 'B', 'N', 'P'];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      ctx.fillStyle = (r + c) % 2 === 1 ? theme.dark : theme.light;
+      ctx.fillRect(c * cell, r * cell, cell, cell);
+      drawStyledChessPiece(ctx, order[c], r, c * cell + cell / 2, r * cell + cell / 2, cell, pieceStyle, 1);
+    }
+  }
+}
+
 export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 0, options = {}) {
   if (!S || !ctx || !canvas) return;
   const N = 8;
   const W = cell * N;
   const flipped = typeof options.flipped === 'boolean' ? options.flipped : viewerSide === 1;
   const theme = getThemeColors(prefs?.boardTheme || 'imperial');
+  const pieceStyle = prefs?.pieceStyle || 'medallion';
   const annotations = options.annotations || null;
+  const premove = options.premove || null;
   const dragPiece = options.dragPiece || null;
   const onlineMovesFn = typeof options === 'function' ? options : options.onlineMovesFn || null;
 
@@ -105,7 +257,20 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
     }
   }
 
-  // 3. Marcações manuais de casas (botão direito / modo anotar)
+  // 3. Destaque de Premove preparado (visualmente distinto de último lance e anotações!)
+  if (premove) {
+    ctx.fillStyle = 'rgba(176, 98, 232, 0.42)';
+    for (const [px, py] of [[premove.fromX, premove.fromY], [premove.toX, premove.toY]]) {
+      const [vx, vy] = boardToView(px, py, flipped);
+      ctx.fillRect(vx * cell, vy * cell, cell, cell);
+    }
+    const [pvx, pvy] = boardToView(premove.toX, premove.toY, flipped);
+    ctx.strokeStyle = 'rgba(216, 152, 255, 0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(pvx * cell + 2, pvy * cell + 2, cell - 4, cell - 4);
+  }
+
+  // 4. Marcações manuais de casas
   if (annotations?.squares?.length) {
     for (const sq of annotations.squares) {
       const [vx, vy] = boardToView(sq.x, sq.y, flipped);
@@ -114,14 +279,16 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
     }
   }
 
-  // 4. Peça selecionada + movimentos legais
+  // 5. Peça selecionada + movimentos legais (ou destinos de premove)
   const sel = S.sel;
-  const ms = sel ? (onlineMovesFn ? onlineMovesFn(sel) : getClassicMoves(S, sel)) : [];
+  const ms = sel
+    ? (options.customTargets || (onlineMovesFn ? onlineMovesFn(sel) : getClassicMoves(S, sel)))
+    : [];
   if (sel) {
     const [svx, svy] = boardToView(sel.x, sel.y, flipped);
-    ctx.fillStyle = 'rgba(255, 245, 214, 0.36)';
+    ctx.fillStyle = options.isPremoveSelect ? 'rgba(176, 98, 232, 0.35)' : 'rgba(255, 245, 214, 0.36)';
     ctx.fillRect(svx * cell, svy * cell, cell, cell);
-    ctx.strokeStyle = '#ffdf7e';
+    ctx.strokeStyle = options.isPremoveSelect ? '#d395ff' : '#ffdf7e';
     ctx.lineWidth = 2.4;
     ctx.strokeRect(svx * cell + 1, svy * cell + 1, cell - 2, cell - 2);
   }
@@ -133,20 +300,20 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
       const cx = vx * cell + cell / 2;
       const cy = vy * cell + cell / 2;
       ctx.beginPath();
-      if (q) {
+      if (q && !options.isPremoveSelect) {
         ctx.strokeStyle = 'rgba(224, 82, 82, 0.88)';
         ctx.lineWidth = Math.max(3, cell * 0.065);
         ctx.arc(cx, cy, cell * 0.43, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        ctx.fillStyle = 'rgba(18, 26, 32, 0.42)';
+        ctx.fillStyle = options.isPremoveSelect ? 'rgba(176, 98, 232, 0.55)' : 'rgba(18, 26, 32, 0.42)';
         ctx.arc(cx, cy, cell * 0.15, 0, Math.PI * 2);
         ctx.fill();
       }
     }
   }
 
-  // 5. Indicação de Rei em xeque
+  // 6. Indicação de Rei em xeque
   const activeTurn = S.turnOwner ?? S.turn ?? 0;
   const activeKing = S.pieces.find((p) => p.o === activeTurn && p.t === 'K');
   if (activeKing && S.grid && classicIsAttacked(S, activeKing.x, activeKing.y, 1 - activeTurn)) {
@@ -168,48 +335,25 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
     ctx.strokeRect(kvx * cell + 2, kvy * cell + 2, cell - 4, cell - 4);
   }
 
-  // 6. Peças (Brancas vs Pretas com contraste nítido)
-  const drawSinglePiece = (p, cx, cy, scale = 1) => {
-    const rad = cell * 0.4 * scale;
-    ctx.save();
-    ctx.fillStyle = 'rgba(8, 12, 16, 0.36)';
-    ctx.beginPath();
-    ctx.arc(cx, cy + cell * 0.04, rad, 0, Math.PI * 2);
-    ctx.fill();
-
-    const isWhite = p.o === 0;
-    ctx.fillStyle = isWhite ? '#f4f0e4' : '#1b222c';
-    ctx.strokeStyle = isWhite ? '#9ca6ae' : '#7da3b5';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `${Math.floor(cell * 0.68 * scale)}px "Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif`;
-    ctx.lineWidth = Math.max(1.5, cell * 0.045);
-    ctx.strokeStyle = isWhite ? 'rgba(26, 32, 40, 0.85)' : 'rgba(225, 238, 248, 0.65)';
-    ctx.strokeText(GLYPH[p.t], cx, cy + cell * 0.02);
-    ctx.fillStyle = isWhite ? '#1b222b' : '#e6eff6';
-    ctx.fillText(GLYPH[p.t], cx, cy + cell * 0.02);
-    ctx.restore();
-  };
-
+  // 7. Peças com cores reais (Brancas claras, Pretas escuras) e estilo escolhido
   for (const p of S.pieces) {
     if (dragPiece && dragPiece.piece && dragPiece.piece.id === p.id) continue;
     const [vx, vy] = boardToView(p.x, p.y, flipped);
-    drawSinglePiece(p, vx * cell + cell / 2, vy * cell + cell / 2, 1);
+    drawStyledChessPiece(ctx, p.t, p.o, vx * cell + cell / 2, vy * cell + cell / 2, cell, pieceStyle, 1);
   }
 
-  // 7. Seta do motor (apenas na página de Análise Pós-Partida!)
+  // 8. Seta de premove preparado
+  if (premove) {
+    drawArrow(ctx, premove.fromX, premove.fromY, premove.toX, premove.toY, cell, flipped, 'rgba(196, 120, 255, 0.85)', true);
+  }
+
+  // 9. Seta do motor (somente na Análise Pós-Partida)
   if (annotations?.engineArrow) {
     const ea = annotations.engineArrow;
     drawArrow(ctx, ea.x0, ea.y0, ea.x1, ea.y1, cell, flipped, ea.color || 'rgba(104, 198, 140, 0.86)', false);
   }
 
-  // 8. Setas manuais desenhadas pelo jogador + prévia de arraste
+  // 10. Setas manuais + prévia
   if (annotations?.arrows?.length) {
     for (const ar of annotations.arrows) {
       drawArrow(ctx, ar.x0, ar.y0, ar.x1, ar.y1, cell, flipped, ar.color || 'rgba(235, 179, 68, 0.84)', Boolean(ar.dashed));
@@ -220,12 +364,12 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
     drawArrow(ctx, pa.x0, pa.y0, pa.x1, pa.y1, cell, flipped, pa.color || 'rgba(235, 179, 68, 0.55)', true);
   }
 
-  // 9. Peça sendo arrastada por cima de tudo
+  // 11. Peça sendo arrastada
   if (dragPiece?.piece) {
-    drawSinglePiece(dragPiece.piece, dragPiece.px, dragPiece.py, 1.1);
+    drawStyledChessPiece(ctx, dragPiece.piece.t, dragPiece.piece.o, dragPiece.px, dragPiece.py, cell, pieceStyle, 1.12);
   }
 
-  // 10. Selo de Xeque-mate (#)
+  // 12. Selo de Xeque-mate (#)
   if (Number.isInteger(S.checkmatedKingOwner)) {
     const king = S.pieces.find((p) => p.o === S.checkmatedKingOwner && p.t === 'K');
     if (king) {
