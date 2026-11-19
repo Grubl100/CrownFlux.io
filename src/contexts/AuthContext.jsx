@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { apiRequest, getStoredToken, setStoredToken } from '../api/client.js';
+import { normalizePieceStyle } from '../game/chessPieceAssets.js';
 import { DEFAULT_PREFERENCES } from '../utils/constants.js';
 
 const AuthContext = createContext(null);
@@ -7,7 +8,11 @@ const AuthContext = createContext(null);
 function loadLocalPrefs() {
   try {
     const raw = localStorage.getItem('cf_prefs');
-    if (raw) return { ...DEFAULT_PREFERENCES, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = { ...DEFAULT_PREFERENCES, ...JSON.parse(raw) };
+      parsed.pieceStyle = normalizePieceStyle(parsed.pieceStyle);
+      return parsed;
+    }
   } catch {
     // ignore
   }
@@ -23,6 +28,7 @@ export function AuthProvider({ children }) {
 
   const applyPrefsLocally = useCallback((nextPrefs) => {
     const merged = { ...DEFAULT_PREFERENCES, ...nextPrefs };
+    merged.pieceStyle = normalizePieceStyle(merged.pieceStyle);
     setPrefs(merged);
     try {
       localStorage.setItem('cf_prefs', JSON.stringify(merged));
