@@ -14,9 +14,12 @@ import {
   createClassicState,
   doClassicMove,
   getClassicMoves,
+  getLegalArrowTargets,
   reconstructClassicStates,
   stateToFen,
+  validateClassicMoveArrow,
 } from '../game/classicEngine.js';
+import { preloadChessPieceStyle } from '../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../game/classicRenderer.js';
 import {
   getClassicRecord,
@@ -80,11 +83,34 @@ export default function ChessAnalysisPage() {
   const [variationState, setVariationState] = useState(null);
   const [variationEval, setVariationEval] = useState(null);
 
+  // Ferramentas de setas legais e marcações livres na análise pós-partida
+  const [annotateMode, setAnnotateMode] = useState(false);
+  const [freeAnnotateMode, setFreeAnnotateMode] = useState(false);
+  const [annotateTick, setAnnotateTick] = useState(0);
+  const annotationsRef = useRef({
+    squares: [],
+    arrows: [],
+    previewArrow: null,
+    invalidTarget: null,
+    legalArrowTargets: [],
+  });
+  const rightDragStartRef = useRef(null);
+
   const canvasRef = useRef(null);
   const cellRef = useRef(62);
   const dprRef = useRef(1);
   const engineRef = useRef(null);
   const cancelRef = useRef(false);
+
+  useEffect(() => {
+    annotationsRef.current = {
+      squares: [],
+      arrows: [],
+      previewArrow: null,
+      invalidTarget: null,
+      legalArrowTargets: [],
+    };
+  }, [currentPly, variationState]);
 
   useEffect(() => {
     return () => {
@@ -193,6 +219,23 @@ export default function ChessAnalysisPage() {
     setAnalyzing(false);
   };
 
+  const getActiveBoardState = useCallback(() => {
+    if (variationState) return variationState;
+    if (!snapshots.length) return null;
+    const snap = snapshots[Math.min(currentPly, snapshots.length - 1)];
+    const pieces = snap.pieces.map((p) => ({ ...p }));
+    return {
+      grid: buildGridFromPieces(pieces),
+      pieces,
+      castle: snap.castle ? snap.castle.map((c) => ({ ...c })) : [{ king: false, queen: false }, { king: false, queen: false }],
+      enPassant: snap.enPassant ? { ...snap.enPassant } : null,
+      lastMove: snap.lastMove,
+      turnOwner: snap.turnOwner,
+      sel: null,
+      checkmatedKingOwner: snap.checkmatedKingOwner,
+    };
+  }, [snapshots, currentPly, variationState]);
+
   const renderBoard = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !snapshots.length) return;
@@ -210,21 +253,8 @@ export default function ChessAnalysisPage() {
     canvas.height = Math.floor(px * dpr);
 
     const ctx = canvas.getContext('2d');
-    let renderState;
-    if (variationState) {
-      renderState = variationState;
-    } else {
-      const snap = snapshots[Math.min(currentPly, snapshots.length - 1)];
-      const pieces = snap.pieces.map((p) => ({ ...p }));
-      renderState = {
-        grid: buildGridFromPieces(pieces),
-        pieces,
-        lastMove: snap.lastMove,
-        turnOwner: snap.turnOwner,
-        sel: null,
-        checkmatedKingOwner: snap.checkmatedKingOwner,
-      };
-    }
+    const renderState = getActiveBoardState();
+    if (!renderState) return;
 
     const curEval = analysisData?.evaluations?.[currentPly];
     const engineArrow = !variationState && curEval?.bestBefore && currentPly > 0
@@ -235,9 +265,17 @@ export default function ChessAnalysisPage() {
 
     drawClassicBoard(ctx, canvas, renderState, cell, dpr, prefs, flipped ? 1 : 0, {
       flipped,
-      annotations: { engineArrow },
+      onAssetReady: () => setAnnotateTick((t) => t + 1),
+      annotations: {
+        ...annotationsRef.current,
+        engineArrow,
+      },
     });
-  }, [snapshots, currentPly, variationState, analysisData, prefs, flipped]);
+  }, [snapshots, currentPly, variationState, analysisData, prefs, flipped, getActiveBoardState, annotateTick]);
+
+  useEffect(() => {
+    preloadChessPieceStyle(prefs.pieceStyle || 'standard', () => setAnnotateTick((t) => t + 1));
+  }, [prefs.pieceStyle]);
 
   useEffect(() => {
     renderBoard();
@@ -245,7 +283,141 @@ export default function ChessAnalysisPage() {
     return () => window.removeEventListener('resize', renderBoard);
   }, [renderBoard]);
 
+  const getAnalysisBoardCoords = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const vx = Math.floor((e.clientX - rect.left) / cellRef.current);
+    const vy = Math.floor((e.clientY - rect.top) / cellRef.current);
+    if (vx < 0 || vy < 0 || vx >= 8 || vy >= 8) return null;
+    const [bx, by] = viewToBoard(vx, vy, flipped);
+    return { bx, by };
+  };
+
+  const onAnalysisPointerDown = (e) => {
+    const isAnnotate = e.button === 2 || (annotateMode && e.button === 0);
+    if (!isAnnotate) return;
+    const coords = getAnalysisBoardCoords(e);
+    const boardState = getActiveBoardState();
+    if (!coords || !boardState) return;
+    e.preventDefault();
+    rightDragStartRef.current = { x: coords.bx, y: coords.by };
+    annotationsRef.current.previewArrow = null;
+    annotationsRef.current.invalidTarget = null;
+    annotationsRef.current.legalArrowTargets = freeAnnotateMode
+      ? []
+      : getLegalArrowTargets(boardState, coords.bx, coords.by);
+    setAnnotateTick((t) => t + 1);
+  };
+
+  const onAnalysisPointerMove = (e) => {
+    if (!rightDragStartRef.current) return;
+    const coords = getAnalysisBoardCoords(e);
+    const boardState = getActiveBoardState();
+    if (!coords || !boardState) {
+      annotationsRef.current.previewArrow = null;
+      annotationsRef.current.invalidTarget = null;
+      setAnnotateTick((t) => t + 1);
+      return;
+    }
+    const st = rightDragStartRef.current;
+    if (st.x === coords.bx && st.y === coords.by) {
+      annotationsRef.current.previewArrow = null;
+      annotationsRef.current.invalidTarget = null;
+    } else if (freeAnnotateMode) {
+      annotationsRef.current.invalidTarget = null;
+      annotationsRef.current.previewArrow = {
+        x0: st.x,
+        y0: st.y,
+        x1: coords.bx,
+        y1: coords.by,
+        color: 'rgba(235, 179, 68, 0.85)',
+        dashed: true,
+      };
+    } else {
+      const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+      if (validation.legal) {
+        annotationsRef.current.invalidTarget = null;
+        annotationsRef.current.previewArrow = {
+          x0: st.x,
+          y0: st.y,
+          x1: coords.bx,
+          y1: coords.by,
+          color: 'rgba(235, 179, 68, 0.86)',
+          dashed: false,
+          pieceType: validation.piece.t,
+          promotion: validation.promotion,
+        };
+      } else {
+        annotationsRef.current.previewArrow = null;
+        annotationsRef.current.invalidTarget = { x: coords.bx, y: coords.by };
+      }
+    }
+    setAnnotateTick((t) => t + 1);
+  };
+
+  const onAnalysisPointerUp = (e) => {
+    if (!rightDragStartRef.current) return;
+    const st = rightDragStartRef.current;
+    rightDragStartRef.current = null;
+    annotationsRef.current.previewArrow = null;
+    annotationsRef.current.invalidTarget = null;
+    annotationsRef.current.legalArrowTargets = [];
+    const coords = getAnalysisBoardCoords(e);
+    const boardState = getActiveBoardState();
+    if (!coords || !boardState) {
+      setAnnotateTick((t) => t + 1);
+      return;
+    }
+
+    if (st.x === coords.bx && st.y === coords.by) {
+      const idx = annotationsRef.current.squares.findIndex((sq) => sq.x === coords.bx && sq.y === coords.by);
+      if (idx >= 0) annotationsRef.current.squares.splice(idx, 1);
+      else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: 'rgba(235, 179, 68, 0.42)' });
+    } else if (freeAnnotateMode) {
+      const idx = annotationsRef.current.arrows.findIndex(
+        (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
+      );
+      if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
+      else {
+        annotationsRef.current.arrows.push({
+          x0: st.x,
+          y0: st.y,
+          x1: coords.bx,
+          y1: coords.by,
+          color: 'rgba(235, 179, 68, 0.85)',
+          dashed: true,
+        });
+      }
+    } else {
+      const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+      if (!validation.legal) {
+        showToast(validation.message || 'Movimento ilegal nesta posição.', 'warn');
+        setAnnotateTick((t) => t + 1);
+        return;
+      }
+      const idx = annotationsRef.current.arrows.findIndex(
+        (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && !a.dashed
+      );
+      if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
+      else {
+        annotationsRef.current.arrows.push({
+          x0: st.x,
+          y0: st.y,
+          x1: coords.bx,
+          y1: coords.by,
+          color: 'rgba(235, 179, 68, 0.86)',
+          dashed: false,
+          pieceType: validation.piece.t,
+          promotion: validation.promotion,
+        });
+      }
+    }
+    setAnnotateTick((t) => t + 1);
+  };
+
   const handleBoardClick = async (e) => {
+    if (annotateMode) return;
     const canvas = canvasRef.current;
     if (!canvas || !snapshots.length) return;
     const rect = canvas.getBoundingClientRect();
@@ -365,10 +537,55 @@ export default function ChessAnalysisPage() {
             <div className="board-wrap-react">
               <canvas
                 ref={canvasRef}
+                style={{ touchAction: 'none' }}
+                onContextMenu={(e) => e.preventDefault()}
+                onPointerDown={onAnalysisPointerDown}
+                onPointerMove={onAnalysisPointerMove}
+                onPointerUp={onAnalysisPointerUp}
                 onClick={handleBoardClick}
                 aria-label="Tabuleiro de análise de Xadrez Clássico"
               />
             </div>
+          </div>
+
+          <div className="chess-board-toolbar" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className={`mini-btn${!freeAnnotateMode ? ' accent' : ''}`}
+              onClick={() => setFreeAnnotateMode(false)}
+            >
+              ♟ Setas Legais
+            </button>
+            <button
+              type="button"
+              className={`mini-btn${freeAnnotateMode ? ' accent' : ''}`}
+              onClick={() => setFreeAnnotateMode((v) => !v)}
+            >
+              ✦ Marcação Livre
+            </button>
+            <button
+              type="button"
+              className={`mini-btn${annotateMode ? ' accent' : ''}`}
+              onClick={() => setAnnotateMode((a) => !a)}
+            >
+              ✎ {annotateMode ? 'Toque: Anotar' : 'Anotar (Toque)'}
+            </button>
+            <button
+              type="button"
+              className="mini-btn"
+              onClick={() => {
+                annotationsRef.current = {
+                  squares: [],
+                  arrows: [],
+                  previewArrow: null,
+                  invalidTarget: null,
+                  legalArrowTargets: [],
+                };
+                setAnnotateTick((t) => t + 1);
+              }}
+            >
+              Limpar
+            </button>
           </div>
 
           <div className="analysis-controls-bar">

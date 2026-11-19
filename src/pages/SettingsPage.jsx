@@ -1,18 +1,24 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMatchSession } from '../contexts/MatchSessionContext.jsx';
 import { useToast } from '../contexts/ToastContext.jsx';
-import { drawPieceStylePreview } from '../game/classicRenderer.js';
+import {
+  CHESS_PIECE_STYLES,
+  getChessPieceDataUrl,
+  normalizePieceStyle,
+} from '../game/chessPieceAssets.js';
+import { getThemeColors } from '../game/duelRenderer.js';
+import { NOME } from '../utils/constants.js';
+
+const PREVIEW_PIECES = ['K', 'Q', 'R', 'B', 'N', 'P'];
 
 export default function SettingsPage() {
   const { user, prefs, savePreferences } = useAuth();
   const { sendSocket } = useMatchSession();
   const { showToast } = useToast();
-  const previewCanvasRef = useRef(null);
 
-  useEffect(() => {
-    drawPieceStylePreview(previewCanvasRef.current, prefs.pieceStyle || 'medallion', prefs.boardTheme || 'imperial');
-  }, [prefs.pieceStyle, prefs.boardTheme]);
+  const activePieceStyle = normalizePieceStyle(prefs.pieceStyle || 'standard');
+  const boardColors = getThemeColors(prefs.boardTheme || 'imperial');
 
   const update = (patch) => {
     savePreferences(patch);
@@ -30,48 +36,52 @@ export default function SettingsPage() {
 
       <div className="submode-panels">
         <section className="panel">
-          <h3>Aparência & Tema Global</h3>
-          <div className="theme-cards-grid" style={{ marginBottom: 16 }}>
-            {[
-              {
-                id: 'blue',
-                name: 'Azul Clássico',
-                badge: 'Padrão',
-                desc: 'Identidade visual azul-ardósia original do Crownflux.io.',
-                swatches: ['#12171d', '#1d2630', '#7da3b5', '#cfaf72'],
-              },
-              {
-                id: 'emerald',
-                name: 'Verde e Dourado',
-                badge: 'Alternativo',
-                desc: 'Paleta esmeralda escura com acentos dourados.',
-                swatches: ['#141816', '#202723', '#6db38b', '#cfaf72'],
-              },
-            ].map((t) => {
-              const active = (prefs.uiTheme || 'blue') === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`theme-preview-card${active ? ' active' : ''}`}
-                  onClick={() => update({ uiTheme: t.id })}
-                >
-                  <div className="theme-swatches">
-                    {t.swatches.map((hex) => (
-                      <span key={hex} style={{ background: hex }} />
-                    ))}
-                  </div>
-                  <div className="theme-card-head">
-                    <strong>{t.name}</strong>
-                    <span className="pill">{t.badge}</span>
-                  </div>
-                  <small className="muted">{t.desc}</small>
-                </button>
-              );
-            })}
+          <h3>Aparência</h3>
+
+          <div className="settings-section-block">
+            <span className="settings-sublabel">Tema Global</span>
+            <div className="theme-cards-grid">
+              {[
+                {
+                  id: 'blue',
+                  name: 'Azul Clássico',
+                  badge: 'Padrão',
+                  desc: 'Identidade visual azul-ardósia original do Crownflux.io.',
+                  swatches: ['#12171d', '#1d2630', '#7da3b5', '#cfaf72'],
+                },
+                {
+                  id: 'emerald',
+                  name: 'Verde e Dourado',
+                  badge: 'Alternativo',
+                  desc: 'Paleta esmeralda escura com acentos dourados.',
+                  swatches: ['#141816', '#202723', '#6db38b', '#cfaf72'],
+                },
+              ].map((t) => {
+                const active = (prefs.uiTheme || 'blue') === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`theme-preview-card${active ? ' active' : ''}`}
+                    onClick={() => update({ uiTheme: t.id })}
+                  >
+                    <div className="theme-swatches">
+                      {t.swatches.map((hex) => (
+                        <span key={hex} style={{ background: hex }} />
+                      ))}
+                    </div>
+                    <div className="theme-card-head">
+                      <strong>{t.name}</strong>
+                      <span className="pill">{t.badge}</span>
+                    </div>
+                    <small className="muted">{t.desc}</small>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="form-stack">
+          <div className="form-stack" style={{ marginTop: 14 }}>
             <label>
               <span>Tema do Tabuleiro</span>
               <select value={prefs.boardTheme} onChange={(e) => update({ boardTheme: e.target.value })}>
@@ -81,18 +91,60 @@ export default function SettingsPage() {
                 <option value="wood">Madeira Real</option>
               </select>
             </label>
-            <label>
-              <span>Estilo das Peças</span>
-              <select value={prefs.pieceStyle} onChange={(e) => update({ pieceStyle: e.target.value })}>
-                <option value="medallion">Medalhão Real (Disco Polido)</option>
-                <option value="heraldic">Heráldico Imperial (Brasão Octogonal)</option>
-                <option value="minimal">Clássico Limpo (Peças Tradicionais)</option>
-              </select>
-            </label>
-            <div className="piece-preview-box">
-              <span className="muted" style={{ fontSize: 12 }}>Pré-visualização ao vivo (Brancas em cima · Pretas embaixo):</span>
-              <canvas ref={previewCanvasRef} className="piece-preview-canvas" aria-label="Prévia dos estilos de peças" />
+
+            <div className="piece-style-selector-block" role="radiogroup" aria-label="Estilo das peças">
+              <div className="piece-style-header">
+                <span>Estilo das peças</span>
+                <small className="muted">Prévia em casas claras e escuras (Brancas e Pretas)</small>
+              </div>
+              <div className="piece-style-cards">
+                {CHESS_PIECE_STYLES.map((st) => {
+                  const selected = activePieceStyle === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      data-piece-style={st.id}
+                      className={`piece-style-card${selected ? ' active' : ''}`}
+                      onClick={() => update({ pieceStyle: st.id })}
+                    >
+                      <div className="piece-style-card-head">
+                        <strong>{st.name}</strong>
+                        {selected && <span className="piece-style-selected-badge">Selecionado</span>}
+                      </div>
+                      <small className="muted">{st.desc}</small>
+                      <div className="piece-style-board-preview" aria-label={`Prévia das peças ${st.name}`}>
+                        {[0, 1].map((owner) => (
+                          <div key={owner} className="piece-preview-row">
+                            {PREVIEW_PIECES.map((pt, idx) => {
+                              const isDarkSq = (owner + idx) % 2 === 1;
+                              return (
+                                <span
+                                  key={`${owner}-${pt}`}
+                                  className="piece-preview-cell"
+                                  style={{ background: isDarkSq ? boardColors.dark : boardColors.light }}
+                                  title={`${NOME[pt]} (${owner === 0 ? 'Brancas' : 'Pretas'})`}
+                                >
+                                  <img
+                                    src={getChessPieceDataUrl(st.id, pt, owner)}
+                                    alt={`${NOME[pt]} ${owner === 0 ? 'Branca' : 'Preta'} (${st.name})`}
+                                    width={34}
+                                    height={34}
+                                  />
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
             <label>
               <span>Doutrina Padrão (Duelo 1v1)</span>
               <select value={prefs.doctrine} onChange={(e) => update({ doctrine: e.target.value })}>
