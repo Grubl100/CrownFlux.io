@@ -21,7 +21,7 @@ export const AVATARS = ['♟', '♞', '♝', '♜', '♛', '♚', '⚔', '🛡',
 export const DEFAULT_PREFERENCES = {
   uiTheme: 'blue',
   boardTheme: 'imperial',
-  pieceStyle: 'medallion',
+  pieceStyle: 'standard',
   doctrine: 'vanguard',
   showCoords: true,
   highlightMoves: true,
