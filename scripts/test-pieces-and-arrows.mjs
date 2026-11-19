@@ -7,8 +7,12 @@ import {
 import {
   applyUciMove,
   createClassicState,
+  getClassicMoves,
+  getFreeArrowTargets,
+  getLegalArrowTargets,
   reconstructClassicStates,
   validateClassicMoveArrow,
+  validateFreeMoveArrow,
 } from '../src/game/classicEngine.js';
 import { boardToView, viewToBoard } from '../src/game/classicRenderer.js';
 
@@ -320,6 +324,110 @@ function ok(label) {
   assert.equal(validateClassicMoveArrow(snapState, 4, 3, 3, 2).legal, true, 'En passant legal no snapshot reconstruído');
   assert.equal(validateClassicMoveArrow(snapState, 1, 7, 1, 5).legal, false, 'Cavalo reto bloqueado no snapshot reconstruído');
   ok('Perspectiva Brancas/Pretas e snapshots históricos (castle/enPassant) validados');
+}
+
+// =========================================================================
+// 10. VALIDAÇÃO DE TURNO EM SETAS LEGAIS
+// =========================================================================
+{
+  const S = createClassicState({ mode: 'classic_local' }); // turnOwner = 0 (Brancas)
+  const blackMoveOnWhiteTurn = validateClassicMoveArrow(S, 1, 0, 2, 2); // Cavalo preto b8->c6
+  assert.equal(blackMoveOnWhiteTurn.legal, false, 'Setas Legais devem respeitar o turno atual');
+  assert.equal(blackMoveOnWhiteTurn.reason, 'wrong_turn');
+  assert.deepEqual(getLegalArrowTargets(S, 1, 0), [], 'Sem destinos legais para peça fora do turno');
+  ok('Setas Legais respeitam o turno atual e rejeitam peças do lado inativo');
+}
+
+// =========================================================================
+// 11. MARCAÇÃO LIVRE: EXIGE PEÇA NA ORIGEM E RESPEITA GEOMETRIA DE TODAS AS 6 PEÇAS
+// =========================================================================
+{
+  const S = createClassicState({ mode: 'classic_local' });
+
+  // 11.1 Origem vazia rejeitada
+  const emptyRes = validateFreeMoveArrow(S, 4, 4, 4, 3);
+  assert.equal(emptyRes.legal, false, 'Marcação Livre exige peça na origem');
+  assert.equal(emptyRes.reason, 'empty_origin');
+  assert.deepEqual(getFreeArrowTargets(S, 4, 4), []);
+
+  // 11.2 Cavalo (N): só em L, inclusive ignorando ocupação (d2 tem peão branco), nunca reto/diagonal
+  assert.equal(validateFreeMoveArrow(S, 1, 7, 2, 5).legal, true, 'Cavalo livre b1->c3 (L)');
+  assert.equal(validateFreeMoveArrow(S, 1, 7, 3, 6).legal, true, 'Cavalo livre b1->d2 (L ignorando ocupação própria)');
+  assert.equal(validateFreeMoveArrow(S, 1, 7, 1, 5).legal, false, 'Cavalo livre b1->b3 reto PROIBIDO');
+  assert.equal(validateFreeMoveArrow(S, 1, 7, 3, 5).legal, false, 'Cavalo livre b1->d3 diagonal PROIBIDO');
+  assert.equal(validateFreeMoveArrow(S, 1, 0, 2, 2).legal, true, 'Cavalo preto livre b8->c6 (ignora turno)');
+
+  // 11.3 Bispo (B): só diagonais (ignorando bloqueio), nunca horizontal/vertical
+  assert.equal(validateFreeMoveArrow(S, 2, 7, 5, 4).legal, true, 'Bispo livre c1->f4 diagonal atravessando peão');
+  assert.equal(validateFreeMoveArrow(S, 2, 7, 2, 4).legal, false, 'Bispo livre c1->c4 vertical PROIBIDO');
+  assert.equal(validateFreeMoveArrow(S, 2, 7, 5, 7).legal, false, 'Bispo livre c1->f1 horizontal PROIBIDO');
+
+  // 11.4 Torre (R): só horizontal/vertical (ignorando bloqueio), nunca diagonal
+  assert.equal(validateFreeMoveArrow(S, 0, 7, 0, 2).legal, true, 'Torre livre a1->a6 vertical atravessando peão');
+  assert.equal(validateFreeMoveArrow(S, 0, 7, 5, 7).legal, true, 'Torre livre a1->f1 horizontal atravessando peças');
+  assert.equal(validateFreeMoveArrow(S, 0, 7, 3, 4).legal, false, 'Torre livre a1->d4 diagonal PROIBIDO');
+
+  // 11.5 Rainha (Q): horizontal, vertical ou diagonal (ignorando bloqueio), nunca salto de cavalo
+  assert.equal(validateFreeMoveArrow(S, 3, 7, 3, 1).legal, true, 'Rainha livre d1->d7 vertical');
+  assert.equal(validateFreeMoveArrow(S, 3, 7, 7, 3).legal, true, 'Rainha livre d1->h5 diagonal');
+  assert.equal(validateFreeMoveArrow(S, 3, 7, 4, 5).legal, false, 'Rainha livre d1->e3 em L PROIBIDO');
+
+  // 11.6 Rei (K): 1 casa em qualquer direção + roque na casa inicial, nunca 2+ casas fora do roque
+  assert.equal(validateFreeMoveArrow(S, 4, 7, 4, 6).legal, true, 'Rei livre e1->e2 (1 casa)');
+  assert.equal(validateFreeMoveArrow(S, 4, 7, 6, 7).legal, true, 'Rei livre e1->g1 (roque pequeno)');
+  assert.equal(validateFreeMoveArrow(S, 4, 7, 2, 7).legal, true, 'Rei livre e1->c1 (roque grande)');
+  assert.equal(validateFreeMoveArrow(S, 4, 7, 4, 5).legal, false, 'Rei livre e1->e3 (2 casas vertical) PROIBIDO');
+  assert.equal(validateFreeMoveArrow(S, 4, 7, 6, 5).legal, false, 'Rei livre e1->g3 (2 casas diagonal) PROIBIDO');
+
+  // 11.7 Peão (P): direção por cor, 1 casa, 2 casas na fila inicial, diagonal à frente como intenção de captura, nunca para trás ou lateral
+  // Peão branco em e2 (4,6)
+  assert.equal(validateFreeMoveArrow(S, 4, 6, 4, 5).legal, true, 'Peão branco livre e2->e3');
+  assert.equal(validateFreeMoveArrow(S, 4, 6, 4, 4).legal, true, 'Peão branco livre e2->e4 (fila inicial)');
+  assert.equal(validateFreeMoveArrow(S, 4, 6, 5, 5).legal, true, 'Peão branco livre e2->f3 (diagonal captura)');
+  assert.equal(validateFreeMoveArrow(S, 4, 6, 4, 7).legal, false, 'Peão branco livre para trás PROIBIDO');
+  assert.equal(validateFreeMoveArrow(S, 4, 6, 5, 6).legal, false, 'Peão branco livre lateral PROIBIDO');
+  assert.equal(validateFreeMoveArrow(S, 4, 6, 4, 3).legal, false, 'Peão branco livre 3 casas PROIBIDO');
+
+  // Peão preto em d7 (3,1) - direção oposta!
+  assert.equal(validateFreeMoveArrow(S, 3, 1, 3, 2).legal, true, 'Peão preto livre d7->d6');
+  assert.equal(validateFreeMoveArrow(S, 3, 1, 3, 3).legal, true, 'Peão preto livre d7->d5 (fila inicial)');
+  assert.equal(validateFreeMoveArrow(S, 3, 1, 2, 2).legal, true, 'Peão preto livre d7->c6 (diagonal captura)');
+  assert.equal(validateFreeMoveArrow(S, 3, 1, 3, 0).legal, false, 'Peão preto livre para trás PROIBIDO');
+
+  // Peão fora da fila inicial NÃO pode andar 2 casas na Marcação Livre
+  const advancedPawn = makeCustomState({
+    pieces: [
+      { t: 'K', o: 0, x: 4, y: 7 },
+      { t: 'K', o: 1, x: 4, y: 0 },
+      { t: 'P', o: 0, x: 4, y: 4 }, // e4
+    ],
+  });
+  assert.equal(validateFreeMoveArrow(advancedPawn, 4, 4, 4, 2).legal, false, 'Peão fora da fila inicial não avança 2 casas');
+  assert.equal(validateFreeMoveArrow(advancedPawn, 4, 4, 4, 3).legal, true, 'Peão em e4 avança 1 casa para e5');
+
+  ok('Marcação Livre: exige peça na origem e impõe geometria exata para Cavalo, Bispo, Torre, Rainha, Rei e Peão (Brancas e Pretas)');
+}
+
+// =========================================================================
+// 12. INDICADORES DE MOVIMENTOS LEGAIS (getClassicMoves PARA TODAS AS PEÇAS)
+// =========================================================================
+{
+  const S = createClassicState({ mode: 'classic_local' });
+  // Cavalo b1 -> apenas a3 e c3
+  const knightMoves = getClassicMoves(S, S.grid[7][1]);
+  assert.equal(knightMoves.length, 2, 'Cavalo inicial deve ter exatamente 2 lances legais');
+  // Peão e2 -> apenas e3 e e4
+  const pawnMoves = getClassicMoves(S, S.grid[6][4]);
+  assert.equal(pawnMoves.length, 2, 'Peão inicial deve ter exatamente 2 lances legais');
+  // Torre a1 -> bloqueada inicialmente (0 lances)
+  assert.equal(getClassicMoves(S, S.grid[7][0]).length, 0, 'Torre bloqueada tem 0 lances');
+  // Bispo c1 -> bloqueado inicialmente (0 lances)
+  assert.equal(getClassicMoves(S, S.grid[7][2]).length, 0, 'Bispo bloqueado tem 0 lances');
+  // Rainha d1 -> bloqueada inicialmente (0 lances)
+  assert.equal(getClassicMoves(S, S.grid[7][3]).length, 0, 'Rainha bloqueada tem 0 lances');
+  // Rei e1 -> bloqueado inicialmente (0 lances)
+  assert.equal(getClassicMoves(S, S.grid[7][4]).length, 0, 'Rei bloqueado tem 0 lances');
+  ok('Indicadores de movimentos legais (getClassicMoves) validados na posição inicial para todas as 6 peças');
 }
 
 console.log(`\nALL ${passed} PIECE & ARROW TEST SUITES PASSED!`);

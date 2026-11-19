@@ -16,6 +16,7 @@ import {
   getAllLegalUciMoves,
   getClassicMoves,
   getClassicPremoveTargets,
+  getFreeArrowTargets,
   getLegalArrowTargets,
   isPromotionMove,
   reconstructClassicStates,
@@ -23,6 +24,7 @@ import {
   stateToPgn,
   stepClassicState,
   validateClassicMoveArrow,
+  validateFreeMoveArrow,
 } from '../../game/classicEngine.js';
 import { preloadChessPieceStyle } from '../../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../../game/classicRenderer.js';
@@ -30,6 +32,20 @@ import { saveClassicRecord } from '../../utils/classicStorage.js';
 import { fmtChessClock } from '../../utils/format.js';
 import { playTone } from '../../utils/sound.js';
 import ChessPromotionDialog from '../chess/ChessPromotionDialog.jsx';
+import {
+  IconAnalysis,
+  IconDashedArrow,
+  IconFlag,
+  IconFlip,
+  IconHandshake,
+  IconSkipEnd,
+  IconSkipStart,
+  IconStepBack,
+  IconStepForward,
+  IconTargetArrow,
+  IconTouch,
+  IconTrash,
+} from '../chess/ClassicIcons.jsx';
 import ConfirmModal from '../ConfirmModal.jsx';
 import MatchControls from '../MatchControls.jsx';
 
@@ -132,6 +148,7 @@ export default function ClassicMatchView({ match }) {
     previewArrow: null,
     invalidTarget: null,
     legalArrowTargets: [],
+    freeArrowTargets: [],
   });
   const rightDragStartRef = useRef(null);
   const leftDragRef = useRef(null);
@@ -312,6 +329,7 @@ export default function ClassicMatchView({ match }) {
       previewArrow: null,
       invalidTarget: null,
       legalArrowTargets: [],
+      freeArrowTargets: [],
     };
     setReviewPly(null);
     setPendingPromo(null);
@@ -336,6 +354,10 @@ export default function ClassicMatchView({ match }) {
   useEffect(() => {
     if (!isOnline || !match.onlineState) return;
     const prevCount = stateRef.current?.moveHistory?.length || 0;
+    const nextMovesCount = Array.isArray(match.onlineState.moveHistory) ? match.onlineState.moveHistory.length : 0;
+    if (nextMovesCount > prevCount || match.onlineState.over) {
+      selectedIdRef.current = null;
+    }
     const next = convertOnlineClassic(match.onlineState, selectedIdRef.current);
     stateRef.current = next;
     if (next.moveHistory.length > prevCount) {
@@ -354,12 +376,20 @@ export default function ClassicMatchView({ match }) {
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const wide = window.innerWidth > 980;
-    const availW = wide ? Math.min(640, window.innerWidth - 450) : window.innerWidth - 24;
-    const availH = wide ? window.innerHeight - 210 : Math.min(window.innerHeight * 0.56, 500);
-    const size = Math.max(256, Math.min(624, availW, availH));
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight;
+    const wide = vw >= 1024;
+    const landscapeCompact = !wide && vh < 560;
+    const stageW = canvas.parentElement?.parentElement?.clientWidth || (vw - 32);
+    const availW = wide ? Math.min(624, vw - 420) : Math.min(560, stageW - 4, vw - 36);
+    const availH = wide
+      ? vh - 210
+      : landscapeCompact
+        ? vh - 140
+        : Math.min(vh * 0.56, 520);
+    const size = Math.max(240, Math.min(624, availW, availH));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const cell = Math.max(32, Math.floor(size / 8));
+    const cell = Math.max(30, Math.floor(size / 8));
     const px = cell * 8;
     cellRef.current = cell;
     dprRef.current = dpr;
@@ -409,6 +439,7 @@ export default function ClassicMatchView({ match }) {
       previewArrow: null,
       invalidTarget: null,
       legalArrowTargets: [],
+      freeArrowTargets: [],
     };
   }, [reviewPly]);
 
@@ -533,6 +564,7 @@ export default function ClassicMatchView({ match }) {
     annotationsRef.current.previewArrow = null;
     annotationsRef.current.invalidTarget = null;
     annotationsRef.current.legalArrowTargets = [];
+    annotationsRef.current.freeArrowTargets = [];
   };
 
   const onCanvasPointerDown = (e) => {
@@ -553,6 +585,9 @@ export default function ClassicMatchView({ match }) {
       annotationsRef.current.legalArrowTargets = freeAnnotateMode
         ? []
         : getLegalArrowTargets(boardState, coords.bx, coords.by);
+      annotationsRef.current.freeArrowTargets = freeAnnotateMode
+        ? getFreeArrowTargets(boardState, coords.bx, coords.by)
+        : [];
       try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
       return;
     }
@@ -566,6 +601,7 @@ export default function ClassicMatchView({ match }) {
         previewArrow: null,
         invalidTarget: null,
         legalArrowTargets: [],
+        freeArrowTargets: [],
       };
     }
 
@@ -582,9 +618,10 @@ export default function ClassicMatchView({ match }) {
         return;
       }
       if (q && q.o === playerSide) {
+        const wasSame = s && s.id === q.id;
         S.sel = q;
         selectedIdRef.current = q.id;
-        leftDragRef.current = { piece: q, startX: bx, startY: by, px, py, active: false, isPremove: true };
+        leftDragRef.current = { piece: q, startX: bx, startY: by, px, py, active: false, isPremove: true, wasSame };
       } else {
         S.sel = null;
         selectedIdRef.current = null;
@@ -605,9 +642,10 @@ export default function ClassicMatchView({ match }) {
     }
 
     if (q && q.o === canMoveSide) {
+      const wasSame = s && s.id === q.id;
       S.sel = q;
       selectedIdRef.current = q.id;
-      leftDragRef.current = { piece: q, startX: bx, startY: by, px, py, active: false, isPremove: false };
+      leftDragRef.current = { piece: q, startX: bx, startY: by, px, py, active: false, isPremove: false, wasSame };
     } else {
       S.sel = null;
       selectedIdRef.current = null;
@@ -626,18 +664,26 @@ export default function ClassicMatchView({ match }) {
       }
       const st = rightDragStartRef.current;
       if (st.x !== coords.bx || st.y !== coords.by) {
+        const boardState = getDisplayedBoardState() || S;
         if (freeAnnotateMode) {
-          annotationsRef.current.invalidTarget = null;
-          annotationsRef.current.previewArrow = {
-            x0: st.x,
-            y0: st.y,
-            x1: coords.bx,
-            y1: coords.by,
-            color: st.colorObj.arrow,
-            dashed: true,
-          };
+          const validation = validateFreeMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+          if (validation.legal) {
+            annotationsRef.current.invalidTarget = null;
+            annotationsRef.current.previewArrow = {
+              x0: st.x,
+              y0: st.y,
+              x1: coords.bx,
+              y1: coords.by,
+              color: st.colorObj.arrow,
+              dashed: true,
+              pieceType: validation.piece.t,
+              promotion: validation.promotion,
+            };
+          } else {
+            annotationsRef.current.previewArrow = null;
+            annotationsRef.current.invalidTarget = { x: coords.bx, y: coords.by };
+          }
         } else {
-          const boardState = getDisplayedBoardState() || S;
           const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
           if (validation.legal) {
             annotationsRef.current.invalidTarget = null;
@@ -685,6 +731,13 @@ export default function ClassicMatchView({ match }) {
         if (idx >= 0) annotationsRef.current.squares.splice(idx, 1);
         else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: st.colorObj.sq });
       } else if (freeAnnotateMode) {
+        const boardState = getDisplayedBoardState() || S;
+        const validation = validateFreeMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+        if (!validation.legal) {
+          showToast(validation.message || 'Movimento incompatível com a peça de origem.', 'warn');
+          setHudTick((t) => t + 1);
+          return;
+        }
         const idx = annotationsRef.current.arrows.findIndex(
           (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
         );
@@ -697,6 +750,8 @@ export default function ClassicMatchView({ match }) {
             y1: coords.by,
             color: st.colorObj.arrow,
             dashed: true,
+            pieceType: validation.piece.t,
+            promotion: validation.promotion,
           });
         }
       } else {
@@ -742,6 +797,11 @@ export default function ClassicMatchView({ match }) {
           executeMoveOrPromo(S, piece, coords.bx, coords.by, false);
           setHudTick((t) => t + 1);
         }
+      } else if (!drag.active && drag.wasSame && S && !S.over) {
+        // Clicar/tocar novamente na mesma peça cancela a seleção e limpa os indicadores
+        S.sel = null;
+        selectedIdRef.current = null;
+        setHudTick((t) => t + 1);
       }
     }
   };
@@ -883,32 +943,40 @@ export default function ClassicMatchView({ match }) {
     const labelName = isMe
       ? (isLocal ? 'Jogador 1 (Brancas)' : user?.displayName || user?.username || 'Você')
       : oppName;
-    const avatar = isMe ? (user?.avatar || '♔') : (isOnline ? match.onlineState?.opponent?.avatar || '♚' : '🤖');
+    const avatarInitials = isMe
+      ? (labelName.slice(0, 2).toUpperCase())
+      : (isOnline ? labelName.slice(0, 2).toUpperCase() : isLocal ? 'J2' : 'SF');
     const ratingVal = isMe ? (user ? myRating : null) : oppRating;
 
     return (
       <div className={`chess-player-bar ${position}${isActive ? ' active-turn' : ''}`}>
         <div className="chess-player-ident">
-          <span className="chess-avatar">{avatar}</span>
+          <span className={`chess-avatar side-${side === 0 ? 'white' : 'black'}`} aria-hidden="true">
+            {avatarInitials}
+          </span>
           <div className="chess-player-meta">
             <div className="chess-player-name-row">
               <strong>{labelName}</strong>
               <span className={`piece-side-badge ${side === 0 ? 'white' : 'black'}`}>
-                {side === 0 ? '♔ Brancas' : '♚ Pretas'}
+                {side === 0 ? 'Brancas' : 'Pretas'}
               </span>
               {ratingVal && <span className="chess-elo-pill">{ratingVal}</span>}
             </div>
             <div className="chess-player-sub">
               {isOnline && (
                 <span className="conn-dot-inline">
-                  <i className="dot on" /> Conectado
+                  <i className="dot on" aria-hidden="true" /> Conectado
                 </span>
               )}
-              {isActive && <span className="turn-pill-inline">● Pensando</span>}
+              {isActive && <span className="turn-pill-inline">Sua vez</span>}
+              {!isActive && !S?.over && <span>Aguardando lance</span>}
             </div>
           </div>
         </div>
-        <div className={`chess-clock-display${isActive ? ' running' : ''}${isLowTime ? ' low-time' : ''}`}>
+        <div
+          className={`chess-clock-display${isActive ? ' running' : ''}${isLowTime ? ' low-time' : ''}`}
+          aria-label={`Relógio de ${labelName}: ${fmtChessClock(clockSec)}`}
+        >
           {fmtChessClock(clockSec)}
         </div>
       </div>
@@ -918,17 +986,17 @@ export default function ClassicMatchView({ match }) {
   const moves = S?.moveHistory || [];
 
   return (
-    <div className="match-classic-layout">
-      <div className="match-topbar">
+    <div className="match-classic-layout classic-redesign">
+      <div className="match-topbar classic-match-topbar">
         <div className="match-topbar-left">
           <span className="mode-pill-tag">
-            ♟ XADREZ CLÁSSICO · {S?.clockControlLabel || 'Blitz'}
-            {match.onlineState?.rated ? ' · RANQUEADA' : ''}
+            Xadrez Clássico · {S?.clockControlLabel || 'Blitz'}
+            {match.onlineState?.rated ? ' · Ranqueada' : ''}
           </span>
           {botStatus && <span className="conn-pill">{botStatus}</span>}
           {hasActivePremove && (
             <span className="premove-pill">
-              ⚡ Premove preparado (0,1s)
+              Premove preparado (0,1s)
               <button type="button" className="link-inline" style={{ marginLeft: 6 }} onClick={cancelActivePremove}>
                 Cancelar
               </button>
@@ -950,18 +1018,18 @@ export default function ClassicMatchView({ match }) {
       </div>
 
       <div className="match-play-grid classic-pro-grid">
-        <section className="match-board-stage">
+        <section className="match-board-stage" aria-label="Área do tabuleiro">
           {S?.over && (
-            <div className="classic-mate-banner">
+            <div className="classic-mate-banner" role="status" aria-live="polite">
               <div>
-                <strong>
+                <strong className="classic-mate-title">
                   {S.winner === null
-                    ? '½–½ EMPATE'
+                    ? 'Empate (1/2 - 1/2)'
                     : isLocal
-                      ? `${S.winner === 0 ? '♔ BRANCAS' : '♚ PRETAS'} VENCERAM!`
+                      ? `${S.winner === 0 ? 'Brancas' : 'Pretas'} venceram`
                       : S.winner === playerSide
-                        ? '🏆 VOCÊ VENCEU!'
-                        : '♚ DERROTA'}
+                        ? 'Vitória na partida'
+                        : 'Derrota na partida'}
                 </strong>
                 <div className="muted" style={{ fontSize: 13 }}>{S.reason}</div>
               </div>
@@ -976,7 +1044,8 @@ export default function ClassicMatchView({ match }) {
                       navigate(`/analysis/${match.matchId}`);
                     }}
                   >
-                    📊 Analisar Partida
+                    <IconAnalysis />
+                    <span>Analisar partida</span>
                   </button>
                 )}
                 {isOnline ? (
@@ -986,7 +1055,7 @@ export default function ClassicMatchView({ match }) {
                     disabled={match.rematchStatus === 'waiting'}
                     onClick={() => sendSocket('game:rematch')}
                   >
-                    {match.rematchStatus === 'waiting' ? 'Aguardando revanche...' : 'Pedir Revanche'}
+                    {match.rematchStatus === 'waiting' ? 'Aguardando revanche...' : 'Pedir revanche'}
                   </button>
                 ) : (
                   <button
@@ -1008,7 +1077,7 @@ export default function ClassicMatchView({ match }) {
                       setHudTick((t) => t + 1);
                     }}
                   >
-                    Jogar Novamente
+                    Jogar novamente
                   </button>
                 )}
                 <button
@@ -1027,7 +1096,7 @@ export default function ClassicMatchView({ match }) {
 
           {renderPlayerBar(topSide, 'top')}
 
-          <div className="board-wrap-react">
+          <div className="board-wrap-react classic-board-frame">
             <canvas
               ref={canvasRef}
               style={{ touchAction: 'none' }}
@@ -1042,32 +1111,42 @@ export default function ClassicMatchView({ match }) {
 
           {renderPlayerBar(bottomSide, 'bottom')}
 
-          <div className="chess-board-toolbar">
-            <button
-              type="button"
-              className={`mini-btn${!freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode(false)}
-              title="Setas partindo de uma peça respeitam apenas seus movimentos legais"
-            >
-              ♟ Setas Legais
-            </button>
-            <button
-              type="button"
-              className={`mini-btn${freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode((v) => !v)}
-              title="Permite desenhar setas estratégicas livres entre quaisquer casas"
-            >
-              ✦ Marcação Livre
-            </button>
+          <div className="chess-board-toolbar" role="toolbar" aria-label="Ferramentas de marcação e visualização">
+            <div className="toolbar-segmented" role="group" aria-label="Modo de setas">
+              <button
+                type="button"
+                className={`mini-btn seg-btn${!freeAnnotateMode ? ' accent' : ''}`}
+                aria-pressed={!freeAnnotateMode}
+                onClick={() => setFreeAnnotateMode(false)}
+                title="Valida origem, turno, bloqueios e regras reais da posição"
+              >
+                <IconTargetArrow />
+                <span>Setas legais</span>
+              </button>
+              <button
+                type="button"
+                className={`mini-btn seg-btn${freeAnnotateMode ? ' accent' : ''}`}
+                aria-pressed={freeAnnotateMode}
+                onClick={() => setFreeAnnotateMode(true)}
+                title="Permite linhas hipotéticas respeitando sempre o movimento da peça de origem"
+              >
+                <IconDashedArrow />
+                <span>Marcação livre</span>
+              </button>
+            </div>
+
             <button
               type="button"
               className={`mini-btn${annotateMode ? ' accent' : ''}`}
+              aria-pressed={annotateMode}
               onClick={() => setAnnotateMode((a) => !a)}
-              title="Ative no celular/tablet para desenhar setas com o toque"
+              title="Ative no celular ou tablet para desenhar setas com o toque"
             >
-              ✎ {annotateMode ? 'Toque: Anotar' : 'Anotar (Toque)'}
+              <IconTouch />
+              <span>{annotateMode ? 'Toque: anotar' : 'Anotar (toque)'}</span>
             </button>
-            <div className="annotate-color-dots">
+
+            <div className="annotate-color-dots" role="group" aria-label="Cor da marcação">
               {ANNOTATION_COLORS.map((c, idx) => (
                 <button
                   key={c.id}
@@ -1075,38 +1154,45 @@ export default function ClassicMatchView({ match }) {
                   className={`color-dot-btn${annotateColorIdx === idx ? ' active' : ''}`}
                   style={{ background: c.arrow }}
                   title={`Cor de marcação: ${c.label}`}
+                  aria-label={`Cor de marcação: ${c.label}`}
+                  aria-pressed={annotateColorIdx === idx}
                   onClick={() => setAnnotateColorIdx(idx)}
                 />
               ))}
             </div>
+
             <button
               type="button"
               className="mini-btn"
               onClick={() => {
                 annotationsRef.current = {
-      squares: [],
-      arrows: [],
-      previewArrow: null,
-      invalidTarget: null,
-      legalArrowTargets: [],
-    };
+                  squares: [],
+                  arrows: [],
+                  previewArrow: null,
+                  invalidTarget: null,
+                  legalArrowTargets: [],
+                  freeArrowTargets: [],
+                };
                 setHudTick((t) => t + 1);
               }}
             >
-              Limpar
+              <IconTrash />
+              <span>Limpar</span>
             </button>
+
             {isLocal && (
               <button type="button" className="mini-btn" onClick={() => setLocalFlip((f) => !f)}>
-                ⇅ Inverter
+                <IconFlip />
+                <span>Inverter</span>
               </button>
             )}
           </div>
         </section>
 
-        <aside className="match-hud-sidebar classic-right-panel">
+        <aside className="match-hud-sidebar classic-right-panel" aria-label="Histórico e ações da partida">
           <div className="hud-card classic-history-card">
             <div className="hud-card-head">
-              <h3>Histórico de Lances</h3>
+              <h3>Histórico de lances</h3>
               {reviewPly !== null ? (
                 <button type="button" className="mini-btn accent" onClick={() => setReviewPly(null)}>
                   Voltar ao vivo
@@ -1118,8 +1204,8 @@ export default function ClassicMatchView({ match }) {
 
             <div className="chess-san-table classic-san-large">
               {!moves.length ? (
-                <p className="muted" style={{ fontSize: 13, padding: 12 }}>
-                  A partida começou. Faça seu lance — durante a vez do adversário você também pode preparar um <strong>premove</strong>!
+                <p className="muted" style={{ fontSize: 13, padding: 12, lineHeight: 1.5 }}>
+                  A partida começou. Selecione uma peça para ver seus movimentos legais. Durante a vez do adversário você também pode preparar um <strong>premove</strong>.
                 </p>
               ) : (
                 Array.from({ length: Math.ceil(moves.length / 2) }, (_, rowIdx) => {
@@ -1154,43 +1240,61 @@ export default function ClassicMatchView({ match }) {
             </div>
 
             <div className="analysis-controls-bar" style={{ marginTop: 10 }}>
-              <button type="button" className="mini-btn" disabled={!moves.length} onClick={() => setReviewPly(0)}>⏮</button>
               <button
                 type="button"
-                className="mini-btn"
+                className="mini-btn icon-only-btn"
+                disabled={!moves.length}
+                onClick={() => setReviewPly(0)}
+                aria-label="Ir para o início da partida"
+              >
+                <IconSkipStart />
+              </button>
+              <button
+                type="button"
+                className="mini-btn icon-only-btn"
                 disabled={!moves.length}
                 onClick={() => setReviewPly((p) => Math.max(0, (p === null ? moves.length : p) - 1))}
+                aria-label="Lance anterior"
               >
-                ◀
+                <IconStepBack />
               </button>
               <button
                 type="button"
-                className="mini-btn"
+                className="mini-btn icon-only-btn"
                 disabled={!moves.length}
                 onClick={() => setReviewPly((p) => (p === null || p + 1 >= moves.length ? null : p + 1))}
+                aria-label="Próximo lance"
               >
-                ▶
+                <IconStepForward />
               </button>
-              <button type="button" className="mini-btn" disabled={!moves.length} onClick={() => setReviewPly(null)}>⏭</button>
+              <button
+                type="button"
+                className="mini-btn icon-only-btn"
+                disabled={!moves.length}
+                onClick={() => setReviewPly(null)}
+                aria-label="Ir para o lance atual"
+              >
+                <IconSkipEnd />
+              </button>
             </div>
           </div>
 
           {incomingDrawOffer && (
-            <div className="draw-offer-banner">
-              <strong>🤝 {oppName} ofereceu empate</strong>
+            <div className="draw-offer-banner" role="alert">
+              <strong>{oppName} ofereceu empate</strong>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button
                   type="button"
                   className="primary"
-                  style={{ flex: 1, padding: '7px 10px', fontSize: 13 }}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: 13 }}
                   onClick={() => sendSocket('game:draw-respond', { accept: true })}
                 >
-                  Aceitar Empate
+                  Aceitar empate
                 </button>
                 <button
                   type="button"
                   className="secondary"
-                  style={{ flex: 1, padding: '7px 10px', fontSize: 13 }}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: 13 }}
                   onClick={() => sendSocket('game:draw-respond', { accept: false })}
                 >
                   Recusar
@@ -1207,7 +1311,8 @@ export default function ClassicMatchView({ match }) {
                 disabled={!S || S.over || outgoingDrawOffer || drawChecking}
                 onClick={handleOfferDraw}
               >
-                {outgoingDrawOffer ? '⏳ Empate oferecido' : drawChecking ? 'Avaliando...' : '🤝 Oferecer Empate'}
+                <IconHandshake />
+                <span>{outgoingDrawOffer ? 'Empate oferecido' : drawChecking ? 'Avaliando...' : 'Oferecer empate'}</span>
               </button>
               <button
                 type="button"
@@ -1215,7 +1320,8 @@ export default function ClassicMatchView({ match }) {
                 disabled={!S || S.over}
                 onClick={() => setConfirmExit('resign')}
               >
-                🏳️ Desistir
+                <IconFlag />
+                <span>Desistir</span>
               </button>
             </div>
 
@@ -1230,7 +1336,8 @@ export default function ClassicMatchView({ match }) {
                   navigate(`/analysis/${match.matchId}`);
                 }}
               >
-                📊 Abrir Revisão Completa (Stockfish)
+                <IconAnalysis />
+                <span>Abrir revisão completa (Stockfish)</span>
               </button>
             )}
           </div>
@@ -1257,17 +1364,17 @@ export default function ClassicMatchView({ match }) {
         }
         message={
           confirmExit === 'local_draw'
-            ? 'Ambos os jogadores concordam em encerrar a partida local empatada (½–½)?'
+            ? 'Ambos os jogadores concordam em encerrar a partida local empatada (1/2 - 1/2)?'
             : confirmExit === 'resign'
               ? 'Desistir encerrará imediatamente a partida e contará vitória para o adversário.'
               : 'Se a partida ainda estiver em andamento, sair contará como desistência.'
         }
         confirmLabel={
           confirmExit === 'local_draw'
-            ? 'Confirmar Empate'
+            ? 'Confirmar empate'
             : confirmExit === 'resign'
-              ? 'Confirmar Desistência'
-              : 'Sair da Partida'
+              ? 'Confirmar desistência'
+              : 'Sair da partida'
         }
         danger={confirmExit !== 'local_draw'}
         onConfirm={handleConfirmExit}

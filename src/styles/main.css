@@ -1,68 +1,71 @@
 :root {
-  /* Tema padrão: Azul Clássico (paleta original Crownflux.io recuperada) */
-  --bg: #12171d;
-  --bg-top: #1a242e;
-  --bg-elev: #171e26;
-  --surface-deep: rgba(15, 21, 28, 0.88);
+  /* Tema padrão: Azul Clássico (paleta original Crownflux.io refinada com contraste WCAG AA) */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bg: #111820;
+  --bg-top: #18232e;
+  --bg-elev: #161f29;
+  --surface-deep: rgba(15, 21, 28, 0.92);
   --topbar-bg: rgba(15, 21, 28, 0.96);
-  --panel: #1d2630;
-  --panel-2: #24303c;
-  --border: #314150;
-  --border-gold: rgba(125, 163, 181, 0.45);
-  --text: #eaeef2;
-  --muted: #9eb0be;
-  --accent: #7da3b5;
-  --accent-strong: #93b8c9;
-  --accent-bg: #29363c;
+  --panel: #1c2733;
+  --panel-2: #23303e;
+  --border: #344658;
+  --border-gold: rgba(152, 195, 216, 0.48);
+  --text: #edf2f7;
+  --muted: #a4b6c7;
+  --accent: #84b0c7;
+  --accent-strong: #9cc6db;
+  --accent-bg: #273742;
   --blue-deep: #385563;
-  --gold: #8fb8cc;
-  --gold-bright: #b4d4e4;
-  --highlight-bg: rgba(125, 163, 181, 0.12);
-  --highlight-bg-active: rgba(125, 163, 181, 0.22);
-  --highlight-border: rgba(147, 184, 201, 0.55);
-  --highlight-text: #eaf4fa;
-  --hero-grad: linear-gradient(135deg, rgba(31, 44, 56, 0.96), rgba(20, 28, 36, 0.96));
-  --featured-grad: linear-gradient(160deg, #243342 0%, #17212b 100%);
-  --red: #d46a6c;
-  --green: #6db38b;
-  --primary-bg-1: #7da3b5;
-  --primary-bg-2: #52798c;
-  --primary-border: #a4c5d4;
-  --primary-text: #0e161d;
-  --radius: 14px;
+  --gold: #98c3d8;
+  --gold-bright: #b9d9ea;
+  --highlight-bg: rgba(132, 176, 199, 0.14);
+  --highlight-bg-active: rgba(132, 176, 199, 0.24);
+  --highlight-border: rgba(156, 198, 219, 0.58);
+  --highlight-text: #eef6fb;
+  --hero-grad: linear-gradient(135deg, rgba(28, 39, 51, 0.98), rgba(19, 27, 36, 0.98));
+  --featured-grad: linear-gradient(160deg, #22303e 0%, #16202a 100%);
+  --red: #e07678;
+  --green: #72ba92;
+  --primary-bg-1: #88b4ca;
+  --primary-bg-2: #628fa6;
+  --primary-border: #a9cee0;
+  --primary-text: #0b131a;
+  --radius: 12px;
 }
 
 :root[data-ui-theme="emerald"],
 body[data-ui-theme="emerald"] {
-  /* Tema alternativo: Verde e Dourado */
-  --bg: #141816;
-  --bg-top: #1d2521;
-  --bg-elev: #1b211e;
-  --surface-deep: rgba(18, 23, 20, 0.82);
+  /* Tema alternativo: Verde e Dourado (contraste WCAG AA verificado) */
+  --bg: #121815;
+  --bg-top: #1b241f;
+  --bg-elev: #18201b;
+  --surface-deep: rgba(18, 24, 21, 0.92);
   --topbar-bg: rgba(18, 23, 20, 0.98);
-  --panel: #202723;
-  --panel-2: #262e29;
-  --border: #333e37;
-  --border-gold: rgba(207, 175, 114, 0.35);
-  --text: #ece7da;
-  --muted: #a2aba4;
-  --accent: #6f9daf;
-  --accent-strong: #8fb8c8;
-  --accent-bg: #263338;
-  --gold: #cfaf72;
-  --gold-bright: #f0c869;
-  --highlight-bg: rgba(207, 175, 114, 0.12);
-  --highlight-bg-active: rgba(207, 175, 114, 0.2);
-  --highlight-border: rgba(207, 175, 114, 0.52);
-  --highlight-text: #fff6dc;
-  --hero-grad: linear-gradient(135deg, rgba(35, 44, 39, 0.96), rgba(22, 27, 24, 0.96));
-  --featured-grad: linear-gradient(160deg, #27322c 0%, #1a211e 100%);
-  --red: #d46a6c;
-  --green: #6db38b;
-  --primary-bg-1: #d7b779;
-  --primary-bg-2: #b38e4c;
-  --primary-border: #e6cb93;
-  --primary-text: #16140f;
+  --panel: #1e2722;
+  --panel-2: #26312b;
+  --border: #38483f;
+  --border-gold: rgba(222, 192, 130, 0.42);
+  --text: #f0eadc;
+  --muted: #aab6ad;
+  --accent: #7da9ba;
+  --accent-strong: #9cc4d3;
+  --accent-bg: #253438;
+  --gold: #dec082;
+  --gold-bright: #f0d28b;
+  --highlight-bg: rgba(222, 192, 130, 0.13);
+  --highlight-bg-active: rgba(222, 192, 130, 0.22);
+  --highlight-border: rgba(222, 192, 130, 0.54);
+  --highlight-text: #fff7e2;
+  --hero-grad: linear-gradient(135deg, rgba(31, 40, 35, 0.98), rgba(20, 26, 23, 0.98));
+  --featured-grad: linear-gradient(160deg, #25302a 0%, #18201c 100%);
+  --red: #e07678;
+  --green: #72ba92;
+  --primary-bg-1: #d9ba7b;
+  --primary-bg-2: #b6924f;
+  --primary-border: #ebd29b;
+  --primary-text: #15120c;
 }
 
 * {
@@ -3651,5 +3654,504 @@ select:focus {
   .piece-preview-cell img {
     width: 28px;
     height: 28px;
+  }
+}
+
+
+/* =========================================================
+   REDESIGN XADREZ CLÁSSICO (EDITORIAL CLUB ROOM)
+   ENERGY 2 / RHYTHM 2 / MOTION 1 · WCAG AA · MULTI-BREAKPOINT
+   ========================================================= */
+
+body {
+  font-family: var(--font-ui, system-ui, -apple-system, 'Segoe UI', sans-serif);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+canvas:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.cf-inline-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.classic-redesign h1,
+.classic-redesign h2 {
+  font-family: var(--font-display, Georgia, serif);
+  letter-spacing: -0.015em;
+}
+
+.classic-hub-page {
+  max-width: 1120px;
+}
+
+.classic-editorial-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  background: var(--hero-grad);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.classic-editorial-hero.analysis-editorial-hero {
+  grid-template-columns: 1fr;
+  padding: 18px 22px;
+}
+
+.classic-hero-copy h1 {
+  font-size: clamp(1.65rem, 2.6vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.classic-hero-copy p {
+  max-width: 64ch;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.classic-hero-summary {
+  min-width: 196px;
+  padding: 14px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-gold);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.classic-summary-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.classic-summary-clock {
+  font-family: var(--font-mono, monospace);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.classic-summary-meta {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.classic-hub-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.38fr) minmax(300px, 0.92fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.classic-hub-main,
+.classic-hub-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.classic-section-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.classic-online-block {
+  border-color: var(--border-gold);
+}
+
+.classic-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.classic-section-head h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 3px;
+}
+
+.classic-section-head p {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.classic-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.classic-tag.accent {
+  background: var(--highlight-bg);
+  border-color: var(--border-gold);
+  color: var(--highlight-text);
+}
+
+.classic-online-actions {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 10px;
+}
+
+.classic-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.classic-code-join {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.classic-inline-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.classic-recent-block {
+  margin-top: 18px;
+}
+
+.recent-analysis-meta {
+  min-width: 0;
+}
+
+/* Match View Refinement */
+.classic-match-topbar {
+  border-radius: 12px;
+}
+
+.classic-board-frame {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+}
+
+.classic-redesign .chess-player-bar {
+  max-width: 626px;
+  border-radius: 10px;
+  padding: 9px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.classic-redesign .chess-player-bar.active-turn {
+  border-color: var(--gold);
+  background: var(--panel-2);
+}
+
+.classic-redesign .chess-avatar {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.classic-redesign .chess-avatar.side-white {
+  background: #ece7da;
+  color: #161c22;
+  border-color: #cfc6b2;
+}
+
+.classic-redesign .chess-avatar.side-black {
+  background: #141a21;
+  color: #edf2f7;
+  border-color: var(--border);
+}
+
+.classic-redesign .chess-clock-display {
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-width: 98px;
+  padding: 7px 14px;
+  border-radius: 8px;
+}
+
+.classic-redesign .chess-clock-display.running {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--border-gold);
+}
+
+.classic-redesign .match-board-stage {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.classic-redesign .diff-btn.active {
+  border-color: var(--highlight-border);
+  background: var(--highlight-bg-active);
+  color: var(--highlight-text);
+}
+
+.classic-redesign .chess-elo-pill,
+.classic-redesign .tc-preset-main,
+.classic-redesign .san-num,
+.classic-redesign .san-move-btn {
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.classic-redesign .chess-board-toolbar {
+  max-width: 626px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.toolbar-segmented {
+  display: inline-flex;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.toolbar-segmented .seg-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+}
+
+.toolbar-segmented .seg-btn.accent {
+  background: var(--highlight-bg-active);
+  border-color: var(--highlight-border);
+  color: var(--highlight-text);
+}
+
+.classic-redesign .mini-btn.accent {
+  background: var(--highlight-bg-active);
+  border-color: var(--highlight-border);
+  color: var(--highlight-text);
+}
+
+.classic-redesign .icon-only-btn {
+  min-width: 38px;
+  justify-content: center;
+  padding: 7px 10px;
+}
+
+.classic-redesign .color-dot-btn {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.classic-redesign .classic-action-btns button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.classic-redesign .classic-mate-banner {
+  border-radius: 12px;
+  border: 1px solid var(--border-gold);
+}
+
+.classic-redesign .classic-mate-title {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.classic-redesign .classic-mate-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tablet Breakpoint (768px - 1079px) */
+@media (max-width: 1079px) {
+  .classic-hub-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .classic-hub-side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .classic-pro-grid {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .classic-right-panel {
+    width: 100%;
+    max-width: 626px;
+    min-width: 0;
+  }
+
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile Portrait Breakpoint (<= 767px) */
+@media (max-width: 767px) {
+  .classic-editorial-hero {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .classic-hero-summary {
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .classic-summary-meta {
+    text-align: left;
+  }
+
+  .classic-hub-side {
+    grid-template-columns: 1fr;
+  }
+
+  .classic-online-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .classic-section-block {
+    padding: 14px;
+  }
+
+  .tc-cat-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tc-presets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tc-custom-fields {
+    grid-template-columns: 1fr;
+  }
+
+  /* Touch-friendly 44px minimum tap targets on mobile */
+  .classic-redesign .mini-btn,
+  .classic-redesign .primary,
+  .classic-redesign .secondary,
+  .classic-redesign .danger-btn,
+  .classic-redesign .san-move-btn,
+  .classic-redesign .tc-cat-tab,
+  .classic-redesign .tc-preset-card {
+    min-height: 44px;
+  }
+
+  .classic-redesign .icon-only-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .classic-redesign .color-dot-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .classic-redesign .chess-board-toolbar {
+    justify-content: flex-start;
+    padding: 8px;
+  }
+
+  .toolbar-segmented {
+    width: 100%;
+  }
+
+  .toolbar-segmented .seg-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .classic-redesign .chess-player-bar {
+    padding: 8px 10px;
+  }
+
+  .classic-redesign .chess-clock-display {
+    font-size: 18px;
+    min-width: 82px;
+    padding: 6px 10px;
+  }
+
+  .classic-action-btns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile Landscape Compact */
+@media (max-height: 560px) and (max-width: 960px) {
+  .classic-redesign .chess-player-bar {
+    padding: 5px 10px;
+  }
+
+  .classic-redesign .chess-clock-display {
+    font-size: 16px;
+    padding: 4px 10px;
+  }
+}
+
+/* Reduced Motion Respect (Anti-Slop R-39) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -316,16 +316,101 @@ export function isPromotionMove(S, p, x, y) {
   return (p.o === 0 && y === 0) || (p.o === 1 && y === 7);
 }
 
-// Obtém os destinos legais reais para setas partindo de (fromX, fromY) usando getClassicMoves
-export function getLegalArrowTargets(S, fromX, fromY) {
+// Obtém todos os destinos compatíveis com a geometria de movimento da peça (ignora bloqueio, turno e xeque,
+// mas NUNCA viola o padrão de movimento da peça na casa de origem).
+export function getFreeArrowTargets(S, fromX, fromY) {
   if (!S || !S.grid || fromX < 0 || fromY < 0 || fromX >= 8 || fromY >= 8) return [];
   const piece = S.grid[fromY]?.[fromX];
   if (!piece) return [];
+  return getClassicPremoveTargets(S, piece);
+}
+
+function getGeometryErrorMessage(piece) {
+  switch (piece?.t) {
+    case 'N':
+      return 'O Cavalo só pode ser marcado em movimentos em L.';
+    case 'B':
+      return 'O Bispo só pode ser marcado nas diagonais.';
+    case 'R':
+      return 'A Torre só pode ser marcada na horizontal ou vertical.';
+    case 'Q':
+      return 'A Rainha só pode ser marcada na horizontal, vertical ou diagonal.';
+    case 'K':
+      return 'O Rei só pode ser marcado 1 casa em qualquer direção ou no roque.';
+    case 'P':
+      return 'O Peão só pode avançar para frente ou marcar captura na diagonal à frente.';
+    default:
+      return 'Destino incompatível com o movimento desta peça.';
+  }
+}
+
+// Validador oficial da ferramenta Marcação Livre:
+// Exige uma peça na casa de origem e impõe estritamente o padrão geométrico da peça,
+// permitindo linhas hipotéticas (ignorando bloqueios, ocupação, turno e segurança do rei).
+export function validateFreeMoveArrow(S, fromX, fromY, toX, toY, options = {}) {
+  if (!S || !S.grid) {
+    return { legal: false, reason: 'no_state', message: 'Tabuleiro indisponível.' };
+  }
+  if (fromX < 0 || fromY < 0 || fromX >= 8 || fromY >= 8 || toX < 0 || toY < 0 || toX >= 8 || toY >= 8) {
+    return { legal: false, reason: 'out_of_bounds', message: 'Destino fora do tabuleiro.' };
+  }
+  if (fromX === toX && fromY === toY) {
+    return { legal: false, reason: 'same_square', message: 'Origem e destino iguais.' };
+  }
+
+  const piece = S.grid[fromY]?.[fromX];
+  if (!piece) {
+    return {
+      legal: false,
+      reason: 'empty_origin',
+      message: 'Selecione uma casa com peça para traçar uma marcação.',
+    };
+  }
+
+  const freeTargets = getFreeArrowTargets(S, fromX, fromY);
+  const validGeometry = freeTargets.some(([mx, my]) => mx === toX && my === toY);
+  if (!validGeometry) {
+    return {
+      legal: false,
+      reason: 'invalid_geometry',
+      piece,
+      freeTargets,
+      message: getGeometryErrorMessage(piece),
+    };
+  }
+
+  const isCastle = piece.t === 'K' && Math.abs(toX - fromX) === 2;
+  const isPromotion = isPromotionMove(S, piece, toX, toY);
+  const isDiagonalPawnIntent = piece.t === 'P' && Math.abs(toX - fromX) === 1;
+  const promoChoice = isPromotion
+    ? (['Q', 'R', 'B', 'N'].includes(String(options.promotion || '').toUpperCase()) ? String(options.promotion).toUpperCase() : 'Q')
+    : null;
+
+  return {
+    legal: true,
+    reason: 'ok',
+    piece,
+    isCastle,
+    isPromotion,
+    isDiagonalPawnIntent,
+    promotion: promoChoice,
+    freeTargets,
+  };
+}
+
+// Obtém os destinos legais reais para setas partindo de (fromX, fromY) usando getClassicMoves
+export function getLegalArrowTargets(S, fromX, fromY, options = {}) {
+  if (!S || !S.grid || fromX < 0 || fromY < 0 || fromX >= 8 || fromY >= 8) return [];
+  const piece = S.grid[fromY]?.[fromX];
+  if (!piece) return [];
+  if (options.enforceTurn !== false && Number.isInteger(S.turnOwner) && piece.o !== S.turnOwner) {
+    return [];
+  }
   return getClassicMoves(S, piece);
 }
 
 // Validador oficial de setas de movimento legal no Xadrez Clássico.
-// Consulta diretamente getClassicMoves (mesmo gerador de lances legais do jogo).
+// Consulta diretamente getClassicMoves (mesmo gerador de lances legais do jogo) e respeita o turno atual.
 export function validateClassicMoveArrow(S, fromX, fromY, toX, toY, options = {}) {
   if (!S || !S.grid) {
     return { legal: false, reason: 'no_state', message: 'Tabuleiro indisponível.' };
@@ -342,7 +427,18 @@ export function validateClassicMoveArrow(S, fromX, fromY, toX, toY, options = {}
     return {
       legal: false,
       reason: 'empty_origin',
-      message: 'Setas de movimento exigem uma peça na casa de origem. Use "Marcação Livre" para anotações abstratas.',
+      message: 'Selecione uma casa com peça para traçar uma seta de movimento legal.',
+    };
+  }
+
+  if (options.enforceTurn !== false && Number.isInteger(S.turnOwner) && piece.o !== S.turnOwner) {
+    const turnLabel = S.turnOwner === 0 ? 'Brancas' : 'Pretas';
+    return {
+      legal: false,
+      reason: 'wrong_turn',
+      piece,
+      legalTargets: [],
+      message: `Agora é a vez das ${turnLabel}. Use Marcação Livre para planejar lances do outro lado.`,
     };
   }
 

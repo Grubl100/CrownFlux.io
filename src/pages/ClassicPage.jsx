@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BotDifficultySelector from '../components/BotDifficultySelector.jsx';
+import {
+  IconAnalysis,
+  IconArrowLeft,
+  IconArrowRight,
+  IconBook,
+} from '../components/chess/ClassicIcons.jsx';
 import TimeControlSelector from '../components/chess/TimeControlSelector.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMatchSession } from '../contexts/MatchSessionContext.jsx';
@@ -69,196 +75,234 @@ export default function ClassicPage() {
   };
 
   return (
-    <div className="page-container mode-detail-page">
+    <div className="page-container mode-detail-page classic-redesign classic-hub-page">
       <div className="page-crumb-row">
         <button type="button" className="mini-btn" onClick={() => navigate('/modes')}>
-          ← Voltar à Central de Modos
+          <IconArrowLeft />
+          <span>Central de Modos</span>
         </button>
         <button type="button" className="mini-btn" onClick={() => navigate('/how-to-play?tab=classic')}>
-          📖 Regras do Xadrez Clássico
+          <IconBook />
+          <span>Regras do Xadrez Clássico</span>
         </button>
       </div>
 
-      <header className="mode-page-hero featured-hero">
-        <span className="eyebrow">Xadrez Tradicional 8×8 · Regras Oficiais FIDE · Motor Stockfish 19</span>
-        <h1>♟ Xadrez Clássico</h1>
-        <p className="muted">
-          Jogue partidas oficiais com roque, en passant, escolha de promoção, perspectiva individual, setas táticas, relógios com alerta de 10s, análise pós-partida e rating Elo por categoria.
-        </p>
+      <header className="classic-editorial-hero">
+        <div className="classic-hero-copy">
+          <span className="eyebrow">Tabuleiro 8x8 · Regras FIDE · Stockfish 19</span>
+          <h1>Xadrez Clássico</h1>
+          <p className="muted">
+            Partidas oficiais com roque, en passant, escolha de promoção, indicadores de lances legais, setas táticas, relógios com incremento e análise pós-partida.
+          </p>
+        </div>
+        <div className="classic-hero-summary" aria-label="Resumo do ritmo selecionado">
+          <span className="classic-summary-label">Ritmo ativo</span>
+          <strong className="classic-summary-clock">{resolvedControl.shortLabel}</strong>
+          <span className="classic-summary-meta">
+            {resolvedControl.label}
+            {!resolvedControl.custom && user ? ` · Elo ${activeRating}` : ''}
+          </span>
+        </div>
       </header>
 
-      <section className="panel" style={{ marginBottom: 20 }}>
-        <div className="hud-card-head" style={{ marginBottom: 12 }}>
-          <div>
-            <h3>Controle de Tempo</h3>
-            <p className="muted" style={{ fontSize: 13 }}>
-              Selecionado: <strong>{resolvedControl.label}</strong>
-              {!resolvedControl.custom && user ? ` · Seu Elo ${resolvedControl.category.toUpperCase()}: ${activeRating}` : ''}
-            </p>
-          </div>
-          <span className="cf-mode-badge gold">{resolvedControl.shortLabel}</span>
-        </div>
-        <TimeControlSelector
-          category={category}
-          onCategoryChange={setCategory}
-          timeControl={timeControl}
-          onTimeControlChange={setTimeControl}
-          customTime={customTime}
-          onCustomTimeChange={setCustomTime}
-          ratings={ratings}
-        />
-      </section>
-
-      <div className="mode-options-grid">
-        <article className="option-card priority">
-          <div className="option-card-head">
-            <span className="option-icon">🏆</span>
-            <span className="cf-mode-badge gold">
-              {resolvedControl.custom ? 'SALA PRIVADA' : `RANQUEADO · ELO ${activeRating}`}
-            </span>
-          </div>
-          <h2>Partida Online</h2>
-          <p className="muted">
-            Fila pública separada por ritmo ({resolvedControl.label}) com perspectiva individual automática para Brancas e Pretas.
-          </p>
-          {lobby && lobby.mode === 'classic' && (
-            <div className="conn-pill" style={{ marginTop: 8 }}>
-              {lobby.statusText}
+      <div className="classic-hub-grid">
+        <div className="classic-hub-main">
+          <section className="classic-section-block" aria-labelledby="tc-heading">
+            <div className="classic-section-head">
+              <div>
+                <h2 id="tc-heading">Controle de tempo</h2>
+                <p className="muted">
+                  Escolha a cadência para fila online, sala privada, treino contra Stockfish ou duelo local.
+                </p>
+              </div>
+              <span className="classic-tag">{resolvedControl.shortLabel}</span>
             </div>
-          )}
-          <div className="stack-actions" style={{ marginTop: 12 }}>
-            <button
-              type="button"
-              className="primary full-btn"
-              disabled={resolvedControl.custom}
-              title={resolvedControl.custom ? 'Controles personalizados são apenas para salas privadas, bot ou local' : ''}
-              onClick={() => {
-                if (!requireAuth()) return;
-                sendSocket('match:queue', { options: { mode: 'classic', timeControl } });
-              }}
-            >
-              {resolvedControl.custom
-                ? 'Personalizado (use Sala Privada)'
-                : `Buscar Oponente (${resolvedControl.shortLabel})`}
-            </button>
-            <button
-              type="button"
-              className="secondary full-btn"
-              onClick={() => {
-                if (!requireAuth()) return;
-                sendSocket('room:create', {
-                  options: {
-                    mode: 'classic',
-                    timeControl,
-                    customTime: timeControl === 'custom' ? customTime : null,
-                  },
-                });
-              }}
-            >
-              Criar Sala Privada ({resolvedControl.shortLabel})
-            </button>
-            <div className="code-join-row">
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="CÓDIGO"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-              />
+            <TimeControlSelector
+              category={category}
+              onCategoryChange={setCategory}
+              timeControl={timeControl}
+              onTimeControlChange={setTimeControl}
+              customTime={customTime}
+              onCustomTimeChange={setCustomTime}
+              ratings={ratings}
+            />
+          </section>
+
+          <section className="classic-section-block classic-online-block" aria-labelledby="online-heading">
+            <div className="classic-section-head">
+              <div>
+                <h2 id="online-heading">Partida online</h2>
+                <p className="muted">
+                  Fila pública separada por ritmo ({resolvedControl.label}) com perspectiva automática para Brancas e Pretas.
+                </p>
+              </div>
+              <span className="classic-tag accent">
+                {resolvedControl.custom ? 'Sala privada' : `Ranqueado · Elo ${activeRating}`}
+              </span>
+            </div>
+
+            {lobby && lobby.mode === 'classic' && (
+              <div className="conn-pill" style={{ marginBottom: 12 }} role="status">
+                {lobby.statusText}
+              </div>
+            )}
+
+            <div className="classic-online-actions">
+              <button
+                type="button"
+                className="primary classic-cta-btn"
+                disabled={resolvedControl.custom}
+                title={resolvedControl.custom ? 'Controles personalizados funcionam em salas privadas, bot ou local' : ''}
+                onClick={() => {
+                  if (!requireAuth()) return;
+                  sendSocket('match:queue', { options: { mode: 'classic', timeControl } });
+                }}
+              >
+                <span>
+                  {resolvedControl.custom
+                    ? 'Personalizado (use Sala Privada)'
+                    : `Buscar oponente (${resolvedControl.shortLabel})`}
+                </span>
+                <IconArrowRight />
+              </button>
+
               <button
                 type="button"
                 className="secondary"
                 onClick={() => {
                   if (!requireAuth()) return;
-                  if (roomCode.length !== 4 && roomCode.length !== 6) {
-                    showToast('Código inválido.', 'warn');
-                    return;
-                  }
-                  sendSocket('room:join', { code: roomCode });
+                  sendSocket('room:create', {
+                    options: {
+                      mode: 'classic',
+                      timeControl,
+                      customTime: timeControl === 'custom' ? customTime : null,
+                    },
+                  });
                 }}
               >
-                Entrar
+                Criar sala privada ({resolvedControl.shortLabel})
               </button>
             </div>
-          </div>
-        </article>
 
-        <article className="option-card">
-          <div className="option-card-head">
-            <span className="option-icon">🤖</span>
-            <span className="cf-mode-badge">STOCKFISH 19 · 5 NÍVEIS</span>
-          </div>
-          <h2>Contra Bot (Stockfish)</h2>
-          <p className="muted">
-            Motor real Stockfish 19 Lite WASM em Web Worker com 5 níveis calibrados de força.
-          </p>
-          <div style={{ marginTop: 12 }}>
-            <BotDifficultySelector value={cpuDifficulty} onChange={setCpuDifficulty} mode="classic" compact />
-          </div>
-          <div className="color-pick-row" style={{ marginTop: 10 }}>
-            <span className="muted" style={{ fontSize: 12 }}>Suas peças:</span>
-            <div className="color-pick-btns">
-              {[
-                ['white', '♔ Brancas'],
-                ['random', '🎲 Aleatório'],
-                ['black', '♚ Pretas'],
-              ].map(([id, label]) => (
+            <div className="classic-code-join">
+              <label htmlFor="classic-room-code" className="classic-inline-label">
+                Entrar por código
+              </label>
+              <div className="code-join-row">
+                <input
+                  id="classic-room-code"
+                  type="text"
+                  maxLength={6}
+                  placeholder="CÓDIGO"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                />
                 <button
-                  key={id}
                   type="button"
-                  className={`mini-btn${botColor === id ? ' accent' : ''}`}
-                  onClick={() => setBotColor(id)}
+                  className="secondary"
+                  onClick={() => {
+                    if (!requireAuth()) return;
+                    if (roomCode.length !== 4 && roomCode.length !== 6) {
+                      showToast('Código inválido.', 'warn');
+                      return;
+                    }
+                    sendSocket('room:join', { code: roomCode });
+                  }}
                 >
-                  {label}
+                  Entrar
                 </button>
-              ))}
+              </div>
             </div>
-          </div>
-          <div className="option-card-foot" style={{ marginTop: 12 }}>
-            <button type="button" className="primary full-btn" onClick={launchBot}>
-              Jogar contra Stockfish →
-            </button>
-          </div>
-        </article>
+          </section>
+        </div>
 
-        <article className="option-card">
-          <div className="option-card-head">
-            <span className="option-icon">👥</span>
-            <span className="cf-mode-badge">MESMO DISPOSITIVO</span>
-          </div>
-          <h2>Duelo Local 8×8</h2>
-          <p className="muted">
-            Dois jogadores no mesmo aparelho com relógio {resolvedControl.label}, alternância de turnos, botão para inverter tabuleiro e análise pós-partida.
-          </p>
-          <div className="option-card-foot" style={{ marginTop: 14 }}>
-            <button
-              type="button"
-              className="secondary full-btn"
-              onClick={() =>
-                startOfflineMatch('offline_classic', {
-                  mode: 'classic_local',
-                  timeControl,
-                  customTime: timeControl === 'custom' ? customTime : null,
-                  category: resolvedControl.category,
-                })
-              }
-            >
-              Iniciar Xadrez Local ({resolvedControl.shortLabel}) →
-            </button>
-          </div>
-        </article>
+        <aside className="classic-hub-side">
+          <section className="classic-section-block" aria-labelledby="bot-heading">
+            <div className="classic-section-head">
+              <div>
+                <h2 id="bot-heading">Contra Stockfish 19</h2>
+                <p className="muted">Motor Stockfish 19 Lite WASM com 5 níveis calibrados.</p>
+              </div>
+              <span className="classic-tag">Offline</span>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <BotDifficultySelector value={cpuDifficulty} onChange={setCpuDifficulty} mode="classic" compact />
+            </div>
+
+            <div className="color-pick-row" style={{ marginTop: 14 }}>
+              <span className="classic-inline-label">Suas peças</span>
+              <div className="color-pick-btns" role="group" aria-label="Escolher cor das peças">
+                {[
+                  ['white', 'Brancas'],
+                  ['random', 'Aleatório'],
+                  ['black', 'Pretas'],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`mini-btn${botColor === id ? ' accent' : ''}`}
+                    aria-pressed={botColor === id}
+                    onClick={() => setBotColor(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <button type="button" className="primary full-btn classic-cta-btn" onClick={launchBot}>
+                <span>Jogar contra Stockfish</span>
+                <IconArrowRight />
+              </button>
+            </div>
+          </section>
+
+          <section className="classic-section-block classic-local-block" aria-labelledby="local-heading">
+            <div className="classic-section-head">
+              <div>
+                <h2 id="local-heading">Duelo local 8x8</h2>
+                <p className="muted">
+                  Dois jogadores no mesmo aparelho com relógio {resolvedControl.label}, inversão de tabuleiro e revisão pós-partida.
+                </p>
+              </div>
+              <span className="classic-tag">Mesmo aparelho</span>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                className="secondary full-btn classic-cta-btn"
+                onClick={() =>
+                  startOfflineMatch('offline_classic', {
+                    mode: 'classic_local',
+                    timeControl,
+                    customTime: timeControl === 'custom' ? customTime : null,
+                    category: resolvedControl.category,
+                  })
+                }
+              >
+                <span>Iniciar partida local ({resolvedControl.shortLabel})</span>
+                <IconArrowRight />
+              </button>
+            </div>
+          </section>
+        </aside>
       </div>
 
       {recentRecords.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
-          <div className="hud-card-head" style={{ marginBottom: 10 }}>
-            <h3>📊 Partidas Recentes para Análise</h3>
-            <span className="muted" style={{ fontSize: 12 }}>Salvas localmente com PGN completo</span>
+        <section className="classic-section-block classic-recent-block" aria-labelledby="recent-heading">
+          <div className="classic-section-head">
+            <div>
+              <h2 id="recent-heading">Partidas recentes para análise</h2>
+              <p className="muted">Histórico local salvo com PGN completo.</p>
+            </div>
+            <span className="classic-tag">{recentRecords.length} salvas</span>
           </div>
           <div className="recent-analysis-list">
             {recentRecords.map((rec) => (
               <div key={rec.id} className="recent-analysis-item">
-                <div>
+                <div className="recent-analysis-meta">
                   <strong>{rec.white} × {rec.black}</strong>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {rec.clockControlLabel} · {rec.resultLabel} · {rec.moves?.length || 0} meios-lances
@@ -269,7 +313,8 @@ export default function ClassicPage() {
                   className="mini-btn accent"
                   onClick={() => navigate(`/analysis/${rec.id}`)}
                 >
-                  Analisar →
+                  <IconAnalysis />
+                  <span>Analisar</span>
                 </button>
               </div>
             ))}

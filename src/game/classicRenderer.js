@@ -53,7 +53,7 @@ function drawArrow(ctx, x0, y0, x1, y1, cell, flipped, options = {}) {
 
   const adx = Math.abs(x1 - x0);
   const ady = Math.abs(y1 - y0);
-  const isKnightL = !dashed && (pieceType === 'N' || (adx === 2 && ady === 1) || (adx === 1 && ady === 2));
+  const isKnightL = pieceType === 'N' || (adx === 2 && ady === 1) || (adx === 1 && ady === 2);
 
   const headLen = Math.max(12, cell * 0.34);
   const headWidth = Math.max(10, cell * 0.28);
@@ -87,7 +87,7 @@ function drawArrow(ctx, x0, y0, x1, y1, cell, flipped, options = {}) {
     ctx.stroke();
 
     ctx.setLineDash([]);
-    drawArrowHead(ctx, ex, ey, u2x, u2y, headLen, headWidth, false);
+    drawArrowHead(ctx, ex, ey, u2x, u2y, headLen, headWidth, dashed);
   } else {
     const ux = dx / len;
     const uy = dy / len;
@@ -279,27 +279,39 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
     ctx.strokeRect(svx * cell + 1, svy * cell + 1, cell - 2, cell - 2);
   }
 
-  if (prefs?.highlightMoves !== false) {
+  if (prefs?.highlightMoves !== false && sel) {
+    ctx.save();
     for (const [a, b] of ms) {
       const [vx, vy] = boardToView(a, b, flipped);
+      const isDarkSq = (a + b) % 2 === 1;
       const q = S.grid?.[b]?.[a];
+      const isEnPassant = sel.t === 'P' && a !== sel.x && !q;
+      const isCapture = (Boolean(q) || isEnPassant) && !options.isPremoveSelect;
       const cx = vx * cell + cell / 2;
       const cy = vy * cell + cell / 2;
+
       ctx.beginPath();
-      if (q && !options.isPremoveSelect) {
-        ctx.strokeStyle = 'rgba(214, 78, 78, 0.86)';
-        ctx.lineWidth = Math.max(3, cell * 0.065);
-        ctx.arc(cx, cy, cell * 0.43, 0, Math.PI * 2);
+      if (isCapture) {
+        // Anel discreto e legível em casas com captura legal (incluindo en passant)
+        ctx.strokeStyle = isDarkSq ? 'rgba(14, 20, 26, 0.48)' : 'rgba(18, 26, 34, 0.36)';
+        ctx.lineWidth = Math.max(3.5, cell * 0.088);
+        ctx.arc(cx, cy, cell * 0.425, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        ctx.fillStyle = options.isPremoveSelect ? 'rgba(176, 98, 232, 0.55)' : 'rgba(18, 26, 32, 0.40)';
-        ctx.arc(cx, cy, cell * 0.145, 0, Math.PI * 2);
+        // Bolinha centralizada clássica para casas vazias de movimento legal
+        ctx.fillStyle = options.isPremoveSelect
+          ? 'rgba(176, 98, 232, 0.52)'
+          : isDarkSq
+            ? 'rgba(14, 20, 26, 0.44)'
+            : 'rgba(18, 26, 34, 0.30)';
+        ctx.arc(cx, cy, cell * 0.165, 0, Math.PI * 2);
         ctx.fill();
       }
     }
+    ctx.restore();
   }
 
-  // 5b. Dicas discretas de destinos legais ao arrastar uma Seta Legal de uma peça
+  // 5b. Dicas discretas de destinos ao arrastar Seta Legal ou Marcação Livre
   if (annotations?.legalArrowTargets?.length) {
     ctx.save();
     for (const [tx, ty] of annotations.legalArrowTargets) {
@@ -307,9 +319,23 @@ export function drawClassicBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 
       const cx = vx * cell + cell / 2;
       const cy = vy * cell + cell / 2;
       ctx.beginPath();
-      ctx.strokeStyle = 'rgba(235, 179, 68, 0.55)';
+      ctx.strokeStyle = 'rgba(235, 179, 68, 0.62)';
       ctx.lineWidth = Math.max(2, cell * 0.045);
-      ctx.arc(cx, cy, cell * 0.22, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cell * 0.21, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (annotations?.freeArrowTargets?.length) {
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    for (const [tx, ty] of annotations.freeArrowTargets) {
+      const [vx, vy] = boardToView(tx, ty, flipped);
+      const cx = vx * cell + cell / 2;
+      const cy = vy * cell + cell / 2;
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(147, 194, 218, 0.56)';
+      ctx.lineWidth = Math.max(1.8, cell * 0.04);
+      ctx.arc(cx, cy, cell * 0.19, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();

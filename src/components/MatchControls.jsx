@@ -1,4 +1,5 @@
 import React from 'react';
+import { IconFlag, IconHome } from './chess/ClassicIcons.jsx';
 
 export default function MatchControls({
   onResign,
@@ -18,11 +19,13 @@ export default function MatchControls({
           disabled={resignDisabled}
           onClick={onResign}
         >
-          🏳 {resignLabel}
+          <IconFlag />
+          <span>{resignLabel}</span>
         </button>
       )}
       <button type="button" className="mini-btn" onClick={onReturnMenu}>
-        ⌂ {menuLabel}
+        <IconHome />
+        <span>{menuLabel}</span>
       </button>
     </div>
   );

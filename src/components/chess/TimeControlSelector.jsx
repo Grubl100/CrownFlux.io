@@ -35,7 +35,7 @@ export default function TimeControlSelector({
                 }
               }}
             >
-              <span className="tc-cat-title">{cat.icon} {cat.name}</span>
+              <span className="tc-cat-title">{cat.name}</span>
               {catRating ? (
                 <small className="tc-cat-elo">Elo {catRating}</small>
               ) : (

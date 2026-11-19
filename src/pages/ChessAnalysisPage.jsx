@@ -14,13 +14,30 @@ import {
   createClassicState,
   doClassicMove,
   getClassicMoves,
+  getFreeArrowTargets,
   getLegalArrowTargets,
   reconstructClassicStates,
   stateToFen,
   validateClassicMoveArrow,
+  validateFreeMoveArrow,
 } from '../game/classicEngine.js';
 import { preloadChessPieceStyle } from '../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../game/classicRenderer.js';
+import {
+  IconArrowLeft,
+  IconCopy,
+  IconDashedArrow,
+  IconFlip,
+  IconPause,
+  IconPlay,
+  IconSkipEnd,
+  IconSkipStart,
+  IconStepBack,
+  IconStepForward,
+  IconTargetArrow,
+  IconTouch,
+  IconTrash,
+} from '../components/chess/ClassicIcons.jsx';
 import {
   getClassicRecord,
   loadClassicAnalysisCache,
@@ -93,6 +110,7 @@ export default function ChessAnalysisPage() {
     previewArrow: null,
     invalidTarget: null,
     legalArrowTargets: [],
+    freeArrowTargets: [],
   });
   const rightDragStartRef = useRef(null);
 
@@ -109,6 +127,7 @@ export default function ChessAnalysisPage() {
       previewArrow: null,
       invalidTarget: null,
       legalArrowTargets: [],
+      freeArrowTargets: [],
     };
   }, [currentPly, variationState]);
 
@@ -239,11 +258,12 @@ export default function ChessAnalysisPage() {
   const renderBoard = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !snapshots.length) return;
-    const wide = window.innerWidth > 1040;
-    const availW = wide ? Math.min(600, window.innerWidth - 520) : window.innerWidth - 36;
-    const size = Math.max(256, Math.min(560, availW));
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const wide = vw > 1040;
+    const availW = wide ? Math.min(600, vw - 520) : vw - 64;
+    const size = Math.max(240, Math.min(560, availW));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const cell = Math.max(32, Math.floor(size / 8));
+    const cell = Math.max(30, Math.floor(size / 8));
     const px = cell * 8;
     cellRef.current = cell;
     dprRef.current = dpr;
@@ -307,6 +327,9 @@ export default function ChessAnalysisPage() {
     annotationsRef.current.legalArrowTargets = freeAnnotateMode
       ? []
       : getLegalArrowTargets(boardState, coords.bx, coords.by);
+    annotationsRef.current.freeArrowTargets = freeAnnotateMode
+      ? getFreeArrowTargets(boardState, coords.bx, coords.by)
+      : [];
     setAnnotateTick((t) => t + 1);
   };
 
@@ -325,15 +348,23 @@ export default function ChessAnalysisPage() {
       annotationsRef.current.previewArrow = null;
       annotationsRef.current.invalidTarget = null;
     } else if (freeAnnotateMode) {
-      annotationsRef.current.invalidTarget = null;
-      annotationsRef.current.previewArrow = {
-        x0: st.x,
-        y0: st.y,
-        x1: coords.bx,
-        y1: coords.by,
-        color: 'rgba(235, 179, 68, 0.85)',
-        dashed: true,
-      };
+      const validation = validateFreeMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+      if (validation.legal) {
+        annotationsRef.current.invalidTarget = null;
+        annotationsRef.current.previewArrow = {
+          x0: st.x,
+          y0: st.y,
+          x1: coords.bx,
+          y1: coords.by,
+          color: 'rgba(235, 179, 68, 0.85)',
+          dashed: true,
+          pieceType: validation.piece.t,
+          promotion: validation.promotion,
+        };
+      } else {
+        annotationsRef.current.previewArrow = null;
+        annotationsRef.current.invalidTarget = { x: coords.bx, y: coords.by };
+      }
     } else {
       const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
       if (validation.legal) {
@@ -363,6 +394,7 @@ export default function ChessAnalysisPage() {
     annotationsRef.current.previewArrow = null;
     annotationsRef.current.invalidTarget = null;
     annotationsRef.current.legalArrowTargets = [];
+    annotationsRef.current.freeArrowTargets = [];
     const coords = getAnalysisBoardCoords(e);
     const boardState = getActiveBoardState();
     if (!coords || !boardState) {
@@ -375,6 +407,12 @@ export default function ChessAnalysisPage() {
       if (idx >= 0) annotationsRef.current.squares.splice(idx, 1);
       else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: 'rgba(235, 179, 68, 0.42)' });
     } else if (freeAnnotateMode) {
+      const validation = validateFreeMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+      if (!validation.legal) {
+        showToast(validation.message || 'Movimento incompatível com a peça de origem.', 'warn');
+        setAnnotateTick((t) => t + 1);
+        return;
+      }
       const idx = annotationsRef.current.arrows.findIndex(
         (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
       );
@@ -387,6 +425,8 @@ export default function ChessAnalysisPage() {
           y1: coords.by,
           color: 'rgba(235, 179, 68, 0.85)',
           dashed: true,
+          pieceType: validation.piece.t,
+          promotion: validation.promotion,
         });
       }
     } else {
@@ -464,7 +504,7 @@ export default function ChessAnalysisPage() {
     }
 
     if (q && q.o === S.turnOwner) {
-      S.sel = q;
+      S.sel = sel && sel.id === q.id ? null : q;
       setVariationState({ ...S });
     } else if (variationState) {
       S.sel = null;
@@ -494,14 +534,16 @@ export default function ChessAnalysisPage() {
   const currentClass = curEval?.classification ? CLASS_MAP[curEval.classification] : null;
 
   return (
-    <div className="page-container analysis-page">
+    <div className="page-container analysis-page classic-redesign">
       <div className="page-crumb-row">
         <button type="button" className="mini-btn" onClick={() => navigate('/modes/classic')}>
-          ← Voltar ao Xadrez Clássico
+          <IconArrowLeft />
+          <span>Voltar ao Xadrez Clássico</span>
         </button>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="mini-btn" onClick={() => setFlipped((f) => !f)}>
-            ⇅ Inverter Tabuleiro
+            <IconFlip />
+            <span>Inverter tabuleiro</span>
           </button>
           <button
             type="button"
@@ -511,12 +553,13 @@ export default function ChessAnalysisPage() {
               showToast('PGN copiado para a área de transferência!');
             }}
           >
-            📋 Copiar PGN
+            <IconCopy />
+            <span>Copiar PGN</span>
           </button>
         </div>
       </div>
 
-      <header className="mode-page-hero" style={{ marginBottom: 16 }}>
+      <header className="classic-editorial-hero analysis-editorial-hero">
         <span className="eyebrow">Revisão de Partida · Stockfish 19 Lite WASM</span>
         <h1>{record.white || 'Brancas'} × {record.black || 'Pretas'}</h1>
         <p className="muted">
@@ -534,7 +577,7 @@ export default function ChessAnalysisPage() {
               <div className="eval-bar-white" style={{ height: `${evalPct}%` }} />
               <span className="eval-bar-label">{formatEvalLabel(curEval)}</span>
             </div>
-            <div className="board-wrap-react">
+            <div className="board-wrap-react classic-board-frame">
               <canvas
                 ref={canvasRef}
                 style={{ touchAction: 'none' }}
@@ -548,27 +591,35 @@ export default function ChessAnalysisPage() {
             </div>
           </div>
 
-          <div className="chess-board-toolbar" style={{ marginTop: 8 }}>
-            <button
-              type="button"
-              className={`mini-btn${!freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode(false)}
-            >
-              ♟ Setas Legais
-            </button>
-            <button
-              type="button"
-              className={`mini-btn${freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode((v) => !v)}
-            >
-              ✦ Marcação Livre
-            </button>
+          <div className="chess-board-toolbar" style={{ marginTop: 8 }} role="toolbar" aria-label="Ferramentas de marcação na análise">
+            <div className="toolbar-segmented" role="group" aria-label="Modo de setas">
+              <button
+                type="button"
+                className={`mini-btn seg-btn${!freeAnnotateMode ? ' accent' : ''}`}
+                aria-pressed={!freeAnnotateMode}
+                onClick={() => setFreeAnnotateMode(false)}
+              >
+                <IconTargetArrow />
+                <span>Setas legais</span>
+              </button>
+              <button
+                type="button"
+                className={`mini-btn seg-btn${freeAnnotateMode ? ' accent' : ''}`}
+                aria-pressed={freeAnnotateMode}
+                onClick={() => setFreeAnnotateMode(true)}
+              >
+                <IconDashedArrow />
+                <span>Marcação livre</span>
+              </button>
+            </div>
             <button
               type="button"
               className={`mini-btn${annotateMode ? ' accent' : ''}`}
+              aria-pressed={annotateMode}
               onClick={() => setAnnotateMode((a) => !a)}
             >
-              ✎ {annotateMode ? 'Toque: Anotar' : 'Anotar (Toque)'}
+              <IconTouch />
+              <span>{annotateMode ? 'Toque: anotar' : 'Anotar (toque)'}</span>
             </button>
             <button
               type="button"
@@ -580,22 +631,57 @@ export default function ChessAnalysisPage() {
                   previewArrow: null,
                   invalidTarget: null,
                   legalArrowTargets: [],
+                  freeArrowTargets: [],
                 };
                 setAnnotateTick((t) => t + 1);
               }}
             >
-              Limpar
+              <IconTrash />
+              <span>Limpar</span>
             </button>
           </div>
 
           <div className="analysis-controls-bar">
-            <button type="button" className="mini-btn" onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly(0); }}>⏮</button>
-            <button type="button" className="mini-btn" onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly((p) => Math.max(0, p - 1)); }}>◀</button>
-            <button type="button" className="mini-btn accent" onClick={() => { setVariationState(null); setAutoPlay((a) => !a); }}>
-              {autoPlay ? '⏸ Pausar' : '▶ Reproduzir'}
+            <button
+              type="button"
+              className="mini-btn icon-only-btn"
+              onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly(0); }}
+              aria-label="Ir para o início"
+            >
+              <IconSkipStart />
             </button>
-            <button type="button" className="mini-btn" onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly((p) => Math.min(snapshots.length - 1, p + 1)); }}>▶</button>
-            <button type="button" className="mini-btn" onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly(snapshots.length - 1); }}>⏭</button>
+            <button
+              type="button"
+              className="mini-btn icon-only-btn"
+              onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly((p) => Math.max(0, p - 1)); }}
+              aria-label="Lance anterior"
+            >
+              <IconStepBack />
+            </button>
+            <button
+              type="button"
+              className="mini-btn accent"
+              onClick={() => { setVariationState(null); setAutoPlay((a) => !a); }}
+            >
+              {autoPlay ? <IconPause /> : <IconPlay />}
+              <span>{autoPlay ? 'Pausar' : 'Reproduzir'}</span>
+            </button>
+            <button
+              type="button"
+              className="mini-btn icon-only-btn"
+              onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly((p) => Math.min(snapshots.length - 1, p + 1)); }}
+              aria-label="Próximo lance"
+            >
+              <IconStepForward />
+            </button>
+            <button
+              type="button"
+              className="mini-btn icon-only-btn"
+              onClick={() => { setAutoPlay(false); setVariationState(null); setCurrentPly(snapshots.length - 1); }}
+              aria-label="Ir para o final"
+            >
+              <IconSkipEnd />
+            </button>
             <select
               className="mini-select"
               value={playSpeedMs}
