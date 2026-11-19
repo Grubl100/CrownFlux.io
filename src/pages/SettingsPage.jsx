@@ -164,7 +164,8 @@ export default function SettingsPage() {
               ['highlightMoves', 'Destacar movimentos possíveis e último lance'],
               ['autoQueueMove', 'Agendar movimento automático durante a recarga'],
               ['soundEffects', 'Ativar efeitos sonoros (Web Audio)'],
-              ['lowTimeSound', 'Alerta sonoro discreto nos últimos 10 segundos do relógio'],
+              ['lowTimeSound', 'Alerta sonoro ao entrar nos últimos 15 segundos'],
+              ['clockTickSound', 'Tique-taque nos últimos 15 segundos'],
               ['reducedMotion', 'Animações reduzidas'],
               ['confirmResign', 'Confirmar antes de desistir ou sair da partida'],
             ].map(([key, label]) => (

@@ -29,9 +29,16 @@ import {
 import { preloadChessPieceStyle } from '../../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../../game/classicRenderer.js';
 import { saveClassicRecord } from '../../utils/classicStorage.js';
+import {
+  createClockAlertTracker,
+  evaluateClockAlerts,
+  getClockVisualState,
+  resetClockAlertTracker,
+} from '../../utils/clockAlerts.js';
 import { fmtChessClock } from '../../utils/format.js';
-import { playTone } from '../../utils/sound.js';
+import { playTone, resetClockTickGuard } from '../../utils/sound.js';
 import ChessPromotionDialog from '../chess/ChessPromotionDialog.jsx';
+import ChessResultModal from '../chess/ChessResultModal.jsx';
 import {
   IconAnalysis,
   IconDashedArrow,
@@ -116,11 +123,14 @@ export default function ClassicMatchView({ match }) {
   const isOnline = match.kind === 'online_classic';
   const cfg = match.config || {};
   const isLocal = !isOnline && cfg.mode === 'classic_local';
+  const [cpuSideOverride, setCpuSideOverride] = useState(null);
   const playerSide = isOnline
     ? Number(match.onlineState?.side) === 1 ? 1 : 0
     : isLocal
       ? 0
-      : cfg.playerSide === 1 ? 1 : 0;
+      : cpuSideOverride !== null
+        ? cpuSideOverride
+        : cfg.playerSide === 1 ? 1 : 0;
 
   const [localFlip, setLocalFlip] = useState(false);
   const flipped = isLocal ? localFlip : playerSide === 1;
@@ -134,9 +144,11 @@ export default function ClassicMatchView({ match }) {
   prefsRef.current = prefs;
   const finishHandledRef = useRef(false);
   const selectedIdRef = useRef(null);
-  const lowTimeAlertedRef = useRef(false);
+  const clockAlertTrackerRef = useRef(createClockAlertTracker());
+  const resultModalShownMatchRef = useRef(null);
   const onlineSavedRef = useRef(false);
   const localPremoveRef = useRef(null); // { pieceId, fromX, fromY, toX, toY, promotion }
+  const [showResultModal, setShowResultModal] = useState(false);
 
   // Ferramentas de marcação (separando Seta de Movimento Legal vs Marcação Livre)
   const [annotateMode, setAnnotateMode] = useState(false);
@@ -294,6 +306,10 @@ export default function ClassicMatchView({ match }) {
       localPremoveRef.current = null;
       const S = stateRef.current;
       persistGameForAnalysis(S);
+      if (resultModalShownMatchRef.current !== match.matchId) {
+        resultModalShownMatchRef.current = match.matchId;
+        setShowResultModal(true);
+      }
       const oppName = S.mode === 'classic_local'
         ? 'Xadrez Local (Pretas)'
         : `Stockfish (${getDifficultyName(S.cpuDifficulty)})`;
@@ -320,7 +336,11 @@ export default function ClassicMatchView({ match }) {
   useEffect(() => {
     finishHandledRef.current = false;
     selectedIdRef.current = null;
-    lowTimeAlertedRef.current = false;
+    resetClockAlertTracker(clockAlertTrackerRef.current);
+    resetClockTickGuard();
+    resultModalShownMatchRef.current = null;
+    setShowResultModal(false);
+    setCpuSideOverride(null);
     onlineSavedRef.current = false;
     localPremoveRef.current = null;
     annotationsRef.current = {
@@ -369,6 +389,10 @@ export default function ClassicMatchView({ match }) {
     if (next.over && !onlineSavedRef.current) {
       onlineSavedRef.current = true;
       persistGameForAnalysis(next);
+      if (resultModalShownMatchRef.current !== match.matchId) {
+        resultModalShownMatchRef.current = match.matchId;
+        setShowResultModal(true);
+      }
     }
     setHudTick((t) => t + 1);
   }, [isOnline, match.onlineState, persistGameForAnalysis]);
@@ -462,14 +486,18 @@ export default function ClassicMatchView({ match }) {
 
         const localClockSide = isLocal ? S.turnOwner : playerSide;
         const myClock = S.chessClock?.[localClockSide] ?? 999;
-        if (!S.over && S.turnOwner === localClockSide) {
-          if (myClock <= 10 && myClock > 0 && !lowTimeAlertedRef.current) {
-            lowTimeAlertedRef.current = true;
-            const soundOn = prefsRef.current?.soundEffects !== false && prefsRef.current?.lowTimeSound !== false;
-            playTone('lowtime', soundOn);
-          } else if (myClock > 10.5) {
-            lowTimeAlertedRef.current = false;
-          }
+        const soundEvents = evaluateClockAlerts(clockAlertTrackerRef.current, {
+          over: Boolean(S.over),
+          paused: Boolean(confirmExit || pendingPromo),
+          isMyTurn: S.turnOwner === localClockSide,
+          turnOwner: S.turnOwner,
+          clockSeconds: myClock,
+          soundEffects: prefsRef.current?.soundEffects !== false,
+          lowTimeSound: prefsRef.current?.lowTimeSound !== false,
+          clockTickSound: prefsRef.current?.clockTickSound !== false,
+        });
+        for (const evKind of soundEvents) {
+          playTone(evKind, true);
         }
 
         const canvas = canvasRef.current;
@@ -935,14 +963,81 @@ export default function ClassicMatchView({ match }) {
   const incomingDrawOffer = isOnline && S && !S.over && S.drawOfferFrom === 1 - playerSide;
   const outgoingDrawOffer = isOnline && S && !S.over && S.drawOfferFrom === playerSide;
 
+  const myLabelName = isLocal ? 'Jogador 1 (Brancas)' : user?.displayName || user?.username || 'Você';
+  const whiteDisplayName = isLocal
+    ? 'Jogador 1 (Brancas)'
+    : playerSide === 0
+      ? myLabelName
+      : oppName;
+  const blackDisplayName = isLocal
+    ? 'Jogador 2 (Pretas)'
+    : playerSide === 1
+      ? myLabelName
+      : oppName;
+
+  const handleAnalyzeMatch = () => {
+    if (!S || !S.moveHistory?.length) return;
+    persistGameForAnalysis(S);
+    setActiveMatch(null);
+    navigate(`/analysis/${match.matchId}?auto=1`);
+  };
+
+  const handleNewMatch = () => {
+    clearMatchSession();
+    navigate('/modes/classic');
+  };
+
+  const handleRematch = () => {
+    if (isOnline) {
+      sendSocket('game:rematch');
+      return;
+    }
+    const nextSide = isLocal ? 0 : 1 - playerSide;
+    finishHandledRef.current = false;
+    resetClockAlertTracker(clockAlertTrackerRef.current);
+    resetClockTickGuard();
+    resultModalShownMatchRef.current = null;
+    setShowResultModal(false);
+    localPremoveRef.current = null;
+    setMatchResult(null);
+    setReviewPly(null);
+    if (!isLocal) setCpuSideOverride(nextSide);
+    stateRef.current = createClassicState({
+      mode: cfg.mode || 'classic_cpu',
+      timeControl: cfg.timeControl || 'blitz3',
+      customTime: cfg.customTime || null,
+      cpuDifficulty: cfg.cpuDifficulty || 3,
+      playerSide: nextSide,
+    });
+    setHudTick((t) => t + 1);
+  };
+
+  const resultOutcome = !S?.over
+    ? 'draw'
+    : S.winner === null
+      ? 'draw'
+      : isLocal
+        ? (S.winner === 0 ? 'white_win' : 'black_win')
+        : S.winner === playerSide
+          ? 'win'
+          : 'loss';
+
+  const resultTitle = S?.winner === null
+    ? 'Empate'
+    : isLocal
+      ? `${S?.winner === 0 ? 'Brancas' : 'Pretas'} venceram`
+      : S?.winner === playerSide
+        ? 'Vitória'
+        : 'Derrota';
+
+  const resultScoreText = S?.winner === 0 ? '1 - 0' : S?.winner === 1 ? '0 - 1' : '1/2 - 1/2';
+
   const renderPlayerBar = (side, position) => {
     const isMe = isLocal ? side === 0 : side === playerSide;
     const isActive = !S?.over && activeTurn === side;
     const clockSec = S?.chessClock?.[side] ?? 0;
-    const isLowTime = !S?.over && clockSec <= 10;
-    const labelName = isMe
-      ? (isLocal ? 'Jogador 1 (Brancas)' : user?.displayName || user?.username || 'Você')
-      : oppName;
+    const clockState = getClockVisualState(clockSec, { active: isActive, over: Boolean(S?.over) });
+    const labelName = isMe ? myLabelName : oppName;
     const avatarInitials = isMe
       ? (labelName.slice(0, 2).toUpperCase())
       : (isOnline ? labelName.slice(0, 2).toUpperCase() : isLocal ? 'J2' : 'SF');
@@ -974,10 +1069,15 @@ export default function ClassicMatchView({ match }) {
           </div>
         </div>
         <div
-          className={`chess-clock-display${isActive ? ' running' : ''}${isLowTime ? ' low-time' : ''}`}
-          aria-label={`Relógio de ${labelName}: ${fmtChessClock(clockSec)}`}
+          className={`chess-clock-display clock-state-${clockState}${isActive ? ' running' : ''}`}
+          aria-label={`Relógio de ${labelName}: ${fmtChessClock(clockSec)}${clockState === 'critical' ? ' (tempo crítico)' : clockState === 'low' ? ' (tempo baixo)' : ''}`}
         >
-          {fmtChessClock(clockSec)}
+          {isActive && (
+            <span className="clock-status-indicator" aria-hidden="true">
+              {clockState === 'critical' ? '!' : clockState === 'low' ? '15s' : '●'}
+            </span>
+          )}
+          <span className="clock-digits">{fmtChessClock(clockSec)}</span>
         </div>
       </div>
     );
@@ -1008,10 +1108,7 @@ export default function ClassicMatchView({ match }) {
           onResign={() => setConfirmExit('resign')}
           onReturnMenu={() => {
             if (S && !S.over) setConfirmExit('menu');
-            else {
-              clearMatchSession();
-              navigate('/modes/classic');
-            }
+            else handleNewMatch();
           }}
           resignDisabled={!S || S.over}
         />
@@ -1019,76 +1116,31 @@ export default function ClassicMatchView({ match }) {
 
       <div className="match-play-grid classic-pro-grid">
         <section className="match-board-stage" aria-label="Área do tabuleiro">
-          {S?.over && (
-            <div className="classic-mate-banner" role="status" aria-live="polite">
-              <div>
-                <strong className="classic-mate-title">
-                  {S.winner === null
-                    ? 'Empate (1/2 - 1/2)'
-                    : isLocal
-                      ? `${S.winner === 0 ? 'Brancas' : 'Pretas'} venceram`
-                      : S.winner === playerSide
-                        ? 'Vitória na partida'
-                        : 'Derrota na partida'}
-                </strong>
-                <div className="muted" style={{ fontSize: 13 }}>{S.reason}</div>
+          {S?.over && !showResultModal && (
+            <div className="classic-postmatch-strip" role="status" aria-live="polite">
+              <div className="classic-postmatch-summary">
+                <span className={`chess-result-score-pill outcome-${resultOutcome}`}>{resultScoreText}</span>
+                <div>
+                  <strong>{resultTitle}</strong>
+                  <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{S.reason}</span>
+                </div>
               </div>
-              <div className="classic-mate-actions">
+              <div className="classic-postmatch-actions">
+                <button type="button" className="mini-btn accent" onClick={() => setShowResultModal(true)}>
+                  Ver resultado
+                </button>
                 {moves.length > 0 && (
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => {
-                      persistGameForAnalysis(S);
-                      setActiveMatch(null);
-                      navigate(`/analysis/${match.matchId}`);
-                    }}
-                  >
-                    <IconAnalysis />
-                    <span>Analisar partida</span>
-                  </button>
-                )}
-                {isOnline ? (
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={match.rematchStatus === 'waiting'}
-                    onClick={() => sendSocket('game:rematch')}
-                  >
-                    {match.rematchStatus === 'waiting' ? 'Aguardando revanche...' : 'Pedir revanche'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      finishHandledRef.current = false;
-                      lowTimeAlertedRef.current = false;
-                      localPremoveRef.current = null;
-                      setMatchResult(null);
-                      setReviewPly(null);
-                      stateRef.current = createClassicState({
-                        mode: cfg.mode || 'classic_cpu',
-                        timeControl: cfg.timeControl || 'blitz3',
-                        customTime: cfg.customTime || null,
-                        cpuDifficulty: cfg.cpuDifficulty || 3,
-                        playerSide,
-                      });
-                      setHudTick((t) => t + 1);
-                    }}
-                  >
-                    Jogar novamente
+                  <button type="button" className="mini-btn" onClick={handleAnalyzeMatch}>
+                    Analisar
                   </button>
                 )}
                 <button
                   type="button"
                   className="mini-btn"
-                  onClick={() => {
-                    clearMatchSession();
-                    navigate('/modes/classic');
-                  }}
+                  disabled={isOnline && match.rematchStatus === 'waiting'}
+                  onClick={handleRematch}
                 >
-                  Voltar ao Clássico
+                  {isOnline && match.rematchStatus === 'waiting' ? 'Aguardando...' : 'Revanche'}
                 </button>
               </div>
             </div>
@@ -1330,11 +1382,7 @@ export default function ClassicMatchView({ match }) {
                 type="button"
                 className="primary full-btn"
                 style={{ marginTop: 10 }}
-                onClick={() => {
-                  persistGameForAnalysis(S);
-                  setActiveMatch(null);
-                  navigate(`/analysis/${match.matchId}`);
-                }}
+                onClick={handleAnalyzeMatch}
               >
                 <IconAnalysis />
                 <span>Abrir revisão completa (Stockfish)</span>
@@ -1343,6 +1391,25 @@ export default function ClassicMatchView({ match }) {
           </div>
         </aside>
       </div>
+
+      <ChessResultModal
+        open={Boolean(S?.over && showResultModal)}
+        outcome={resultOutcome}
+        title={resultTitle}
+        reason={S?.reason || ''}
+        scoreText={resultScoreText}
+        whiteName={whiteDisplayName}
+        blackName={blackDisplayName}
+        clockControlLabel={S?.clockControlLabel || 'Xadrez Clássico'}
+        moveCount={moves.length}
+        isOnline={isOnline}
+        rematchWaiting={match.rematchStatus === 'waiting'}
+        canAnalyze={moves.length > 0}
+        onRematch={handleRematch}
+        onNewMatch={handleNewMatch}
+        onAnalyze={handleAnalyzeMatch}
+        onClose={() => setShowResultModal(false)}
+      />
 
       {pendingPromo && (
         <ChessPromotionDialog

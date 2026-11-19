@@ -666,12 +666,22 @@ export function applyUciMove(S, uci, emit) {
   return doClassicMove(S, piece, toX, toY, emit, promo);
 }
 
+function countLegalMovesForSide(S, side = S.turnOwner) {
+  let total = 0;
+  for (const p of S.pieces) {
+    if (p.o !== side) continue;
+    total += getClassicMoves(S, p).length;
+  }
+  return total;
+}
+
 export function reconstructClassicStates(uciMoves = []) {
   const base = createClassicState({ mode: 'classic_local', timeControl: 'classic30' });
   const snapshots = [
     {
       ply: 0,
       fen: stateToFen(base),
+      uciHistory: [],
       pieces: base.pieces.map((p) => ({ ...p })),
       castle: base.castle.map((c) => ({ ...c })),
       enPassant: base.enPassant ? { ...base.enPassant } : null,
@@ -680,14 +690,22 @@ export function reconstructClassicStates(uciMoves = []) {
       move: null,
       inCheck: false,
       checkmatedKingOwner: null,
+      legalMoveCount: countLegalMovesForSide(base, 0),
+      over: false,
+      winner: null,
+      isDraw: false,
+      reason: '',
     },
   ];
+  const applied = [];
   for (const uci of uciMoves) {
     if (!applyUciMove(base, uci)) break;
+    applied.push(uci);
     const lastEntry = base.moveHistory[base.moveHistory.length - 1];
     snapshots.push({
       ply: base.moveHistory.length,
       fen: lastEntry.fenAfter,
+      uciHistory: [...applied],
       pieces: base.pieces.map((p) => ({ ...p })),
       castle: base.castle.map((c) => ({ ...c })),
       enPassant: base.enPassant ? { ...base.enPassant } : null,
@@ -696,9 +714,31 @@ export function reconstructClassicStates(uciMoves = []) {
       move: lastEntry,
       inCheck: lastEntry.inCheck,
       checkmatedKingOwner: base.checkmatedKingOwner,
+      legalMoveCount: base.over ? 0 : countLegalMovesForSide(base, base.turnOwner),
+      over: Boolean(base.over),
+      winner: base.winner,
+      isDraw: Boolean(base.over && base.winner === null),
+      reason: base.reason || '',
     });
   }
   return snapshots;
+}
+
+// Converte uma linha PV em UCI (a partir de um histórico UCI inicial) para notação SAN legível.
+export function uciPvToSanList(baseUciHistory = [], pvUci = [], maxPlies = 6) {
+  if (!Array.isArray(pvUci) || !pvUci.length) return [];
+  const sim = createClassicState({ mode: 'classic_local', timeControl: 'classic30' });
+  for (const u of baseUciHistory) {
+    if (!applyUciMove(sim, u)) return pvUci.slice(0, maxPlies);
+  }
+  const out = [];
+  for (const u of pvUci.slice(0, maxPlies)) {
+    const ok = applyUciMove(sim, u);
+    if (!ok) break;
+    const entry = sim.moveHistory[sim.moveHistory.length - 1];
+    out.push(entry?.san || u);
+  }
+  return out;
 }
 
 // Fallback local apenas caso o Web Worker Stockfish não consiga inicializar

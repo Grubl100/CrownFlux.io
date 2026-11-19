@@ -29,6 +29,7 @@ export const DEFAULT_PREFERENCES = {
   confirmResign: true,
   soundEffects: true,
   lowTimeSound: true,
+  clockTickSound: true,
   reducedMotion: false,
 };
 

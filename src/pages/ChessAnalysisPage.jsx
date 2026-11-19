@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  ANALYSIS_SCHEMA_VERSION,
   CLASS_MAP,
   MOVE_CLASSIFICATIONS,
   buildFullAnalysisReport,
@@ -78,6 +79,7 @@ function buildGridFromPieces(pieces) {
 
 export default function ChessAnalysisPage() {
   const { matchId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { prefs } = useAuth();
   const { showToast } = useToast();
@@ -94,8 +96,13 @@ export default function ChessAnalysisPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisMode, setAnalysisMode] = useState('quick'); // quick | complete
   const [progress, setProgress] = useState(0);
+  const [liveStatus, setLiveStatus] = useState({ ply: 0, depth: 0, nodes: 0 });
   const [analysisError, setAnalysisError] = useState('');
-  const [analysisData, setAnalysisData] = useState(() => loadClassicAnalysisCache(matchId));
+  const [analysisData, setAnalysisData] = useState(() => {
+    const cached = loadClassicAnalysisCache(matchId);
+    return cached?.schemaVersion === ANALYSIS_SCHEMA_VERSION ? cached : null;
+  });
+  const autoTriggeredRef = useRef(false);
 
   const [variationState, setVariationState] = useState(null);
   const [variationEval, setVariationEval] = useState(null);
@@ -183,20 +190,23 @@ export default function ChessAnalysisPage() {
     setAnalyzing(true);
     setAnalysisError('');
     setProgress(0);
+    setLiveStatus({ ply: 0, depth: 0, nodes: 0 });
 
-    const depth = mode === 'complete' ? 14 : 10;
-    const movetime = mode === 'complete' ? 360 : 180;
+    const depth = mode === 'complete' ? 16 : 12;
+    const movetime = mode === 'complete' ? 2200 : 900;
 
     try {
       if (!engineRef.current) engineRef.current = new ChessEngineWorker();
-      await engineRef.current.init();
+      await engineRef.current.resetForNewAnalysis();
 
       const rawEvals = [];
+      let totalNodes = 0;
+
       for (let i = 0; i < snapshots.length; i++) {
         if (cancelRef.current) break;
         const snap = snapshots[i];
 
-        // Trata corretamente posições terminais (xeque-mate ou empate) sem depender de bestmove (none)
+        // Trata explicitamente posições terminais (xeque-mate ou empate por regras FIDE)
         if (Number.isInteger(snap.checkmatedKingOwner)) {
           const winner = 1 - snap.checkmatedKingOwner;
           rawEvals.push({
@@ -204,14 +214,37 @@ export default function ChessAnalysisPage() {
             bestMove: null,
             pv: [],
             depth,
+            nodes: 0,
             scoreCp: null,
             mate: 0,
+            wdl: null,
             terminalWinner: winner,
             terminalDraw: false,
             secondBest: null,
           });
+        } else if (snap.isDraw || snap.legalMoveCount === 0) {
+          rawEvals.push({
+            ply: i,
+            bestMove: null,
+            pv: [],
+            depth,
+            nodes: 0,
+            scoreCp: 0,
+            mate: null,
+            wdl: [0, 1000, 0],
+            terminalWinner: null,
+            terminalDraw: true,
+            secondBest: null,
+          });
         } else {
-          const ev = await engineRef.current.evaluateForAnalysis(snap.fen, { depth, movetime, multiPv: 2 });
+          const ev = await engineRef.current.evaluateForAnalysis(snap.fen, {
+            uciMoves: snap.uciHistory,
+            depth,
+            movetime,
+            multiPv: 2,
+          });
+          totalNodes += ev.nodes || 0;
+          setLiveStatus({ ply: i + 1, depth: ev.depth || depth, nodes: totalNodes });
           rawEvals.push({ ply: i, ...ev, terminalWinner: null, terminalDraw: false });
         }
         setProgress(Math.round(((i + 1) / snapshots.length) * 100));
@@ -222,7 +255,10 @@ export default function ChessAnalysisPage() {
         return;
       }
 
-      const report = buildFullAnalysisReport(snapshots, rawEvals, 'Stockfish 19 Lite WASM', mode);
+      const engineName = engineRef.current?.engineIdentity || 'Stockfish 19 (WASM NNUE)';
+      const report = buildFullAnalysisReport(snapshots, rawEvals, engineName, mode, {
+        engineVersion: `${engineName} · stockfish@19.0.1 WASM (GPL-3.0)`,
+      });
       setAnalysisData(report);
       saveClassicAnalysisCache(matchId, report);
     } catch (err) {
@@ -231,6 +267,19 @@ export default function ChessAnalysisPage() {
       setAnalyzing(false);
     }
   }, [snapshots, analyzing, matchId]);
+
+  useEffect(() => {
+    if (
+      !autoTriggeredRef.current &&
+      searchParams.get('auto') === '1' &&
+      snapshots.length > 1 &&
+      !analysisData &&
+      !analyzing
+    ) {
+      autoTriggeredRef.current = true;
+      runAnalysis('quick');
+    }
+  }, [searchParams, snapshots.length, analysisData, analyzing, runAnalysis]);
 
   const cancelAnalysis = () => {
     cancelRef.current = true;
@@ -709,11 +758,16 @@ export default function ChessAnalysisPage() {
           <div className="panel" style={{ marginTop: 12 }}>
             <div className="hud-card-head">
               <h3>Gráfico de Avaliação</h3>
-              <span className="muted" style={{ fontSize: 12 }}>Clique em qualquer ponto para ir ao lance</span>
+              <span className="muted" style={{ fontSize: 12 }}>Clique ou toque em um ponto para ir ao lance</span>
             </div>
             <ChessEvaluationGraph
               evaluations={analysisData?.evaluations || []}
+              snapshots={snapshots}
               currentPly={currentPly}
+              whiteName={record.white || 'Brancas'}
+              blackName={record.black || 'Pretas'}
+              viewerSide={record.viewerSide ?? record.playerSide ?? 0}
+              isLocalTwoPlayer={record.mode === 'classic_local'}
               onSelectPly={(ply) => {
                 setAutoPlay(false);
                 setVariationState(null);
@@ -726,7 +780,12 @@ export default function ChessAnalysisPage() {
         <aside className="analysis-side-col">
           <div className="panel">
             <div className="hud-card-head" style={{ flexWrap: 'wrap', gap: 8 }}>
-              <h3>Motor Stockfish 19</h3>
+              <div>
+                <h3>Motor Stockfish 19</h3>
+                <span className="muted" style={{ fontSize: 11 }}>
+                  {analysisData?.engineVersion || 'Stockfish 19.0.1 WASM NNUE · Força máxima (GPL-3.0)'}
+                </span>
+              </div>
               {analyzing ? (
                 <button type="button" className="mini-btn danger" onClick={cancelAnalysis}>
                   Cancelar ({progress}%)
@@ -734,10 +793,10 @@ export default function ChessAnalysisPage() {
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button type="button" className="secondary" style={{ padding: '6px 11px', fontSize: 12 }} onClick={() => runAnalysis('quick')}>
-                    Análise Rápida
+                    Análise Rápida (Prof. 12)
                   </button>
                   <button type="button" className="primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => runAnalysis('complete')}>
-                    Análise Completa
+                    Análise Profunda (Prof. 16)
                   </button>
                 </div>
               )}
@@ -746,7 +805,8 @@ export default function ChessAnalysisPage() {
             {analyzing && (
               <div style={{ marginTop: 10 }}>
                 <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
-                  Analisando ({analysisMode === 'complete' ? 'Completa · Prof. 14' : 'Rápida · Prof. 10'}): {progress}%
+                  Analisando lance {liveStatus.ply}/{snapshots.length} · Prof. {liveStatus.depth || (analysisMode === 'complete' ? 16 : 12)}
+                  {liveStatus.nodes > 0 ? ` · ${(liveStatus.nodes / 1000).toFixed(0)}k nós` : ''} ({progress}%)
                 </div>
                 <div className="progress-track">
                   <div className="progress-fill" style={{ width: `${progress}%` }} />
@@ -754,25 +814,45 @@ export default function ChessAnalysisPage() {
               </div>
             )}
 
-            {analysisError && <p className="muted" style={{ color: 'var(--red)', marginTop: 8 }}>{analysisError}</p>}
+            {analysisError && (
+              <div className="analysis-error-box" style={{ marginTop: 10 }}>
+                <p style={{ color: 'var(--red)', fontSize: 13 }}>{analysisError}</p>
+                <button
+                  type="button"
+                  className="mini-btn accent"
+                  style={{ marginTop: 6 }}
+                  onClick={() => runAnalysis(analysisMode)}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
 
             {analysisData && (
               <>
                 <div className="accuracy-grid" style={{ marginTop: 12 }}>
                   <div className="accuracy-card">
-                    <span className="muted">Precisão Brancas</span>
-                    <strong>{analysisData.whiteStats.accuracy}%</strong>
+                    <span className="muted">{record.white || 'Brancas'}</span>
+                    <strong>{analysisData.whiteStats.accuracy !== null ? `${analysisData.whiteStats.accuracy}%` : '--'}</strong>
                     <small>{analysisData.whiteStats.totalMoves} lances analisados</small>
                   </div>
                   <div className="accuracy-card">
-                    <span className="muted">Precisão Pretas</span>
-                    <strong>{analysisData.blackStats.accuracy}%</strong>
+                    <span className="muted">{record.black || 'Pretas'}</span>
+                    <strong>{analysisData.blackStats.accuracy !== null ? `${analysisData.blackStats.accuracy}%` : '--'}</strong>
                     <small>{analysisData.blackStats.totalMoves} lances analisados</small>
                   </div>
                 </div>
 
+                <div className="muted analysis-meta-strip">
+                  <span>Prof. média: <strong>{analysisData.averageDepth || '--'}</strong></span>
+                  {analysisData.totalNodes > 0 && (
+                    <span>Nós: <strong>{(analysisData.totalNodes / 1000).toFixed(0)}k</strong></span>
+                  )}
+                  <span>Estimativa CrownFlux.io (WDL/NNUE)</span>
+                </div>
+
                 {/* Tabela completa com todas as 10 classificações (inclusive 0) */}
-                <div className="classification-summary-table" style={{ marginTop: 12 }}>
+                <div className="classification-summary-table" style={{ marginTop: 10 }}>
                   <div className="cls-sum-head">
                     <span>Classificação</span>
                     <span>Brancas</span>
@@ -804,10 +884,26 @@ export default function ChessAnalysisPage() {
                     </span>
                   )}
                 </div>
+                {curEval?.evalBeforeText && (
+                  <div className="muted" style={{ fontSize: 12, marginTop: 5 }}>
+                    Avaliação: <strong>{curEval.evalBeforeText}</strong> {' -> '} <strong>{curEval.evalAfterText}</strong>
+                    {curEval.depth ? ` · Prof. ${curEval.depth}` : ''}
+                    {curEval.nodes ? ` · ${(curEval.nodes / 1000).toFixed(1)}k nós` : ''}
+                  </div>
+                )}
+                {curEval?.explanation && (
+                  <p style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.45 }}>
+                    {curEval.explanation}
+                  </p>
+                )}
                 {curEval?.bestBefore && curEval.bestBefore !== currentMoveInfo.uci && (
                   <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                    Melhor alternativa: <strong>{curEval.bestBefore}</strong>
-                    {curEval.pvBefore?.length > 1 ? ` · Linha: ${curEval.pvBefore.slice(0, 5).join(' ')}` : ''}
+                    Melhor alternativa: <strong>{curEval.bestBeforeSan || curEval.bestBefore}</strong>
+                    {curEval.pvBeforeSan?.length > 1
+                      ? ` · Linha: ${curEval.pvBeforeSan.slice(0, 6).join(' ')}`
+                      : curEval.pvBefore?.length > 1
+                        ? ` · Linha: ${curEval.pvBefore.slice(0, 5).join(' ')}`
+                        : ''}
                   </p>
                 )}
               </div>
