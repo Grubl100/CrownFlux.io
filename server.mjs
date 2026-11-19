@@ -52,7 +52,7 @@ const ALLOWED_AVATARS = ['♟', '♞', '♝', '♜', '♛', '♚', '⚔', '🛡'
 const DEFAULT_PREFERENCES = {
   uiTheme: 'blue',
   boardTheme: 'imperial',
-  pieceStyle: 'medallion',
+  pieceStyle: 'standard',
   doctrine: 'vanguard',
   showCoords: true,
   highlightMoves: true,
@@ -172,8 +172,16 @@ function sanitizePreferences(raw, current = DEFAULT_PREFERENCES) {
   if (uiThemes.includes(raw.uiTheme)) base.uiTheme = raw.uiTheme;
   const themes = ['classic', 'slate', 'wood', 'imperial'];
   if (themes.includes(raw.boardTheme)) base.boardTheme = raw.boardTheme;
-  const pieceStyles = ['medallion', 'heraldic', 'minimal'];
-  if (pieceStyles.includes(raw.pieceStyle)) base.pieceStyle = raw.pieceStyle;
+  const pieceStyleMap = {
+    standard: 'standard',
+    minimal: 'minimal',
+    medieval: 'medieval',
+    medallion: 'standard',
+    heraldic: 'medieval',
+  };
+  if (pieceStyleMap[raw.pieceStyle]) base.pieceStyle = pieceStyleMap[raw.pieceStyle];
+  else if (pieceStyleMap[base.pieceStyle]) base.pieceStyle = pieceStyleMap[base.pieceStyle];
+  else base.pieceStyle = 'standard';
   const doctrines = ['vanguard', 'bastion', 'celerity'];
   if (doctrines.includes(raw.doctrine)) base.doctrine = raw.doctrine;
   for (const key of ['showCoords', 'highlightMoves', 'autoQueueMove', 'confirmResign', 'soundEffects', 'lowTimeSound', 'reducedMotion']) {
@@ -1449,8 +1457,11 @@ function classicPseudoMoves(game, p) {
     }
     for (const dx of [-1, 1]) {
       const x = p.x + dx, y = p.y + dir;
-      if (x >= 0 && x < 8 && ((game.grid[y][x]?.owner === 1 - p.owner && game.grid[y][x]?.type !== 'K') ||
-        (game.enPassant?.x === x && game.enPassant?.y === y))) result.push([x, y]);
+      const isEp = game.enPassant?.x === x && game.enPassant?.y === y &&
+        game.grid[p.y]?.[x]?.owner === 1 - p.owner && game.grid[p.y]?.[x]?.type === 'P';
+      if (x >= 0 && x < 8 && y >= 0 && y < 8 && ((game.grid[y][x]?.owner === 1 - p.owner && game.grid[y][x]?.type !== 'K') || isEp)) {
+        result.push([x, y]);
+      }
     }
   } else if (p.type === 'N') {
     for (const [dx, dy] of KNIGHT) add(p.x + dx, p.y + dy);
