@@ -18,9 +18,12 @@ try {
   }
 } catch {}
 
-const PUBLIC_DIR = fsSync.existsSync(path.join(__dirname, 'public', 'index.html'))
-  ? path.join(__dirname, 'public')
-  : __dirname;
+const DIST_DIR = path.join(__dirname, 'dist');
+const PUBLIC_DIR = fsSync.existsSync(path.join(DIST_DIR, 'index.html'))
+  ? DIST_DIR
+  : fsSync.existsSync(path.join(__dirname, 'public', 'index.html'))
+    ? path.join(__dirname, 'public')
+    : __dirname;
 const DATA_FILE = path.resolve(process.env.DATA_FILE || path.join(__dirname, 'data', 'db.json'));
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -92,6 +95,7 @@ const sessions = new Map(); // tokenHash -> { tokenHash, uid, expiresAt, remembe
 const socketsByUser = new Map();
 const queue = [];
 const classicQueue = [];
+const tacticalQueue = [];
 const rooms = new Map();
 const challenges = new Map();
 const activeGames = new Map();
@@ -459,9 +463,13 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
   '.ico': 'image/x-icon'
 };
 
@@ -782,7 +790,7 @@ async function handleApi(req, res, url) {
     if (!user) return json(res, 401, { error: 'Sessão expirada.' });
     let body;
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Dados inválidos.' }); }
-    const mode = ['cpu', 'classic_cpu', 'arena', 'duel', 'tutorial'].includes(body.mode) ? body.mode : 'cpu';
+    const mode = ['cpu', 'classic_cpu', 'classic_local', 'arena', 'duel', 'tutorial'].includes(body.mode) ? body.mode : 'cpu';
     const difficulty = Number(body.difficulty) || 1;
     const won = body.result === 'win';
     const draw = body.result === 'draw';
@@ -831,13 +839,15 @@ async function handleApi(req, res, url) {
     const diffNames = { 1: 'Iniciante', 2: 'Fácil', 3: 'Normal', 4: 'Difícil', 5: 'Especialista' };
     const opponentName = mode === 'classic_cpu'
       ? `Bot de Xadrez (${diffNames[difficulty] || 'Normal'})`
-      : mode === 'cpu'
-      ? `CPU (${diffNames[difficulty] || 'Normal'})`
-      : mode === 'tutorial'
-        ? 'Mentor (Tutorial)'
-        : mode === 'duel'
-          ? 'Duelo Local'
-          : 'Arena 4 Facções';
+      : mode === 'classic_local'
+        ? 'Xadrez Local'
+        : mode === 'cpu'
+          ? `CPU (${diffNames[difficulty] || 'Normal'})`
+          : mode === 'tutorial'
+            ? 'Mentor (Tutorial)'
+            : mode === 'duel'
+              ? 'Duelo Local'
+              : 'Arena 4 Facções';
 
     db.games.unshift({
       id: id(),
@@ -857,6 +867,94 @@ async function handleApi(req, res, url) {
       ok: true,
       user: safeUser(user, true, true),
       games: userHistoryPayload(user.id)
+    });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/ranking') {
+    const mode = String(url.searchParams.get('mode') || 'duel');
+    const category = ['bullet', 'blitz', 'rapid', 'classic'].includes(url.searchParams.get('category'))
+      ? url.searchParams.get('category')
+      : 'blitz';
+
+    const tallyModeStats = (uid, modeFilter) => {
+      let wins = 0, losses = 0, draws = 0;
+      for (const g of db.games) {
+        if (!Array.isArray(g.players)) continue;
+        const side = g.players.indexOf(uid);
+        if (side < 0 || !modeFilter(g)) continue;
+        if (g.winner === null) draws++;
+        else if (g.winner === side) wins++;
+        else losses++;
+      }
+      const total = wins + losses + draws;
+      const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+      return { wins, losses, draws, total, winRate };
+    };
+
+    let entries = [];
+    if (mode === 'classic') {
+      entries = db.users.map(u => {
+        const rating = Number(u.classicRatings?.[category]) || 1200;
+        const stats = tallyModeStats(u.id, g => g.mode === 'classic');
+        return {
+          id: u.id,
+          username: u.username,
+          displayName: u.displayName || u.username,
+          avatar: ALLOWED_AVATARS.includes(u.avatar) ? u.avatar : '♟',
+          rating,
+          wins: stats.wins,
+          losses: stats.losses,
+          draws: stats.draws,
+          games: stats.total,
+          winRate: stats.winRate
+        };
+      }).sort((a, b) => b.rating - a.rating || b.wins - a.wins || a.username.localeCompare(b.username));
+    } else if (mode === 'tactical') {
+      entries = db.users.map(u => {
+        const stats = tallyModeStats(u.id, g => g.mode === 'tactical' || g.mode === 'tactical_cpu');
+        const onlineStats = tallyModeStats(u.id, g => g.mode === 'tactical');
+        const score = 1000 + onlineStats.wins * 25 - onlineStats.losses * 15 + stats.wins * 8;
+        return {
+          id: u.id,
+          username: u.username,
+          displayName: u.displayName || u.username,
+          avatar: ALLOWED_AVATARS.includes(u.avatar) ? u.avatar : '♟',
+          rating: score,
+          wins: stats.wins,
+          losses: stats.losses,
+          draws: stats.draws,
+          games: stats.total,
+          winRate: stats.winRate
+        };
+      }).sort((a, b) => b.wins - a.wins || b.rating - a.rating || a.username.localeCompare(b.username));
+    } else {
+      entries = db.users.map(u => {
+        const rating = Number(u.crownfluxRating) || 1200;
+        const div = getCrownfluxDivision(rating);
+        const stats = tallyModeStats(u.id, g => g.mode === 'online');
+        return {
+          id: u.id,
+          username: u.username,
+          displayName: u.displayName || u.username,
+          avatar: ALLOWED_AVATARS.includes(u.avatar) ? u.avatar : '♟',
+          rating,
+          division: div.name,
+          divisionIcon: div.icon,
+          wins: stats.wins,
+          losses: stats.losses,
+          draws: stats.draws,
+          games: stats.total,
+          winRate: stats.winRate,
+          crownWins: u.crownWins || 0,
+          regicideWins: u.regicideWins || 0
+        };
+      }).sort((a, b) => b.rating - a.rating || b.wins - a.wins || a.username.localeCompare(b.username));
+    }
+
+    return json(res, 200, {
+      mode,
+      category: mode === 'classic' ? category : undefined,
+      entries: entries.slice(0, 100).map((entry, idx) => ({ rank: idx + 1, ...entry }))
     });
   }
 
@@ -2635,6 +2733,8 @@ function createRoom(players, kind = 'private', options = {}) {
     if (queued >= 0) queue.splice(queued, 1);
     const classicQueued = classicQueue.findIndex(entry => entry.uid === player);
     if (classicQueued >= 0) classicQueue.splice(classicQueued, 1);
+    const tacticalQueued = tacticalQueue.indexOf(player);
+    if (tacticalQueued >= 0) tacticalQueue.splice(tacticalQueued, 1);
   }
   const cleanOpts = sanitizeMatchOptions(options);
   const codeLen = cleanOpts.mode === 'tactical_draft' ? 4 : 6;
@@ -3117,9 +3217,27 @@ async function handleSocketMessage(ws, msg) {
           createRoom([other.uid, ws.userId], 'public', options);
         } else {
           classicQueue.push({ uid: ws.userId, options });
-          send(ws, 'match:waiting', { position: classicQueue.length, mode: 'classic' });
+          send(ws, 'match:waiting', { position: classicQueue.length, mode: 'classic', timeControl: options.timeControl });
         }
         break;
+      }
+      if (msg.options?.mode === 'tactical_draft') {
+        if (!tacticalQueue.includes(ws.userId)) tacticalQueue.push(ws.userId);
+        const idx = tacticalQueue.findIndex(uid => uid !== ws.userId && isOnline(uid) && !findGameFor(uid));
+        if (idx >= 0) {
+          const other = tacticalQueue.splice(idx, 1)[0];
+          tacticalQueue.splice(tacticalQueue.indexOf(ws.userId), 1);
+          createRoom([other, ws.userId], 'public', { mode: 'tactical_draft' });
+        } else {
+          send(ws, 'match:waiting', { position: tacticalQueue.length, mode: 'tactical_draft' });
+        }
+        break;
+      }
+      if (msg.options?.doctrine) {
+        const u = db.users.find(x => x.id === ws.userId);
+        if (u && ['vanguard', 'bastion', 'celerity'].includes(msg.options.doctrine)) {
+          u.preferences = sanitizePreferences({ doctrine: msg.options.doctrine }, u.preferences);
+        }
       }
       if (!queue.includes(ws.userId)) queue.push(ws.userId);
       const index = queue.findIndex(uid => uid !== ws.userId && isOnline(uid) && !findGameFor(uid));
@@ -3128,7 +3246,7 @@ async function handleSocketMessage(ws, msg) {
         queue.splice(queue.indexOf(ws.userId), 1);
         createRoom([other, ws.userId], 'public');
       } else {
-        send(ws, 'match:waiting', { position: queue.length });
+        send(ws, 'match:waiting', { position: queue.length, mode: 'realtime' });
       }
       break;
     }
@@ -3137,6 +3255,8 @@ async function handleSocketMessage(ws, msg) {
       if (i >= 0) queue.splice(i, 1);
       const classicIndex = classicQueue.findIndex(entry => entry.uid === ws.userId);
       if (classicIndex >= 0) classicQueue.splice(classicIndex, 1);
+      const tacIndex = tacticalQueue.indexOf(ws.userId);
+      if (tacIndex >= 0) tacticalQueue.splice(tacIndex, 1);
       send(ws, 'match:cancelled', {});
       break;
     }
@@ -3483,8 +3603,27 @@ const server = http.createServer(async (req, res) => {
   }
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === '/') pathname = '/index.html';
-  const allowedExts = new Set(['.html', '.css', '.js', '.json', '.svg', '.png', '.ico']);
-  if (!allowedExts.has(path.extname(pathname))) {
+  const ext = path.extname(pathname);
+  const allowedExts = new Set(['.html', '.css', '.js', '.mjs', '.json', '.svg', '.png', '.webp', '.woff2', '.woff', '.ico']);
+
+  // SPA fallback: browser routes without file extensions (e.g. /modes, /modes/duelo, /ranking, /game/123)
+  if (!ext) {
+    try {
+      const htmlData = await fs.readFile(path.join(PUBLIC_DIR, 'index.html'));
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-cache'
+      });
+      res.end(htmlData);
+      return;
+    } catch {
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
+      return;
+    }
+  }
+
+  if (!allowedExts.has(ext)) {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('Not found');
     return;
@@ -3496,10 +3635,10 @@ const server = http.createServer(async (req, res) => {
   try {
     const data = await fs.readFile(file);
     res.writeHead(200, {
-      'content-type': MIME[path.extname(file)] || 'application/octet-stream',
-      'cache-control': ['.html', '.js', '.css'].includes(path.extname(file))
+      'content-type': MIME[ext] || 'application/octet-stream',
+      'cache-control': ['.html', '.js', '.css'].includes(ext) && !pathname.startsWith('/assets/')
         ? 'no-cache'
-        : 'public, max-age=3600'
+        : 'public, max-age=31536000, immutable'
     });
     res.end(data);
   } catch {
@@ -3568,6 +3707,8 @@ wss.on('connection', ws => {
       if (i >= 0) queue.splice(i, 1);
       const classicIndex = classicQueue.findIndex(entry => entry.uid === uid);
       if (classicIndex >= 0) classicQueue.splice(classicIndex, 1);
+      const tacIndex = tacticalQueue.indexOf(uid);
+      if (tacIndex >= 0) tacticalQueue.splice(tacIndex, 1);
       const game = findGameFor(uid);
       if (game) {
         if (game.mode === 'tactical_draft') {
