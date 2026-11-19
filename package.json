@@ -5,8 +5,7 @@
   "type": "module",
   "description": "Crownflux.io — jogo de estratégia multiplayer em tempo real (React + Vite + WebSocket)",
   "scripts": {
-    "postinstall": "node scripts/copy-stockfish.mjs",
-    "dev": "vite",
+    "dev": "node scripts/copy-stockfish.mjs && vite",
     "dev:server": "node --watch server.mjs",
     "build": "node scripts/copy-stockfish.mjs && vite build",
     "preview": "vite preview",
