@@ -16,13 +16,11 @@ import {
   getAllLegalUciMoves,
   getClassicMoves,
   getClassicPremoveTargets,
-  getLegalArrowTargets,
   isPromotionMove,
   reconstructClassicStates,
   stateToFen,
   stateToPgn,
   stepClassicState,
-  validateClassicMoveArrow,
 } from '../../game/classicEngine.js';
 import { preloadChessPieceStyle } from '../../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../../game/classicRenderer.js';
@@ -122,9 +120,8 @@ export default function ClassicMatchView({ match }) {
   const onlineSavedRef = useRef(false);
   const localPremoveRef = useRef(null); // { pieceId, fromX, fromY, toX, toY, promotion }
 
-  // Ferramentas de marcação (separando Seta de Movimento Legal vs Marcação Livre)
+  // Marcação feita pelo botão direito ou pelo modo de toque
   const [annotateMode, setAnnotateMode] = useState(false);
-  const [freeAnnotateMode, setFreeAnnotateMode] = useState(false);
   const [annotateColorIdx, setAnnotateColorIdx] = useState(0);
   const annotationsRef = useRef({
     squares: [],
@@ -550,9 +547,7 @@ export default function ClassicMatchView({ match }) {
       rightDragStartRef.current = { x: coords.bx, y: coords.by, colorObj };
       annotationsRef.current.previewArrow = null;
       annotationsRef.current.invalidTarget = null;
-      annotationsRef.current.legalArrowTargets = freeAnnotateMode
-        ? []
-        : getLegalArrowTargets(boardState, coords.bx, coords.by);
+      annotationsRef.current.legalArrowTargets = [];
       try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
       return;
     }
@@ -626,36 +621,15 @@ export default function ClassicMatchView({ match }) {
       }
       const st = rightDragStartRef.current;
       if (st.x !== coords.bx || st.y !== coords.by) {
-        if (freeAnnotateMode) {
-          annotationsRef.current.invalidTarget = null;
-          annotationsRef.current.previewArrow = {
-            x0: st.x,
-            y0: st.y,
-            x1: coords.bx,
-            y1: coords.by,
-            color: st.colorObj.arrow,
-            dashed: true,
-          };
-        } else {
-          const boardState = getDisplayedBoardState() || S;
-          const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
-          if (validation.legal) {
-            annotationsRef.current.invalidTarget = null;
-            annotationsRef.current.previewArrow = {
-              x0: st.x,
-              y0: st.y,
-              x1: coords.bx,
-              y1: coords.by,
-              color: st.colorObj.arrow,
-              dashed: false,
-              pieceType: validation.piece.t,
-              promotion: validation.promotion,
-            };
-          } else {
-            annotationsRef.current.previewArrow = null;
-            annotationsRef.current.invalidTarget = { x: coords.bx, y: coords.by };
-          }
-        }
+        annotationsRef.current.previewArrow = {
+          x0: st.x,
+          y0: st.y,
+          x1: coords.bx,
+          y1: coords.by,
+          color: st.colorObj.arrow,
+          dashed: true,
+        };
+        annotationsRef.current.invalidTarget = null;
       } else {
         annotationsRef.current.previewArrow = null;
         annotationsRef.current.invalidTarget = null;
@@ -684,7 +658,7 @@ export default function ClassicMatchView({ match }) {
         const idx = annotationsRef.current.squares.findIndex((sq) => sq.x === coords.bx && sq.y === coords.by);
         if (idx >= 0) annotationsRef.current.squares.splice(idx, 1);
         else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: st.colorObj.sq });
-      } else if (freeAnnotateMode) {
+      } else {
         const idx = annotationsRef.current.arrows.findIndex(
           (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
         );
@@ -697,30 +671,6 @@ export default function ClassicMatchView({ match }) {
             y1: coords.by,
             color: st.colorObj.arrow,
             dashed: true,
-          });
-        }
-      } else {
-        const boardState = getDisplayedBoardState() || S;
-        const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
-        if (!validation.legal) {
-          showToast(validation.message || 'Movimento ilegal nesta posição.', 'warn');
-          setHudTick((t) => t + 1);
-          return;
-        }
-        const idx = annotationsRef.current.arrows.findIndex(
-          (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && !a.dashed
-        );
-        if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
-        else {
-          annotationsRef.current.arrows.push({
-            x0: st.x,
-            y0: st.y,
-            x1: coords.bx,
-            y1: coords.by,
-            color: st.colorObj.arrow,
-            dashed: false,
-            pieceType: validation.piece.t,
-            promotion: validation.promotion,
           });
         }
       }
@@ -1043,22 +993,6 @@ export default function ClassicMatchView({ match }) {
           {renderPlayerBar(bottomSide, 'bottom')}
 
           <div className="chess-board-toolbar">
-            <button
-              type="button"
-              className={`mini-btn${!freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode(false)}
-              title="Setas partindo de uma peça respeitam apenas seus movimentos legais"
-            >
-              ♟ Setas Legais
-            </button>
-            <button
-              type="button"
-              className={`mini-btn${freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode((v) => !v)}
-              title="Permite desenhar setas estratégicas livres entre quaisquer casas"
-            >
-              ✦ Marcação Livre
-            </button>
             <button
               type="button"
               className={`mini-btn${annotateMode ? ' accent' : ''}`}

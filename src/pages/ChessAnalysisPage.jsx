@@ -14,10 +14,8 @@ import {
   createClassicState,
   doClassicMove,
   getClassicMoves,
-  getLegalArrowTargets,
   reconstructClassicStates,
   stateToFen,
-  validateClassicMoveArrow,
 } from '../game/classicEngine.js';
 import { preloadChessPieceStyle } from '../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../game/classicRenderer.js';
@@ -83,9 +81,8 @@ export default function ChessAnalysisPage() {
   const [variationState, setVariationState] = useState(null);
   const [variationEval, setVariationEval] = useState(null);
 
-  // Ferramentas de setas legais e marcações livres na análise pós-partida
+  // Marcação feita pelo botão direito ou pelo modo de toque
   const [annotateMode, setAnnotateMode] = useState(false);
-  const [freeAnnotateMode, setFreeAnnotateMode] = useState(false);
   const [annotateTick, setAnnotateTick] = useState(0);
   const annotationsRef = useRef({
     squares: [],
@@ -304,9 +301,7 @@ export default function ChessAnalysisPage() {
     rightDragStartRef.current = { x: coords.bx, y: coords.by };
     annotationsRef.current.previewArrow = null;
     annotationsRef.current.invalidTarget = null;
-    annotationsRef.current.legalArrowTargets = freeAnnotateMode
-      ? []
-      : getLegalArrowTargets(boardState, coords.bx, coords.by);
+    annotationsRef.current.legalArrowTargets = [];
     setAnnotateTick((t) => t + 1);
   };
 
@@ -324,7 +319,7 @@ export default function ChessAnalysisPage() {
     if (st.x === coords.bx && st.y === coords.by) {
       annotationsRef.current.previewArrow = null;
       annotationsRef.current.invalidTarget = null;
-    } else if (freeAnnotateMode) {
+    } else {
       annotationsRef.current.invalidTarget = null;
       annotationsRef.current.previewArrow = {
         x0: st.x,
@@ -334,24 +329,6 @@ export default function ChessAnalysisPage() {
         color: 'rgba(235, 179, 68, 0.85)',
         dashed: true,
       };
-    } else {
-      const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
-      if (validation.legal) {
-        annotationsRef.current.invalidTarget = null;
-        annotationsRef.current.previewArrow = {
-          x0: st.x,
-          y0: st.y,
-          x1: coords.bx,
-          y1: coords.by,
-          color: 'rgba(235, 179, 68, 0.86)',
-          dashed: false,
-          pieceType: validation.piece.t,
-          promotion: validation.promotion,
-        };
-      } else {
-        annotationsRef.current.previewArrow = null;
-        annotationsRef.current.invalidTarget = { x: coords.bx, y: coords.by };
-      }
     }
     setAnnotateTick((t) => t + 1);
   };
@@ -374,7 +351,7 @@ export default function ChessAnalysisPage() {
       const idx = annotationsRef.current.squares.findIndex((sq) => sq.x === coords.bx && sq.y === coords.by);
       if (idx >= 0) annotationsRef.current.squares.splice(idx, 1);
       else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: 'rgba(235, 179, 68, 0.42)' });
-    } else if (freeAnnotateMode) {
+    } else {
       const idx = annotationsRef.current.arrows.findIndex(
         (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
       );
@@ -387,29 +364,6 @@ export default function ChessAnalysisPage() {
           y1: coords.by,
           color: 'rgba(235, 179, 68, 0.85)',
           dashed: true,
-        });
-      }
-    } else {
-      const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
-      if (!validation.legal) {
-        showToast(validation.message || 'Movimento ilegal nesta posição.', 'warn');
-        setAnnotateTick((t) => t + 1);
-        return;
-      }
-      const idx = annotationsRef.current.arrows.findIndex(
-        (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && !a.dashed
-      );
-      if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
-      else {
-        annotationsRef.current.arrows.push({
-          x0: st.x,
-          y0: st.y,
-          x1: coords.bx,
-          y1: coords.by,
-          color: 'rgba(235, 179, 68, 0.86)',
-          dashed: false,
-          pieceType: validation.piece.t,
-          promotion: validation.promotion,
         });
       }
     }
@@ -549,20 +503,6 @@ export default function ChessAnalysisPage() {
           </div>
 
           <div className="chess-board-toolbar" style={{ marginTop: 8 }}>
-            <button
-              type="button"
-              className={`mini-btn${!freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode(false)}
-            >
-              ♟ Setas Legais
-            </button>
-            <button
-              type="button"
-              className={`mini-btn${freeAnnotateMode ? ' accent' : ''}`}
-              onClick={() => setFreeAnnotateMode((v) => !v)}
-            >
-              ✦ Marcação Livre
-            </button>
             <button
               type="button"
               className={`mini-btn${annotateMode ? ' accent' : ''}`}

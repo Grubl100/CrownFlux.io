@@ -53,7 +53,7 @@ function drawArrow(ctx, x0, y0, x1, y1, cell, flipped, options = {}) {
 
   const adx = Math.abs(x1 - x0);
   const ady = Math.abs(y1 - y0);
-  const isKnightL = !dashed && (pieceType === 'N' || (adx === 2 && ady === 1) || (adx === 1 && ady === 2));
+  const isKnightL = (adx === 2 && ady === 1) || (adx === 1 && ady === 2);
 
   const headLen = Math.max(12, cell * 0.34);
   const headWidth = Math.max(10, cell * 0.28);
