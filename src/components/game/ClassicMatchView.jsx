@@ -16,12 +16,15 @@ import {
   getAllLegalUciMoves,
   getClassicMoves,
   getClassicPremoveTargets,
+  getLegalArrowTargets,
   isPromotionMove,
   reconstructClassicStates,
   stateToFen,
   stateToPgn,
   stepClassicState,
+  validateClassicMoveArrow,
 } from '../../game/classicEngine.js';
+import { preloadChessPieceStyle } from '../../game/chessPieceAssets.js';
 import { drawClassicBoard, viewToBoard } from '../../game/classicRenderer.js';
 import { saveClassicRecord } from '../../utils/classicStorage.js';
 import { fmtChessClock } from '../../utils/format.js';
@@ -123,9 +126,19 @@ export default function ClassicMatchView({ match }) {
   const [annotateMode, setAnnotateMode] = useState(false);
   const [freeAnnotateMode, setFreeAnnotateMode] = useState(false);
   const [annotateColorIdx, setAnnotateColorIdx] = useState(0);
-  const annotationsRef = useRef({ squares: [], arrows: [], previewArrow: null });
+  const annotationsRef = useRef({
+    squares: [],
+    arrows: [],
+    previewArrow: null,
+    invalidTarget: null,
+    legalArrowTargets: [],
+  });
   const rightDragStartRef = useRef(null);
   const leftDragRef = useRef(null);
+
+  useEffect(() => {
+    preloadChessPieceStyle(prefs.pieceStyle || 'standard');
+  }, [prefs.pieceStyle]);
 
   const [hudTick, setHudTick] = useState(0);
   const [confirmExit, setConfirmExit] = useState(null); // 'resign' | 'menu' | 'local_draw'
@@ -293,7 +306,13 @@ export default function ClassicMatchView({ match }) {
     lowTimeAlertedRef.current = false;
     onlineSavedRef.current = false;
     localPremoveRef.current = null;
-    annotationsRef.current = { squares: [], arrows: [], previewArrow: null };
+    annotationsRef.current = {
+      squares: [],
+      arrows: [],
+      previewArrow: null,
+      invalidTarget: null,
+      legalArrowTargets: [],
+    };
     setReviewPly(null);
     setPendingPromo(null);
 
@@ -356,6 +375,43 @@ export default function ClassicMatchView({ match }) {
     return () => window.removeEventListener('resize', resizeCanvas);
   }, [resizeCanvas]);
 
+  const getDisplayedBoardState = useCallback(() => {
+    const S = stateRef.current;
+    if (!S) return null;
+    if (reviewPly !== null && S.moveHistory?.length) {
+      const snaps = reconstructClassicStates(S.moveHistory.map((m) => m.uci));
+      const snap = snaps[Math.min(reviewPly, snaps.length - 1)];
+      if (snap) {
+        const pieces = snap.pieces.map((p) => ({ ...p }));
+        const g = Array.from({ length: 8 }, () => Array(8).fill(null));
+        for (const p of pieces) g[p.y][p.x] = p;
+        return {
+          ...S,
+          grid: g,
+          pieces,
+          castle: snap.castle ? snap.castle.map((c) => ({ ...c })) : S.castle,
+          enPassant: snap.enPassant ? { ...snap.enPassant } : null,
+          sel: null,
+          lastMove: snap.lastMove,
+          turnOwner: snap.turnOwner,
+          checkmatedKingOwner: snap.checkmatedKingOwner,
+        };
+      }
+    }
+    return S;
+  }, [reviewPly]);
+
+  useEffect(() => {
+    // Ao navegar no histórico, limpa setas da posição anterior para evitar marcas fora de contexto
+    annotationsRef.current = {
+      squares: [],
+      arrows: [],
+      previewArrow: null,
+      invalidTarget: null,
+      legalArrowTargets: [],
+    };
+  }, [reviewPly]);
+
   // Render loop + relógio oficial + alerta controlado dos 10s
   useEffect(() => {
     let rafId = 0;
@@ -388,23 +444,7 @@ export default function ClassicMatchView({ match }) {
         const canvas = canvasRef.current;
         if (canvas) {
           const ctx = canvas.getContext('2d');
-          let drawState = S;
-          if (reviewPly !== null && S.moveHistory?.length) {
-            const snaps = reconstructClassicStates(S.moveHistory.map((m) => m.uci));
-            const snap = snaps[Math.min(reviewPly, snaps.length - 1)];
-            if (snap) {
-              const g = Array.from({ length: 8 }, () => Array(8).fill(null));
-              for (const p of snap.pieces) g[p.y][p.x] = p;
-              drawState = {
-                ...S,
-                grid: g,
-                pieces: snap.pieces,
-                sel: null,
-                lastMove: snap.lastMove,
-                turnOwner: snap.turnOwner,
-              };
-            }
-          }
+          const drawState = getDisplayedBoardState() || S;
 
           const activePremove = isOnline
             ? (S.myPremove ? { fromX: S.myPremove.fromX, fromY: S.myPremove.fromY, toX: S.myPremove.x, toY: S.myPremove.y } : null)
@@ -431,7 +471,7 @@ export default function ClassicMatchView({ match }) {
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [isOnline, isLocal, confirmExit, pendingPromo, playerSide, flipped, reviewPly]);
+  }, [isOnline, isLocal, confirmExit, pendingPromo, playerSide, flipped, reviewPly, getDisplayedBoardState]);
 
   const getBoardCoords = (e) => {
     const canvas = canvasRef.current;
@@ -488,11 +528,11 @@ export default function ClassicMatchView({ match }) {
     }
   };
 
-  const isLegalPieceArrow = (S, x0, y0, x1, y1) => {
-    if (freeAnnotateMode) return true;
-    const piece = S.grid?.[y0]?.[x0];
-    if (!piece) return true; // Casa vazia -> anotação livre de área
-    return getClassicMoves(S, piece).some(([mx, my]) => mx === x1 && my === y1);
+  const clearTransientArrowDrag = () => {
+    rightDragStartRef.current = null;
+    annotationsRef.current.previewArrow = null;
+    annotationsRef.current.invalidTarget = null;
+    annotationsRef.current.legalArrowTargets = [];
   };
 
   const onCanvasPointerDown = (e) => {
@@ -505,16 +545,28 @@ export default function ClassicMatchView({ match }) {
     if (isAnnotateGesture) {
       e.preventDefault();
       if (e.button === 2) cancelActivePremove();
+      const boardState = getDisplayedBoardState() || S;
       const colorObj = pickAnnotationColor(e);
       rightDragStartRef.current = { x: coords.bx, y: coords.by, colorObj };
       annotationsRef.current.previewArrow = null;
+      annotationsRef.current.invalidTarget = null;
+      annotationsRef.current.legalArrowTargets = freeAnnotateMode
+        ? []
+        : getLegalArrowTargets(boardState, coords.bx, coords.by);
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
       return;
     }
 
     if (e.button !== 0) return;
 
     if (annotationsRef.current.squares.length || annotationsRef.current.arrows.length) {
-      annotationsRef.current = { squares: [], arrows: [], previewArrow: null };
+      annotationsRef.current = {
+        squares: [],
+        arrows: [],
+        previewArrow: null,
+        invalidTarget: null,
+        legalArrowTargets: [],
+      };
     }
 
     if (S.over || reviewPly !== null) return;
@@ -566,19 +618,47 @@ export default function ClassicMatchView({ match }) {
   const onCanvasPointerMove = (e) => {
     const S = stateRef.current;
     const coords = getBoardCoords(e);
-    if (rightDragStartRef.current && coords && S) {
+    if (rightDragStartRef.current && S) {
+      if (!coords) {
+        annotationsRef.current.previewArrow = null;
+        annotationsRef.current.invalidTarget = null;
+        return;
+      }
       const st = rightDragStartRef.current;
       if (st.x !== coords.bx || st.y !== coords.by) {
-        const legal = isLegalPieceArrow(S, st.x, st.y, coords.bx, coords.by);
-        annotationsRef.current.previewArrow = {
-          x0: st.x,
-          y0: st.y,
-          x1: coords.bx,
-          y1: coords.by,
-          color: legal ? st.colorObj.arrow : 'rgba(224, 86, 86, 0.35)',
-        };
+        if (freeAnnotateMode) {
+          annotationsRef.current.invalidTarget = null;
+          annotationsRef.current.previewArrow = {
+            x0: st.x,
+            y0: st.y,
+            x1: coords.bx,
+            y1: coords.by,
+            color: st.colorObj.arrow,
+            dashed: true,
+          };
+        } else {
+          const boardState = getDisplayedBoardState() || S;
+          const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+          if (validation.legal) {
+            annotationsRef.current.invalidTarget = null;
+            annotationsRef.current.previewArrow = {
+              x0: st.x,
+              y0: st.y,
+              x1: coords.bx,
+              y1: coords.by,
+              color: st.colorObj.arrow,
+              dashed: false,
+              pieceType: validation.piece.t,
+              promotion: validation.promotion,
+            };
+          } else {
+            annotationsRef.current.previewArrow = null;
+            annotationsRef.current.invalidTarget = { x: coords.bx, y: coords.by };
+          }
+        }
       } else {
         annotationsRef.current.previewArrow = null;
+        annotationsRef.current.invalidTarget = null;
       }
       return;
     }
@@ -596,22 +676,17 @@ export default function ClassicMatchView({ match }) {
     const coords = getBoardCoords(e);
     if (rightDragStartRef.current) {
       const st = rightDragStartRef.current;
-      rightDragStartRef.current = null;
-      annotationsRef.current.previewArrow = null;
+      clearTransientArrowDrag();
+      try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
       if (!coords || !S) return;
 
       if (st.x === coords.bx && st.y === coords.by) {
         const idx = annotationsRef.current.squares.findIndex((sq) => sq.x === coords.bx && sq.y === coords.by);
         if (idx >= 0) annotationsRef.current.squares.splice(idx, 1);
         else annotationsRef.current.squares.push({ x: coords.bx, y: coords.by, color: st.colorObj.sq });
-      } else {
-        if (!isLegalPieceArrow(S, st.x, st.y, coords.bx, coords.by)) {
-          showToast('Seta bloqueada: movimento ilegal para essa peça. Ative "Marcação Livre" para setas abstratas.', 'warn');
-          setHudTick((t) => t + 1);
-          return;
-        }
+      } else if (freeAnnotateMode) {
         const idx = annotationsRef.current.arrows.findIndex(
-          (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by
+          (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && Boolean(a.dashed)
         );
         if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
         else {
@@ -621,7 +696,31 @@ export default function ClassicMatchView({ match }) {
             x1: coords.bx,
             y1: coords.by,
             color: st.colorObj.arrow,
-            dashed: freeAnnotateMode,
+            dashed: true,
+          });
+        }
+      } else {
+        const boardState = getDisplayedBoardState() || S;
+        const validation = validateClassicMoveArrow(boardState, st.x, st.y, coords.bx, coords.by);
+        if (!validation.legal) {
+          showToast(validation.message || 'Movimento ilegal nesta posição.', 'warn');
+          setHudTick((t) => t + 1);
+          return;
+        }
+        const idx = annotationsRef.current.arrows.findIndex(
+          (a) => a.x0 === st.x && a.y0 === st.y && a.x1 === coords.bx && a.y1 === coords.by && !a.dashed
+        );
+        if (idx >= 0) annotationsRef.current.arrows.splice(idx, 1);
+        else {
+          annotationsRef.current.arrows.push({
+            x0: st.x,
+            y0: st.y,
+            x1: coords.bx,
+            y1: coords.by,
+            color: st.colorObj.arrow,
+            dashed: false,
+            pieceType: validation.piece.t,
+            promotion: validation.promotion,
           });
         }
       }
@@ -645,6 +744,11 @@ export default function ClassicMatchView({ match }) {
         }
       }
     }
+  };
+
+  const onCanvasPointerCancel = () => {
+    clearTransientArrowDrag();
+    leftDragRef.current = null;
   };
 
   const handlePromoSelect = (choice) => {
@@ -926,10 +1030,12 @@ export default function ClassicMatchView({ match }) {
           <div className="board-wrap-react">
             <canvas
               ref={canvasRef}
+              style={{ touchAction: 'none' }}
               onContextMenu={(e) => e.preventDefault()}
               onPointerDown={onCanvasPointerDown}
               onPointerMove={onCanvasPointerMove}
               onPointerUp={onCanvasPointerUp}
+              onPointerCancel={onCanvasPointerCancel}
               aria-label="Tabuleiro de Xadrez Clássico 8x8"
             />
           </div>
@@ -977,7 +1083,13 @@ export default function ClassicMatchView({ match }) {
               type="button"
               className="mini-btn"
               onClick={() => {
-                annotationsRef.current = { squares: [], arrows: [], previewArrow: null };
+                annotationsRef.current = {
+      squares: [],
+      arrows: [],
+      previewArrow: null,
+      invalidTarget: null,
+      legalArrowTargets: [],
+    };
                 setHudTick((t) => t + 1);
               }}
             >
@@ -1128,6 +1240,7 @@ export default function ClassicMatchView({ match }) {
       {pendingPromo && (
         <ChessPromotionDialog
           side={pendingPromo.piece.o}
+          pieceStyle={prefs.pieceStyle}
           onSelect={handlePromoSelect}
           onCancel={() => setPendingPromo(null)}
         />
