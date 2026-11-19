@@ -31,7 +31,7 @@ export default function MainNavigation() {
       <nav className="main-nav" aria-label="Navegação principal">
         <NavLink
           to="/modes"
-          className={() => `nav-btn primary-nav${isModesActive ? ' active' : ''}`}
+          className={() => `nav-btn ${isModesActive ? ' active' : ''}`}
         >
           <span className="nav-ic">⚔️</span>
           <span>Modos</span>
