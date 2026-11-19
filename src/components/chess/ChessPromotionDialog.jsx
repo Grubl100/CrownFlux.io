@@ -1,9 +1,11 @@
 import React from 'react';
-import { GLYPH, NOME } from '../../utils/constants.js';
+import { getChessPieceDataUrl, normalizePieceStyle } from '../../game/chessPieceAssets.js';
+import { NOME } from '../../utils/constants.js';
 
 const OPTIONS = ['Q', 'R', 'B', 'N'];
 
-export default function ChessPromotionDialog({ side = 0, onSelect, onCancel }) {
+export default function ChessPromotionDialog({ side = 0, pieceStyle = 'standard', onSelect, onCancel }) {
+  const normStyle = normalizePieceStyle(pieceStyle);
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Escolher promoção do peão">
       <div className="modal-card promo-modal-card">
@@ -19,7 +21,13 @@ export default function ChessPromotionDialog({ side = 0, onSelect, onCancel }) {
               className="promo-choice-btn"
               onClick={() => onSelect(t)}
             >
-              <span className="promo-glyph">{GLYPH[t]}</span>
+              <img
+                src={getChessPieceDataUrl(normStyle, t, side)}
+                alt={NOME[t]}
+                className="promo-piece-img"
+                width={44}
+                height={44}
+              />
               <span>{NOME[t]}</span>
             </button>
           ))}
