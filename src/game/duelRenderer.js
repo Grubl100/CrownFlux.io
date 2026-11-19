@@ -247,7 +247,7 @@ export function drawDuelBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 0) 
     }
   }
 
-  const pStyle = prefs?.pieceStyle || 'medallion';
+  const pStyle = prefs?.pieceStyle || 'standard';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -276,7 +276,7 @@ export function drawDuelBoard(ctx, canvas, S, cell, dpr, prefs, viewerSide = 0) 
     ctx.arc(cx, cy + cell * 0.04, rad, 0, Math.PI * 2);
     ctx.fill();
 
-    if (pStyle === 'heraldic' && !isNeutral) {
+    if ((pStyle === 'heraldic' || pStyle === 'medieval') && !isNeutral) {
       ctx.fillStyle = '#1b221e';
       ctx.strokeStyle = isCrownHolder ? '#ffdf7e' : col;
       ctx.lineWidth = isCrownHolder ? 2.8 : 2.1;

@@ -261,7 +261,9 @@ function classicPseudoMoves(S, p, grid = S.grid) {
     for (const dx of [-1, 1]) {
       const a = x + dx;
       const b = y + dir;
-      if (a >= 0 && a < 8 && b >= 0 && b < 8 && ((grid[b]?.[a]?.o === 1 - o && grid[b][a]?.t !== 'K') || (S.enPassant?.x === a && S.enPassant?.y === b))) {
+      const isEp = S.enPassant?.x === a && S.enPassant?.y === b
+        && grid[y]?.[a]?.o === 1 - o && grid[y]?.[a]?.t === 'P';
+      if (a >= 0 && a < 8 && b >= 0 && b < 8 && ((grid[b]?.[a]?.o === 1 - o && grid[b][a]?.t !== 'K') || isEp)) {
         result.push([a, b]);
       }
     }
@@ -312,6 +314,71 @@ export function getClassicMoves(S, p, grid = S.grid) {
 export function isPromotionMove(S, p, x, y) {
   if (!p || p.t !== 'P') return false;
   return (p.o === 0 && y === 0) || (p.o === 1 && y === 7);
+}
+
+// Obtém os destinos legais reais para setas partindo de (fromX, fromY) usando getClassicMoves
+export function getLegalArrowTargets(S, fromX, fromY) {
+  if (!S || !S.grid || fromX < 0 || fromY < 0 || fromX >= 8 || fromY >= 8) return [];
+  const piece = S.grid[fromY]?.[fromX];
+  if (!piece) return [];
+  return getClassicMoves(S, piece);
+}
+
+// Validador oficial de setas de movimento legal no Xadrez Clássico.
+// Consulta diretamente getClassicMoves (mesmo gerador de lances legais do jogo).
+export function validateClassicMoveArrow(S, fromX, fromY, toX, toY, options = {}) {
+  if (!S || !S.grid) {
+    return { legal: false, reason: 'no_state', message: 'Tabuleiro indisponível.' };
+  }
+  if (fromX < 0 || fromY < 0 || fromX >= 8 || fromY >= 8 || toX < 0 || toY < 0 || toX >= 8 || toY >= 8) {
+    return { legal: false, reason: 'out_of_bounds', message: 'Destino fora do tabuleiro.' };
+  }
+  if (fromX === toX && fromY === toY) {
+    return { legal: false, reason: 'same_square', message: 'Origem e destino iguais.' };
+  }
+
+  const piece = S.grid[fromY]?.[fromX];
+  if (!piece) {
+    return {
+      legal: false,
+      reason: 'empty_origin',
+      message: 'Setas de movimento exigem uma peça na casa de origem. Use "Marcação Livre" para anotações abstratas.',
+    };
+  }
+
+  const legalTargets = getClassicMoves(S, piece);
+  const isLegal = legalTargets.some(([mx, my]) => mx === toX && my === toY);
+  if (!isLegal) {
+    const pieceLabel = NOME[piece.t] || 'Peça';
+    return {
+      legal: false,
+      reason: 'illegal_move',
+      piece,
+      legalTargets,
+      message: `Movimento ilegal para ${pieceLabel} nesta posição.`,
+    };
+  }
+
+  const target = S.grid[toY]?.[toX];
+  const isEnPassant = piece.t === 'P' && fromX !== toX && !target;
+  const isCapture = Boolean(target) || isEnPassant;
+  const isCastle = piece.t === 'K' && Math.abs(toX - fromX) === 2;
+  const isPromotion = isPromotionMove(S, piece, toX, toY);
+  const promoChoice = isPromotion
+    ? (['Q', 'R', 'B', 'N'].includes(String(options.promotion || '').toUpperCase()) ? String(options.promotion).toUpperCase() : 'Q')
+    : null;
+
+  return {
+    legal: true,
+    reason: 'ok',
+    piece,
+    isCapture,
+    isEnPassant,
+    isCastle,
+    isPromotion,
+    promotion: promoChoice,
+    legalTargets,
+  };
 }
 
 function classicInsufficientMaterial(S) {
@@ -510,6 +577,8 @@ export function reconstructClassicStates(uciMoves = []) {
       ply: 0,
       fen: stateToFen(base),
       pieces: base.pieces.map((p) => ({ ...p })),
+      castle: base.castle.map((c) => ({ ...c })),
+      enPassant: base.enPassant ? { ...base.enPassant } : null,
       lastMove: null,
       turnOwner: 0,
       move: null,
@@ -524,6 +593,8 @@ export function reconstructClassicStates(uciMoves = []) {
       ply: base.moveHistory.length,
       fen: lastEntry.fenAfter,
       pieces: base.pieces.map((p) => ({ ...p })),
+      castle: base.castle.map((c) => ({ ...c })),
+      enPassant: base.enPassant ? { ...base.enPassant } : null,
       lastMove: base.lastMove ? { ...base.lastMove } : null,
       turnOwner: base.turnOwner,
       move: lastEntry,
