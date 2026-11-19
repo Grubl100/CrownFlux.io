@@ -3525,3 +3525,131 @@ select:focus {
   height: auto;
   align-self: flex-start;
 }
+
+.settings-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-sublabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted, #9aa8b6);
+}
+
+.piece-style-selector-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.piece-style-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.piece-style-header > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.piece-style-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.piece-style-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--border);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.piece-style-card:hover {
+  border-color: var(--accent);
+}
+
+.piece-style-card.active {
+  border-color: var(--gold, #cfaf72);
+  background: color-mix(in srgb, var(--bg-elev) 88%, var(--gold, #cfaf72) 12%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold, #cfaf72) 45%, transparent);
+}
+
+.piece-style-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.piece-style-selected-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold, #cfaf72) 22%, transparent);
+  color: var(--gold, #cfaf72);
+  border: 1px solid color-mix(in srgb, var(--gold, #cfaf72) 50%, transparent);
+}
+
+.piece-style-board-preview {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.piece-preview-row {
+  display: grid;
+  grid-template-columns: repeat(6, 40px);
+}
+
+.piece-preview-cell {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.piece-preview-cell img {
+  width: 34px;
+  height: 34px;
+  display: block;
+  pointer-events: none;
+}
+
+.promo-piece-img {
+  width: 44px;
+  height: 44px;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .piece-preview-row {
+    grid-template-columns: repeat(6, 34px);
+  }
+  .piece-preview-cell {
+    width: 34px;
+    height: 34px;
+  }
+  .piece-preview-cell img {
+    width: 28px;
+    height: 28px;
+  }
+}
