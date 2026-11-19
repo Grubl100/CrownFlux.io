@@ -157,7 +157,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h3>Controles, Animações & Áudio</h3>
+          <h3 style={{paddingBottom:"14px"}}>Controles, Animações & Áudio</h3>
           <div className="form-stack">
             {[
               ['showCoords', 'Exibir coordenadas no tabuleiro'],

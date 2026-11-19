@@ -1130,7 +1130,23 @@ select:focus {
 }
 
 .check-row input {
-  width: auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 18px;
+  accent-color: var(--gold);
+  border: 1.5px solid var(--border-strong, #596977);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.check-row input:hover {
+  border-color: var(--gold);
+}
+
+.check-row input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gold) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .avatar-selector-grid {
