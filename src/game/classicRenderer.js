@@ -23,12 +23,9 @@ function drawArrowHead(ctx, tipX, tipY, ux, uy, headLen, headWidth, outlined = f
   ctx.lineTo(tipX - ux * headLen + uy * (headWidth / 2), tipY - uy * headLen - ux * (headWidth / 2));
   ctx.closePath();
   if (outlined) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(18, 23, 29, 0.55)';
     ctx.fill();
     ctx.lineWidth = Math.max(2, headWidth * 0.14);
     ctx.stroke();
-    ctx.restore();
   } else {
     ctx.fill();
   }
